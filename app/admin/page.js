@@ -1,3 +1,4 @@
+// app/admin/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,11 +13,17 @@ export default function AdminPage() {
     const [productDescription, setProductDescription] = useState('');
     const [variants, setVariants] = useState([{ ...emptyVariant }]);
 
+    const [imageFile, setImageFile] = useState(null);
+    const [tags, setTags] = useState([]);
+    const [isGeneratingTags, setIsGeneratingTags] = useState(false);
+    const [tagInput, setTagInput] = useState('');
+
     useEffect(() => {
         const fetchProducts = async () => {
             setIsLoading(true);
             try {
                 const response = await fetch('/api/products');
+                if (!response.ok) throw new Error('Network response was not ok');
                 const data = await response.json();
                 setProducts(data);
             } catch (error) {
@@ -27,24 +34,56 @@ export default function AdminPage() {
         fetchProducts();
     }, []);
 
-    const handleVariantChange = (index, field, value) => {
-        const updatedVariants = [...variants];
-        updatedVariants[index] = { ...updatedVariants[index], [field]: value };
-        setVariants(updatedVariants);
+    const resetForm = () => {
+        setProductName('');
+        setProductDescription('');
+        setVariants([{ ...emptyVariant }]);
+        setImageFile(null);
+        setTags([]);
+        setShowForm(false);
     };
 
-    const addVariant = () => {
-        setVariants([...variants, { ...emptyVariant }]);
-    };
+    const handleGenerateTags = async () => {
+        if (!imageFile) {
+            alert('Please select an image first.');
+            return;
+        }
+        setIsGeneratingTags(true);
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        formData.append('name', productName);
+        formData.append('description', productDescription);
 
-
-
-    const removeVariant = (index) => {
-        if (variants.length > 1) {
-            const updatedVariants = variants.filter((_, i) => i !== index);
-            setVariants(updatedVariants);
+        try {
+            const response = await fetch('/api/generate-tags', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'AI tag generation failed');
+            }
+            const data = await response.json();
+            setTags(prevTags => [...new Set([...prevTags, ...data.tags])]);
+        } catch (error) {
+            console.error('Error generating tags:', error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            setIsGeneratingTags(false);
         }
     };
+
+    const addTag = () => {
+        if (tagInput && !tags.includes(tagInput.toLowerCase())) {
+            setTags([...tags, tagInput.toLowerCase().trim()]);
+            setTagInput('');
+        }
+    };
+
+    const removeTag = (tagToRemove) => {
+        setTags(tags.filter(tag => tag !== tagToRemove));
+    };
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -56,7 +95,8 @@ export default function AdminPage() {
                 ...v,
                 price: parseFloat(v.price) || 0,
                 quantity: parseInt(v.quantity, 10) || 0
-            }))
+            })),
+            tags: tags
         };
 
         try {
@@ -74,11 +114,7 @@ export default function AdminPage() {
             const createdProduct = await response.json();
 
             setProducts(prevProducts => [createdProduct, ...prevProducts]);
-
-            setProductName('');
-            setProductDescription('');
-            setVariants([{ ...emptyVariant }]);
-            setShowForm(false);
+            resetForm();
 
             alert('Product created successfully!');
 
@@ -86,6 +122,16 @@ export default function AdminPage() {
             console.error('Submission failed:', error);
             alert(`Error: ${error.message}`);
         }
+    };
+
+    const handleVariantChange = (index, field, value) => {
+        const updatedVariants = [...variants];
+        updatedVariants[index] = { ...updatedVariants[index], [field]: value };
+        setVariants(updatedVariants);
+    };
+    const addVariant = () => setVariants([...variants, { ...emptyVariant }]);
+    const removeVariant = (index) => {
+        if (variants.length > 1) setVariants(variants.filter((_, i) => i !== index));
     };
 
     const allVariantsFlat = products.flatMap(p =>
@@ -96,7 +142,6 @@ export default function AdminPage() {
         }))
     );
 
-
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
@@ -104,52 +149,85 @@ export default function AdminPage() {
             <div className="mb-6">
                 <button
                     onClick={() => setShowForm(!showForm)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg"
                 >
                     {showForm ? 'Cancel' : '+ Add New Product'}
                 </button>
 
                 {showForm && (
-                     <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg mt-4 animate-fade-in">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg mt-4 space-y-6">
+                        {/* Product Name and Description Fields (same as before) */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="productName" className="block text-sm font-medium mb-1">Product Name</label>
-                                <input
-                                    type="text"
-                                    id="productName"
-                                    value={productName}
-                                    onChange={(e) => setProductName(e.target.value)}
-                                    className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-2 focus:ring-indigo-500"
-                                    required
-                                />
+                                <input id="productName" type="text" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" required />
                             </div>
                             <div>
                                 <label htmlFor="productDescription" className="block text-sm font-medium mb-1">Description</label>
-                                <textarea
-                                    id="productDescription"
-                                    value={productDescription}
-                                    onChange={(e) => setProductDescription(e.target.value)}
-                                    className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:ring-2 focus:ring-indigo-500"
-                                    rows="3"
-                                ></textarea>
+                                <textarea id="productDescription" value={productDescription} onChange={(e) => setProductDescription(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" rows="3"></textarea>
                             </div>
                         </div>
 
-                        <h3 className="text-lg font-semibold mb-2">Product Variants</h3>
-                        {variants.map((variant, index) => (
-                            <div key={index} className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-3 p-3 bg-gray-900 rounded-md">
-                                <input type="text" placeholder="SKU" value={variant.sku} onChange={(e) => handleVariantChange(index, 'sku', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
-                                <input type="number" step="0.01" placeholder="Price" value={variant.price} onChange={(e) => handleVariantChange(index, 'price', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
-                                <input type="text" placeholder="Size" value={variant.size} onChange={(e) => handleVariantChange(index, 'size', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
-                                <input type="text" placeholder="Color" value={variant.color} onChange={(e) => handleVariantChange(index, 'color', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
-                                <input type="number" placeholder="Quantity" value={variant.quantity} onChange={(e) => handleVariantChange(index, 'quantity', e.target.value)} className="bg-gamma-700 p-2 rounded-md" required />
-                                <button type="button" onClick={() => removeVariant(index)} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed" disabled={variants.length === 1}>
-                                    Remove
+                        {/* --- NEW IMAGE & AI TAG SECTION --- */}
+                        <div>
+                           <h3 className="text-lg font-semibold mb-2">Product Image & Tags</h3>
+                           <div className="flex items-center gap-4 p-4 bg-gray-900 rounded-md">
+                                <div className="flex-1">
+                                    <label htmlFor="imageUpload" className="block text-sm font-medium mb-1">Upload Image</label>
+                                    <input
+                                        type="file"
+                                        id="imageUpload"
+                                        accept="image/png, image/jpeg, image/webp"
+                                        onChange={(e) => setImageFile(e.target.files[0])}
+                                        className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateTags}
+                                    disabled={!imageFile || isGeneratingTags}
+                                    className="self-end bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
+                                >
+                                    {isGeneratingTags ? 'Generating...' : 'Generate Tags with AI'}
                                 </button>
-                            </div>
-                        ))}
+                           </div>
+                           {/* Tag management UI */}
+                           <div className="mt-4">
+                                <div className="flex gap-2">
+                                    <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="Add a tag manually" className="flex-grow bg-gray-700 p-2 rounded-md" />
+                                    <button type="button" onClick={addTag} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">Add</button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {tags.map(tag => (
+                                        <span key={tag} className="flex items-center bg-blue-600 text-white text-sm font-medium px-3 py-1 rounded-full">
+                                            {tag}
+                                            <button type="button" onClick={() => removeTag(tag)} className="ml-2 text-blue-200 hover:text-white">✕</button>
+                                        </span>
+                                    ))}
+                                </div>
+                           </div>
+                        </div>
 
-                        <div className="flex items-center gap-4 mt-4">
+                        {/* Product Variants (same as before) */}
+                        <div>
+                             <h3 className="text-lg font-semibold mb-2">Product Variants</h3>
+                            {/* ... (variants mapping logic is the same) ... */}
+                            {variants.map((variant, index) => (
+                                <div key={index} className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-3 p-3 bg-gray-900 rounded-md">
+                                    <input type="text" placeholder="SKU" value={variant.sku} onChange={(e) => handleVariantChange(index, 'sku', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
+                                    <input type="number" step="0.01" placeholder="Price" value={variant.price} onChange={(e) => handleVariantChange(index, 'price', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
+                                    <input type="text" placeholder="Size" value={variant.size} onChange={(e) => handleVariantChange(index, 'size', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
+                                    <input type="text" placeholder="Color" value={variant.color} onChange={(e) => handleVariantChange(index, 'color', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
+                                    <input type="number" placeholder="Quantity" value={variant.quantity} onChange={(e) => handleVariantChange(index, 'quantity', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
+                                    <button type="button" onClick={() => removeVariant(index)} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md disabled:bg-gray-500" disabled={variants.length === 1}>
+                                        Remove
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Form Action Buttons (same as before) */}
+                        <div className="flex items-center gap-4 pt-4 border-t border-gray-700">
                            <button type="button" onClick={addVariant} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">
                                 Add Variant
                             </button>
@@ -161,6 +239,7 @@ export default function AdminPage() {
                 )}
             </div>
 
+            {/* Product List from yesterday (same as before) */}
             <div className="bg-gray-800 p-6 rounded-lg">
                 <h2 className="text-xl font-semibold mb-4">Manage Products</h2>
                 {isLoading ? (

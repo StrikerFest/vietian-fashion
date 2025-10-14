@@ -20,52 +20,59 @@ export async function GET() {
 }
 
 
+// In app/api/products/route.js
 export async function POST(request) {
+    const { name, description, variants, tags = [] } = await request.json();
+
+    if (!name || !variants || variants.length === 0) {
+        return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+    }
+
     try {
-        const { name, description, variants } = await request.json();
-
-        if (!name || !description || !variants || variants.length === 0) {
-            return NextResponse.json({ error: 'Missing required fields: name, description, and at least one variant.' }, { status: 400 });
-        }
-
-        // Insert the main product and return its data
         const { data: productData, error: productError } = await supabase
             .from('products')
-            .insert([
-                { name, description }
-            ])
+            .insert([{ name, description }])
             .select()
             .single();
 
-        if (productError) {
-            console.error('Error creating product:', productError);
-            throw new Error(productError.message);
+        if (productError) throw productError;
+        const newProductId = productData.id;
+
+        const variantsToInsert = variants.map(v => ({ ...v, product_id: newProductId }));
+        const { error: variantError } = await supabase.from('product_variants').insert(variantsToInsert);
+
+        if (variantError) throw variantError;
+
+        if (tags.length > 0) {
+            const tagObjects = await Promise.all(
+                tags.map(async (tagName) => {
+                    let { data: existingTag } = await supabase.from('tags').select('id').eq('name', tagName).single();
+
+                    if (!existingTag) {
+                        let { data: newTag } = await supabase.from('tags').insert({ name: tagName }).select('id').single();
+                        return { tag_id: newTag.id };
+                    } else {
+                        return { tag_id: existingTag.id };
+                    }
+                })
+            );
+
+            const productTagLinks = tagObjects.map(tagObj => ({
+                product_id: newProductId,
+                tag_id: tagObj.tag_id
+            }));
+
+            const { error: productTagsError } = await supabase.from('product_tags').insert(productTagLinks);
+            if (productTagsError) throw productTagsError;
         }
 
-        // Add the new product's ID to each variant
-        const variantsWithProductId = variants.map(variant => ({
-            product_id: productData.id,
-            sku: variant.sku,
-            price: variant.price,
-            size: variant.size,
-            color: variant.color,
-            quantity: variant.quantity
-        }));
-
-        // Insert all the variants
-        const { error: variantError } = await supabase
-            .from('product_variants')
-            .insert(variantsWithProductId);
-
-        if (variantError) {
-            console.error('Error creating variants:', variantError);
-            await supabase.from('products').delete().eq('id', productData.id);
-            throw new Error(variantError.message);
-        }
-
-        return NextResponse.json({ ...productData, variants: variantsWithProductId });
+        return NextResponse.json({ ...productData, variants: variantsToInsert });
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('Full error:', error);
+        if (error.code && productData?.id) {
+            await supabase.from('products').delete().eq('id', productData.id);
+        }
+        return NextResponse.json({ error: 'Failed to create product.', details: error.message }, { status: 500 });
     }
 }
