@@ -1,0 +1,31 @@
+### Create a new product
+POST http://localhost:3000/api/products
+Content-Type: application/json
+
+{
+    "name": "Classic Crewneck T-Shirt",
+    "description": "A comfortable and stylish t-shirt made from 100% premium cotton. Perfect for everyday wear.",
+    "variants": [
+        {
+            "sku": "TS-BLU-M",
+            "price": 24.99,
+            "size": "M",
+            "color": "Midnight Blue",
+            "quantity": 50
+        },
+        {
+            "sku": "TS-BLU-L",
+            "price": 24.99,
+            "size": "L",
+            "color": "Midnight Blue",
+            "quantity": 30
+        },
+        {
+            "sku": "TS-WHT-M",
+            "price": 24.99,
+            "size": "M",
+            "color": "Cloud White",
+            "quantity": 45
+        }
+    ]
+}
