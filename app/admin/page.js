@@ -9,6 +9,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
+
     const [productName, setProductName] = useState('');
     const [productDescription, setProductDescription] = useState('');
     const [variants, setVariants] = useState([{ ...emptyVariant }]);
@@ -17,6 +18,7 @@ export default function AdminPage() {
     const [tags, setTags] = useState([]);
     const [isGeneratingTags, setIsGeneratingTags] = useState(false);
     const [tagInput, setTagInput] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false); // New state for form submission
 
     useEffect(() => {
         const fetchProducts = async () => {
@@ -87,6 +89,7 @@ export default function AdminPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
 
         const newProductData = {
             name: productName,
@@ -112,15 +115,15 @@ export default function AdminPage() {
             }
 
             const createdProduct = await response.json();
-
             setProducts(prevProducts => [createdProduct, ...prevProducts]);
             resetForm();
-
             alert('Product created successfully!');
 
         } catch (error) {
             console.error('Submission failed:', error);
             alert(`Error: ${error.message}`);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -211,7 +214,6 @@ export default function AdminPage() {
                         {/* Product Variants (same as before) */}
                         <div>
                              <h3 className="text-lg font-semibold mb-2">Product Variants</h3>
-                            {/* ... (variants mapping logic is the same) ... */}
                             {variants.map((variant, index) => (
                                 <div key={index} className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-3 p-3 bg-gray-900 rounded-md">
                                     <input type="text" placeholder="SKU" value={variant.sku} onChange={(e) => handleVariantChange(index, 'sku', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
@@ -219,27 +221,28 @@ export default function AdminPage() {
                                     <input type="text" placeholder="Size" value={variant.size} onChange={(e) => handleVariantChange(index, 'size', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
                                     <input type="text" placeholder="Color" value={variant.color} onChange={(e) => handleVariantChange(index, 'color', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
                                     <input type="number" placeholder="Quantity" value={variant.quantity} onChange={(e) => handleVariantChange(index, 'quantity', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
-                                    <button type="button" onClick={() => removeVariant(index)} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md disabled:bg-gray-500" disabled={variants.length === 1}>
+                                    <button type="button" onClick={() => removeVariant(index)} disabled={isSubmitting || variants.length === 1}
+                                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed">
                                         Remove
                                     </button>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Form Action Buttons (same as before) */}
+                        {/* Form Action Buttons - UPDATED */}
                         <div className="flex items-center gap-4 pt-4 border-t border-gray-700">
-                           <button type="button" onClick={addVariant} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">
+                           <button type="button" onClick={addVariant} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed">
                                 Add Variant
                             </button>
-                            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
-                                Save Product
+                            <button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed">
+                                {isSubmitting ? 'Saving...' : 'Save Product'}
                             </button>
                         </div>
                     </form>
                 )}
             </div>
 
-            {/* Product List from yesterday (same as before) */}
+            {/* Product List */}
             <div className="bg-gray-800 p-6 rounded-lg">
                 <h2 className="text-xl font-semibold mb-4">Manage Products</h2>
                 {isLoading ? (
