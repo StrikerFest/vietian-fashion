@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-// We now use 'context' as the second argument
 export async function GET(request, context) {
-    // And we get the id from context.params
-    const { id } = context.params;
+    // Following the error's instruction to await the params object
+    const params = await context.params;
+    const { id } = params;
 
     if (!id) {
         return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
@@ -21,7 +21,6 @@ export async function GET(request, context) {
 
     if (error) {
         console.error('Error fetching product:', error);
-        // It's more helpful to return the actual Supabase error in development
         return NextResponse.json({ error: `Product not found. Supabase: ${error.message}` }, { status: 404 });
     }
 
