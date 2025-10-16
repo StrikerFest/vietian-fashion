@@ -14,7 +14,8 @@ export async function GET(request, context) {
             *, 
             product_variants (*, inventory_levels (*)), 
             tags (id, name),
-            categories (id, name)
+            categories (id, name),
+            collections (id, name)
         `)
         .eq('id', id)
         .single();
@@ -23,8 +24,8 @@ export async function GET(request, context) {
     return NextResponse.json(data);
 }
 
+// @unchanged (DELETE function is the same)
 export async function DELETE(request, context) {
-    // @unchanged (DELETE function is the same)
     const params = await context.params;
     const { id } = params;
 
@@ -39,12 +40,13 @@ export async function DELETE(request, context) {
     }
 }
 
+
 export async function PUT(request, context) {
     const params = await context.params;
     const { id: productId } = params;
 
-    // We now accept 'category_id' in the request body
-    const { name, description, variants, tags = [], category_id } = await request.json();
+    // We now accept 'category_id' and 'collection_ids'
+    const { name, description, variants, tags = [], category_id, collection_ids = [] } = await request.json();
 
     try {
         // @unchanged (Step 1: Update product details is the same)
@@ -100,10 +102,20 @@ export async function PUT(request, context) {
             if (categoryLinkError) throw categoryLinkError;
         }
 
-        // @unchanged (Step 6: Reconcile tags is the same)
+        // --- NEW: Step 6: Reconcile collection links ---
+        await supabase.from('product_collections').delete().eq('product_id', productId);
+        if (collection_ids.length > 0) {
+            const collectionLinks = collection_ids.map(collectionId => ({
+                product_id: productId,
+                collection_id: collectionId,
+            }));
+            await supabase.from('product_collections').insert(collectionLinks);
+        }
+
+        // @unchanged (Step 7: Reconcile tags is the same)
         await supabase.from('product_tags').delete().eq('product_id', productId);
         if (tags.length > 0) {
-            const tagObjects = await Promise.all(
+             const tagObjects = await Promise.all(
                 tags.map(async (tagName) => {
                     let { data: existingTag } = await supabase.from('tags').select('id').eq('name', tagName).single();
                     if (!existingTag) {
@@ -117,7 +129,7 @@ export async function PUT(request, context) {
             await supabase.from('product_tags').insert(productTagLinks);
         }
 
-        // @unchanged (Refetch and return is the same)
+        // @unchanged (Step 8: Refetch and return is the same)
         const response = await GET(request, context);
         return response;
 

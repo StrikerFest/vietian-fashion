@@ -2,8 +2,8 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-// GET all products with their inventory and categories
 export async function GET() {
+    // @unchanged (GET function from inventory update is sufficient, but we add collections for consistency)
     const { data, error } = await supabase
         .from('products')
         .select(`
@@ -12,7 +12,8 @@ export async function GET() {
                 *,
                 inventory_levels (*)
             ),
-            categories (*)
+            categories (*),
+            collections (*)
         `);
 
     if (error) {
@@ -22,9 +23,9 @@ export async function GET() {
     return NextResponse.json(data);
 }
 
-// POST a new product, its inventory, and its category assignment
 export async function POST(request) {
-    const { name, description, variants, tags = [], category_id } = await request.json();
+    // We now accept 'collection_ids' in the request body
+    const { name, description, variants, tags = [], category_id, collection_ids = [] } = await request.json();
 
     if (!name || !variants || variants.length === 0) {
         return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
@@ -73,7 +74,17 @@ export async function POST(request) {
             if (categoryLinkError) throw categoryLinkError;
         }
 
-        // Step 5: Handle tags (same as before)
+        // --- NEW: Step 5: Link product to its collections ---
+        if (collection_ids.length > 0) {
+            const collectionLinks = collection_ids.map(collectionId => ({
+                product_id: newProductId,
+                collection_id: collectionId,
+            }));
+            const { error: collectionLinkError } = await supabase.from('product_collections').insert(collectionLinks);
+            if (collectionLinkError) throw collectionLinkError;
+        }
+
+        // @unchanged (Step 6: Handle tags is the same)
         if (tags.length > 0) {
             const tagObjects = await Promise.all(
                 tags.map(async (tagName) => {
@@ -90,10 +101,10 @@ export async function POST(request) {
             if (productTagsError) throw productTagsError;
         }
 
-        // Step 6: Refetch the complete product data to return a consistent response
+        // @unchanged (Step 7: Refetch the complete product data is the same, but the query is updated)
         const { data: fullNewProduct, error: fetchError } = await supabase
             .from('products')
-            .select('*, product_variants(*, inventory_levels(*)), tags(*), categories(*)')
+            .select('*, product_variants(*, inventory_levels(*)), tags(*), categories(*), collections(*)')
             .eq('id', newProductId)
             .single();
         if (fetchError) throw fetchError;

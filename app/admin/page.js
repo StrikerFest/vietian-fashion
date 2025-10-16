@@ -11,7 +11,8 @@ export default function AdminPage() {
     const [showForm, setShowForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
 
-    // --- NEW STATE for categories ---
+    // --- NEW STATE for collections ---
+    const [collections, setCollections] = useState([]);
     const [categories, setCategories] = useState([]);
 
     // Form state
@@ -23,26 +24,31 @@ export default function AdminPage() {
     const [isGeneratingTags, setIsGeneratingTags] = useState(false);
     const [tagInput, setTagInput] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    // --- NEW STATE for selected category ---
     const [categoryId, setCategoryId] = useState('');
+    // --- NEW STATE for selected collections ---
+    const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
 
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Fetch both products and categories in parallel
-                const [productsRes, categoriesRes] = await Promise.all([
+                // Fetch products, categories, and now collections
+                const [productsRes, categoriesRes, collectionsRes] = await Promise.all([
                     fetch('/api/products'),
-                    fetch('/api/categories')
+                    fetch('/api/categories'),
+                    fetch('/api/collections')
                 ]);
-                if (!productsRes.ok || !categoriesRes.ok) {
+                if (!productsRes.ok || !categoriesRes.ok || !collectionsRes.ok) {
                     throw new Error('Failed to fetch initial data');
                 }
                 const productsData = await productsRes.json();
                 const categoriesData = await categoriesRes.json();
+                const collectionsData = await collectionsRes.json();
+
                 setProducts(productsData || []);
                 setCategories(categoriesData || []);
+                setCollections(collectionsData || []);
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }
@@ -57,7 +63,8 @@ export default function AdminPage() {
         setVariants([{ ...emptyVariant }]);
         setImageFile(null);
         setTags([]);
-        setCategoryId(''); // Reset category ID
+        setCategoryId('');
+        setSelectedCollectionIds([]); // Reset collections
         setShowForm(false);
         setEditingProduct(null);
     };
@@ -74,9 +81,21 @@ export default function AdminPage() {
         setVariants(variantsWithInventory.length > 0 ? variantsWithInventory : [{ ...emptyVariant }]);
 
         setTags(product.tags ? product.tags.map(t => t.name) : []);
-        // Set the category from the product data (product can only have one category)
-        setCategoryId(product.categories?.id || '');
+        setCategoryId(product.categories?.[0]?.id || '');
+
+        // Populate selected collections
+        setSelectedCollectionIds(product.collections ? product.collections.map(c => c.id) : []);
+
         setShowForm(true);
+    };
+
+    // --- NEW: Handler for collection checkboxes ---
+    const handleCollectionChange = (collectionId) => {
+        setSelectedCollectionIds(prev =>
+            prev.includes(collectionId)
+                ? prev.filter(id => id !== collectionId)
+                : [...prev, collectionId]
+        );
     };
 
     const handleSubmit = async (e) => {
@@ -99,7 +118,8 @@ export default function AdminPage() {
                 on_hand: parseInt(v.on_hand, 10) || 0,
             })),
             tags: tags,
-            category_id: categoryId || null, // Include category_id in the payload
+            category_id: categoryId || null,
+            collection_ids: selectedCollectionIds, // Include collection IDs
         };
 
         try {
@@ -231,6 +251,23 @@ export default function AdminPage() {
                             </select>
                         </div>
                         <div>
+                            <label className="block text-sm font-medium mb-1">Collections</label>
+                            <div className="max-h-32 overflow-y-auto bg-gray-900 p-3 rounded-md space-y-2">
+                                {collections.map(collection => (
+                                    <div key={collection.id} className="flex items-center">
+                                        <input
+                                            id={`collection-${collection.id}`}
+                                            type="checkbox"
+                                            checked={selectedCollectionIds.includes(collection.id)}
+                                            onChange={() => handleCollectionChange(collection.id)}
+                                            className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <label htmlFor={`collection-${collection.id}`} className="ml-2 text-sm">{collection.name}</label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
                             <h3 className="text-lg font-semibold mb-2">Product Image & Tags</h3>
                             <div className="flex items-center gap-4 p-4 bg-gray-900 rounded-md">
                                 <div className="flex-1">
@@ -308,7 +345,7 @@ export default function AdminPage() {
                                 <tr key={product.id} className="border-b border-gray-700 hover:bg-gray-700/50">
                                     <td className="p-3 font-medium">{product.name}</td>
                                     <td className="p-3">{product.product_variants?.length || 0}</td>
-                                        {/* UPDATED: Calculate total stock */}
+                                    {/* UPDATED: Calculate total stock */}
                                         <td className="p-3">
                                             {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels[0]?.on_hand || 0), 0)}
                                         </td>
