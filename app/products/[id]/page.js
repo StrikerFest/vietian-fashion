@@ -1,48 +1,42 @@
+// app/products/[id]/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 
-// We receive the props object, which contains the 'params' promise
 export default function ProductDetailPage(props) {
-    // We can't access 'id' here yet.
-    // We'll get it inside useEffect.
+    const { id } = props.params;
     const { addToCart } = useCart();
 
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedVariant, setSelectedVariant] = useState(null);
 
-    // This useEffect will now handle the promise and fetch the data.
     useEffect(() => {
         const initializeProduct = async () => {
             setIsLoading(true);
             try {
-                // Step 1: Await the params to resolve the promise, as the error instructs.
-                const resolvedParams = await props.params;
-                const { id } = resolvedParams;
+                if (!id) throw new Error("No ID provided");
 
-                if (id) {
-                    // Step 2: Now that we have the id, fetch the product.
-                    const response = await fetch(`/api/products/${id}`);
-                    if (!response.ok) throw new Error('Product not found');
-                    const data = await response.json();
-                    setProduct(data);
-                    if (data.product_variants && data.product_variants.length > 0) {
-                        setSelectedVariant(data.product_variants[0]);
-                    }
+                const response = await fetch(`/api/products/${id}`);
+                if (!response.ok) throw new Error('Product not found');
+                const data = await response.json();
+                setProduct(data);
+
+                if (data.product_variants && data.product_variants.length > 0) {
+                    setSelectedVariant(data.product_variants[0]);
                 }
             } catch (error) {
                 console.error("Failed to fetch product:", error);
-                setProduct(null); // Ensure product is null on error
+                setProduct(null);
             } finally {
                 setIsLoading(false);
             }
         };
 
         initializeProduct();
-    }, [props.params]); // The dependency is now the promise itself.
+    }, [id]);
 
     const handleAddToCart = () => {
         if (product && selectedVariant) {
@@ -59,6 +53,11 @@ export default function ProductDetailPage(props) {
     }
 
     const imageUrl = product.image_url || 'https://placehold.co/600x400/1F2937/FFFFFF?text=No+Image';
+
+    // --- NEW INVENTORY LOGIC ---
+    // Calculate available stock for the selected variant
+    const stockOnHand = selectedVariant?.inventory_levels?.on_hand || 0;
+    const isOutOfStock = stockOnHand <= 0;
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -80,9 +79,9 @@ export default function ProductDetailPage(props) {
                                     onClick={() => setSelectedVariant(variant)}
                                     className={`py-2 px-4 rounded-md border text-sm font-semibold transition-colors
                                         ${selectedVariant?.id === variant.id
-                                        ? 'bg-indigo-600 border-indigo-600 text-white'
-                                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-                                    }`}
+                                            ? 'bg-indigo-600 border-indigo-600 text-white'
+                                            : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                                        }`}
                                 >
                                     {variant.color} / {variant.size}
                                 </button>
@@ -90,12 +89,15 @@ export default function ProductDetailPage(props) {
                         </div>
                     </div>
 
+                    {/* --- UPDATED BUTTON with stock check --- */}
                     <button
                         onClick={handleAddToCart}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors"
+                        disabled={isOutOfStock}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
                     >
-                        Add to Cart
+                        {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
                     </button>
+                    { !isOutOfStock && <p className="text-xs text-gray-400 mt-2 text-center">{stockOnHand} in stock</p> }
                 </div>
             </div>
         </main>
