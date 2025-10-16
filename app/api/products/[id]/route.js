@@ -13,7 +13,8 @@ export async function GET(request, context) {
         .select(`
             *, 
             product_variants (*, inventory_levels (*)), 
-            tags (id, name)
+            tags (id, name),
+            categories (id, name)
         `)
         .eq('id', id)
         .single();
@@ -23,6 +24,7 @@ export async function GET(request, context) {
 }
 
 export async function DELETE(request, context) {
+    // @unchanged (DELETE function is the same)
     const params = await context.params;
     const { id } = params;
 
@@ -37,31 +39,29 @@ export async function DELETE(request, context) {
     }
 }
 
-// --- COMPLETELY REWRITTEN PUT FUNCTION ---
 export async function PUT(request, context) {
     const params = await context.params;
     const { id: productId } = params;
 
-    const { name, description, variants, tags = [] } = await request.json();
+    // We now accept 'category_id' in the request body
+    const { name, description, variants, tags = [], category_id } = await request.json();
 
     try {
-        // Step 1: Update the main product details (name, description).
+        // @unchanged (Step 1: Update product details is the same)
         const { error: productError } = await supabase
             .from('products')
             .update({ name, description })
             .eq('id', productId);
         if (productError) throw productError;
 
-        // Step 2: Delete all existing variants for this product.
-        // The `ON DELETE CASCADE` constraint on `inventory_levels` will automatically
-        // delete the associated inventory records.
+        // @unchanged (Step 2: Delete all existing variants is the same)
         const { error: deleteError } = await supabase
             .from('product_variants')
             .delete()
             .eq('product_id', productId);
         if (deleteError) throw deleteError;
 
-        // Step 3: Re-create all variants from the submitted form data.
+        // @unchanged (Step 3: Re-create all variants is the same)
         const variantsToInsert = variants.map(v => ({
             sku: v.sku,
             price: v.price,
@@ -75,7 +75,7 @@ export async function PUT(request, context) {
             .select();
         if (variantError) throw variantError;
 
-        // Step 4: Re-create the inventory levels for the new variants.
+        // @unchanged (Step 4: Re-create inventory levels is the same)
         const inventoryToInsert = insertedVariants.map((variant, index) => ({
             variant_id: variant.id,
             on_hand: variants[index].on_hand || 0
@@ -85,7 +85,22 @@ export async function PUT(request, context) {
             .insert(inventoryToInsert);
         if (inventoryError) throw inventoryError;
 
-        // Step 5: Reconcile tags (same logic as before).
+        // --- NEW: Step 5: Reconcile category link ---
+        // Delete all existing category links for this product
+        await supabase
+            .from('product_categories')
+            .delete()
+            .eq('product_id', productId);
+
+        // If a new category was provided, insert the new link
+        if (category_id) {
+            const { error: categoryLinkError } = await supabase
+                .from('product_categories')
+                .insert({ product_id: productId, category_id: category_id });
+            if (categoryLinkError) throw categoryLinkError;
+        }
+
+        // @unchanged (Step 6: Reconcile tags is the same)
         await supabase.from('product_tags').delete().eq('product_id', productId);
         if (tags.length > 0) {
             const tagObjects = await Promise.all(
@@ -102,7 +117,7 @@ export async function PUT(request, context) {
             await supabase.from('product_tags').insert(productTagLinks);
         }
 
-        // Refetch and return the fully updated product data.
+        // @unchanged (Refetch and return is the same)
         const response = await GET(request, context);
         return response;
 

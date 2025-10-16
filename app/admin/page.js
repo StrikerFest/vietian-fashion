@@ -11,6 +11,10 @@ export default function AdminPage() {
     const [showForm, setShowForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
 
+    // --- NEW STATE for categories ---
+    const [categories, setCategories] = useState([]);
+
+    // Form state
     const [productName, setProductName] = useState('');
     const [productDescription, setProductDescription] = useState('');
     const [variants, setVariants] = useState([{ ...emptyVariant }]);
@@ -19,21 +23,32 @@ export default function AdminPage() {
     const [isGeneratingTags, setIsGeneratingTags] = useState(false);
     const [tagInput, setTagInput] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // --- NEW STATE for selected category ---
+    const [categoryId, setCategoryId] = useState('');
+
 
     useEffect(() => {
-        const fetchProducts = async () => {
+        const fetchData = async () => {
             setIsLoading(true);
             try {
-                const response = await fetch('/api/products');
-                if (!response.ok) throw new Error('Network response was not ok');
-                const data = await response.json();
-                setProducts(data || []);
+                // Fetch both products and categories in parallel
+                const [productsRes, categoriesRes] = await Promise.all([
+                    fetch('/api/products'),
+                    fetch('/api/categories')
+                ]);
+                if (!productsRes.ok || !categoriesRes.ok) {
+                    throw new Error('Failed to fetch initial data');
+                }
+                const productsData = await productsRes.json();
+                const categoriesData = await categoriesRes.json();
+                setProducts(productsData || []);
+                setCategories(categoriesData || []);
             } catch (error) {
-                console.error("Failed to fetch products:", error);
+                console.error("Failed to fetch data:", error);
             }
             setIsLoading(false);
         };
-        fetchProducts();
+        fetchData();
     }, []);
 
     const resetForm = () => {
@@ -42,6 +57,7 @@ export default function AdminPage() {
         setVariants([{ ...emptyVariant }]);
         setImageFile(null);
         setTags([]);
+        setCategoryId(''); // Reset category ID
         setShowForm(false);
         setEditingProduct(null);
     };
@@ -51,29 +67,16 @@ export default function AdminPage() {
         setProductName(product.name);
         setProductDescription(product.description || '');
 
-        // Correctly map variants and their on_hand quantity from the nested inventory_levels
         const variantsWithInventory = product.product_variants.map(v => ({
             ...v,
-            on_hand: v.inventory_levels?.on_hand ?? 0 // Use ?? for robust fallback
+            on_hand: v.inventory_levels?.on_hand ?? 0
         }));
-
         setVariants(variantsWithInventory.length > 0 ? variantsWithInventory : [{ ...emptyVariant }]);
-        setTags(product.tags ? product.tags.map(t => t.name) : []);
-        setShowForm(true);
-    };
 
-    const handleDelete = async (productId) => {
-        if (!confirm('Are you sure you want to delete this product? This cannot be undone.')) {
-            return;
-        }
-        try {
-            const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to delete product');
-            setProducts(products.filter(p => p.id !== productId));
-            alert('Product deleted successfully!');
-        } catch (error) {
-            alert(`Error: ${error.message}`);
-        }
+        setTags(product.tags ? product.tags.map(t => t.name) : []);
+        // Set the category from the product data (product can only have one category)
+        setCategoryId(product.categories?.id || '');
+        setShowForm(true);
     };
 
     const handleSubmit = async (e) => {
@@ -88,14 +91,15 @@ export default function AdminPage() {
             name: productName,
             description: productDescription,
             variants: variants.map(v => ({
-                id: v.id, // Pass ID for updates
+                id: v.id,
                 sku: v.sku,
                 price: parseFloat(v.price) || 0,
                 size: v.size,
                 color: v.color,
-                on_hand: parseInt(v.on_hand, 10) || 0, // Send on_hand instead of quantity
+                on_hand: parseInt(v.on_hand, 10) || 0,
             })),
             tags: tags,
+            category_id: categoryId || null, // Include category_id in the payload
         };
 
         try {
@@ -200,28 +204,49 @@ export default function AdminPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="productName" className="block text-sm font-medium mb-1">Product Name</label>
-                                <input id="productName" type="text" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" required />
+                                <input id="productName" type="text" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" required/>
                             </div>
                             <div>
                                 <label htmlFor="productDescription" className="block text-sm font-medium mb-1">Description</label>
                                 <textarea id="productDescription" value={productDescription} onChange={(e) => setProductDescription(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" rows="3"></textarea>
                             </div>
                         </div>
-
+                        <div>
+                            <label htmlFor="category" className="block text-sm font-medium mb-1">Category</label>
+                            <select
+                                id="category"
+                                value={categoryId}
+                                onChange={(e) => setCategoryId(e.target.value)}
+                                className="w-full bg-gray-700 p-2 rounded-md"
+                            >
+                                <option value="">-- Select a Category --</option>
+                                {categories.filter(c => c.parent_id === null).map(parent => (
+                                    <optgroup key={parent.id} label={parent.name}>
+                                        <option value={parent.id}>{parent.name}</option>
+                                        {categories.filter(c => c.parent_id === parent.id).map(child => (
+                                            <option key={child.id} value={child.id}>&nbsp;&nbsp;{child.name}</option>
+                                        ))}
+                                    </optgroup>
+                                ))}
+                            </select>
+                        </div>
                         <div>
                             <h3 className="text-lg font-semibold mb-2">Product Image & Tags</h3>
                             <div className="flex items-center gap-4 p-4 bg-gray-900 rounded-md">
                                 <div className="flex-1">
                                     <label htmlFor="imageUpload" className="block text-sm font-medium mb-1">Upload Image</label>
-                                    <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp" onChange={(e) => setImageFile(e.target.files[0])} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600"/>
+                                    <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp" onChange={(e) => setImageFile(e.target.files[0])}
+                                           className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600"/>
                                 </div>
-                                <button type="button" onClick={handleGenerateTags} disabled={!imageFile || isGeneratingTags} className="self-end bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed">
+                                <button type="button" onClick={handleGenerateTags} disabled={!imageFile || isGeneratingTags}
+                                        className="self-end bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed">
                                     {isGeneratingTags ? 'Generating...' : 'Generate Tags with AI'}
                                 </button>
                             </div>
                             <div className="mt-4">
                                 <div className="flex gap-2">
-                                    <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} placeholder="Add a tag manually" className="flex-grow bg-gray-700 p-2 rounded-md" />
+                                    <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} placeholder="Add a tag manually"
+                                           className="flex-grow bg-gray-700 p-2 rounded-md"/>
                                     <button type="button" onClick={addTag} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">Add</button>
                                 </div>
                                 <div className="flex flex-wrap gap-2 mt-2">
@@ -236,14 +261,15 @@ export default function AdminPage() {
                         </div>
 
                         <div>
-                             <h3 className="text-lg font-semibold mb-2">Product Variants</h3>
+                            <h3 className="text-lg font-semibold mb-2">Product Variants</h3>
                             {variants.map((variant, index) => (
                                 <div key={variant.id || index} className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-3 p-3 bg-gray-900 rounded-md">
-                                    <input type="text" placeholder="SKU" value={variant.sku} onChange={(e) => handleVariantChange(index, 'sku', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
-                                    <input type="number" step="0.01" placeholder="Price" value={variant.price} onChange={(e) => handleVariantChange(index, 'price', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
-                                    <input type="text" placeholder="Size" value={variant.size} onChange={(e) => handleVariantChange(index, 'size', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
-                                    <input type="text" placeholder="Color" value={variant.color} onChange={(e) => handleVariantChange(index, 'color', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
-                                    <input type="number" placeholder="On Hand Stock" value={variant?.inventory_levels[0]?.on_hand} onChange={(e) => handleVariantChange(index, 'on_hand', e.target.value)} className="bg-gray-700 p-2 rounded-md" required />
+                                    <input type="text" placeholder="SKU" value={variant.sku} onChange={(e) => handleVariantChange(index, 'sku', e.target.value)} className="bg-gray-700 p-2 rounded-md" required/>
+                                    <input type="number" step="0.01" placeholder="Price" value={variant.price} onChange={(e) => handleVariantChange(index, 'price', e.target.value)} className="bg-gray-700 p-2 rounded-md" required/>
+                                    <input type="text" placeholder="Size" value={variant.size} onChange={(e) => handleVariantChange(index, 'size', e.target.value)} className="bg-gray-700 p-2 rounded-md" required/>
+                                    <input type="text" placeholder="Color" value={variant.color} onChange={(e) => handleVariantChange(index, 'color', e.target.value)} className="bg-gray-700 p-2 rounded-md" required/>
+                                    <input type="number" placeholder="On Hand Stock" value={variant?.inventory_levels[0]?.on_hand} onChange={(e) => handleVariantChange(index, 'on_hand', e.target.value)} className="bg-gray-700 p-2 rounded-md"
+                                           required/>
                                     <button type="button" onClick={() => removeVariant(index)} disabled={isSubmitting || variants.length === 1} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md disabled:bg-gray-500">
                                         Remove
                                     </button>
@@ -253,7 +279,7 @@ export default function AdminPage() {
 
                         {/* Action buttons... */}
                         <div className="flex items-center gap-4 pt-4 border-t border-gray-700">
-                           <button type="button" onClick={addVariant} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500">
+                            <button type="button" onClick={addVariant} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500">
                                 Add Variant
                             </button>
                             <button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500">
@@ -266,22 +292,22 @@ export default function AdminPage() {
 
             <div className="bg-gray-800 p-6 rounded-lg">
                 <h2 className="text-xl font-semibold mb-4">Manage Products</h2>
-                {isLoading ? ( <p>Loading products...</p> ) : (
+                {isLoading ? (<p>Loading products...</p>) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="bg-gray-900">
-                                <tr>
-                                    <th className="p-3">Product Name</th>
-                                    <th className="p-3">Variants</th>
-                                    <th className="p-3">Total Stock On Hand</th>
-                                    <th className="p-3">Actions</th>
-                                </tr>
+                            <tr>
+                                <th className="p-3">Product Name</th>
+                                <th className="p-3">Variants</th>
+                                <th className="p-3">Total Stock On Hand</th>
+                                <th className="p-3">Actions</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                {products.map(product => (
-                                    <tr key={product.id} className="border-b border-gray-700 hover:bg-gray-700/50">
-                                        <td className="p-3 font-medium">{product.name}</td>
-                                        <td className="p-3">{product.product_variants?.length || 0}</td>
+                            {products.map(product => (
+                                <tr key={product.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                                    <td className="p-3 font-medium">{product.name}</td>
+                                    <td className="p-3">{product.product_variants?.length || 0}</td>
                                         {/* UPDATED: Calculate total stock */}
                                         <td className="p-3">
                                             {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels[0]?.on_hand || 0), 0)}

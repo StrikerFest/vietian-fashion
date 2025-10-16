@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-// GET all products with their inventory levels
+// GET all products with their inventory and categories
 export async function GET() {
     const { data, error } = await supabase
         .from('products')
@@ -11,7 +11,8 @@ export async function GET() {
             product_variants (
                 *,
                 inventory_levels (*)
-            )
+            ),
+            categories (*)
         `);
 
     if (error) {
@@ -21,15 +22,15 @@ export async function GET() {
     return NextResponse.json(data);
 }
 
-// POST a new product and its inventory
+// POST a new product, its inventory, and its category assignment
 export async function POST(request) {
-    const { name, description, variants, tags = [] } = await request.json();
+    const { name, description, variants, tags = [], category_id } = await request.json();
 
     if (!name || !variants || variants.length === 0) {
         return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
 
-    let newProductId = null; // To track the product ID for cleanup on failure
+    let newProductId = null;
 
     try {
         // Step 1: Insert the main product
@@ -64,7 +65,15 @@ export async function POST(request) {
         const { error: inventoryError } = await supabase.from('inventory_levels').insert(inventoryToInsert);
         if (inventoryError) throw inventoryError;
 
-        // Step 4: Handle tags (logic remains the same)
+        // --- NEW: Step 4: Link product to its category ---
+        if (category_id) {
+            const { error: categoryLinkError } = await supabase
+                .from('product_categories')
+                .insert({ product_id: newProductId, category_id: category_id });
+            if (categoryLinkError) throw categoryLinkError;
+        }
+
+        // Step 5: Handle tags (same as before)
         if (tags.length > 0) {
             const tagObjects = await Promise.all(
                 tags.map(async (tagName) => {
@@ -81,10 +90,10 @@ export async function POST(request) {
             if (productTagsError) throw productTagsError;
         }
 
-        // Step 5: Refetch the complete product data to return a consistent response
+        // Step 6: Refetch the complete product data to return a consistent response
         const { data: fullNewProduct, error: fetchError } = await supabase
             .from('products')
-            .select('*, product_variants(*, inventory_levels(*)), tags(*)')
+            .select('*, product_variants(*, inventory_levels(*)), tags(*), categories(*)')
             .eq('id', newProductId)
             .single();
         if (fetchError) throw fetchError;
@@ -93,7 +102,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Full error during product creation:', error);
-        // If any step fails, attempt to delete the orphaned product
         if (newProductId) {
             await supabase.from('products').delete().eq('id', newProductId);
         }
