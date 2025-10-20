@@ -26,15 +26,12 @@ export function CartProvider({ children }) {
         alert(`${product.name} (${variant.color} / ${variant.size}) added to cart!`);
     };
 
-    // --- NEW: Function to remove an item completely ---
     const removeFromCart = (variantId) => {
         setCartItems(prevItems => prevItems.filter(item => item.id !== variantId));
     };
 
-    // --- NEW: Function to update an item's quantity ---
     const updateQuantity = (variantId, newQuantity) => {
         if (newQuantity < 1) {
-            // If quantity is less than 1, remove the item
             removeFromCart(variantId);
         } else {
             setCartItems(prevItems =>
@@ -45,8 +42,11 @@ export function CartProvider({ children }) {
         }
     };
 
-    // --- NEW: Calculate the subtotal ---
-    // useMemo ensures this calculation only runs when cartItems changes
+    // --- NEW: Function to clear the cart after checkout ---
+    const clearCart = () => {
+        setCartItems([]);
+    };
+
     const subtotal = useMemo(() => {
         return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
     }, [cartItems]);
@@ -58,6 +58,7 @@ export function CartProvider({ children }) {
         removeFromCart,
         updateQuantity,
         subtotal,
+        clearCart, // Expose the new function
     };
 
     return (

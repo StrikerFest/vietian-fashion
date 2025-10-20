@@ -1,12 +1,44 @@
 // app/cart/page.js
 'use client';
 
+import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation'; // Import the router
 
 export default function CartPage() {
-    // Get all the cart data and functions from our context
-    const { cartItems, removeFromCart, updateQuantity, subtotal } = useCart();
+    const { cartItems, removeFromCart, updateQuantity, subtotal, clearCart } = useCart();
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const router = useRouter();
+
+    const handleCheckout = async () => {
+        setIsCheckingOut(true);
+        try {
+            const response = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // In a real app with user auth, you'd pass userId and addressId here
+                body: JSON.stringify({ cartItems }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Checkout failed');
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                clearCart();
+                // Redirect to a confirmation page
+                router.push(`/order-confirmation/${data.orderId}`);
+            }
+        } catch (error) {
+            console.error('Checkout error:', error);
+            alert(`Error: ${error.message}`);
+            setIsCheckingOut(false);
+        }
+    };
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -44,7 +76,7 @@ export default function CartPage() {
                             ))}
                         </div>
 
-                        {/* Order Summary */}
+                        {/* Order Summary with updated button */}
                         <div className="bg-gray-800 p-6 rounded-lg self-start">
                             <h2 className="text-xl font-bold mb-4">Order Summary</h2>
                             <div className="flex justify-between mb-2">
@@ -59,8 +91,12 @@ export default function CartPage() {
                                 <span>Total</span>
                                 <span>${subtotal.toFixed(2)}</span>
                             </div>
-                            <button className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg">
-                                Proceed to Checkout
+                            <button
+                                onClick={handleCheckout}
+                                disabled={isCheckingOut}
+                                className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg disabled:bg-gray-500 disabled:cursor-not-allowed"
+                            >
+                                {isCheckingOut ? 'Processing...' : 'Proceed to Checkout'}
                             </button>
                         </div>
                     </div>
