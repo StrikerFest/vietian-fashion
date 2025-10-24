@@ -3,16 +3,37 @@
 
 import { useState, useEffect } from 'react';
 
+// @unchanged (StarRatingDisplay component remains the same)
+function StarRatingDisplay({ rating }) {
+    const totalStars = 5;
+    let stars = [];
+    for (let i = 1; i <= totalStars; i++) {
+        stars.push(
+            <span key={i} className={`text-xl ${i <= rating ? 'text-yellow-400' : 'text-gray-600'}`}>
+                ★
+            </span>
+        );
+    }
+    return <div className="flex">{stars}</div>;
+}
+
+
 export default function OrdersPage() {
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null); // For the details modal
 
+    // --- NEW: State for tracking info form within the modal ---
+    const [shippingCarrier, setShippingCarrier] = useState('');
+    const [trackingNumber, setTrackingNumber] = useState('');
+    const [isSavingTracking, setIsSavingTracking] = useState(false);
+
+    // @unchanged (fetchOrders logic remains the same)
     useEffect(() => {
         const fetchOrders = async () => {
             setIsLoading(true);
             try {
-                // Fetch orders - This endpoint now includes discount info
+                // Fetch orders - This endpoint includes discount info
                 const response = await fetch('/api/orders');
                 if (!response.ok) throw new Error('Failed to fetch orders');
                 const data = await response.json();
@@ -25,6 +46,67 @@ export default function OrdersPage() {
         fetchOrders();
     }, []);
 
+    // --- NEW: Effect to populate tracking form when modal opens ---
+    useEffect(() => {
+        if (selectedOrder) {
+            setShippingCarrier(selectedOrder.shipping_carrier || ''); //
+            setTrackingNumber(selectedOrder.tracking_number || ''); //
+        } else {
+            // Reset form when modal closes
+            setShippingCarrier('');
+            setTrackingNumber('');
+            setIsSavingTracking(false);
+        }
+    }, [selectedOrder]);
+
+
+    // --- NEW: Handler to save tracking info ---
+    const handleSaveTracking = async () => {
+        if (!selectedOrder) return;
+        // Basic check: require at least one field
+        if (!shippingCarrier && !trackingNumber) {
+            alert('Please enter Shipping Carrier or Tracking Number.');
+            return;
+        }
+
+        setIsSavingTracking(true);
+        try {
+            const response = await fetch(`/api/orders/${selectedOrder.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shipping_carrier: shippingCarrier, //
+                    tracking_number: trackingNumber, //
+                    // Optionally update status here too if needed
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update tracking info');
+            }
+
+            const { order: updatedOrder } = await response.json();
+
+            // Update the main orders list state
+            setOrders(prevOrders =>
+                prevOrders.map(o => (o.id === updatedOrder.id ? updatedOrder : o))
+            );
+            // Update the selectedOrder state as well so modal shows new data
+            setSelectedOrder(updatedOrder);
+
+            alert('Tracking information saved successfully!');
+
+        } catch (error) {
+            console.error('Error saving tracking info:', error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            setIsSavingTracking(false);
+        }
+    };
+
+
+    // @unchanged (OrderStatusBadge component remains the same)
     const OrderStatusBadge = ({ status }) => {
         const baseClasses = "px-2 py-1 text-xs font-semibold rounded-full";
         switch (status?.toLowerCase()) {
@@ -36,17 +118,15 @@ export default function OrdersPage() {
         }
     };
 
-    // --- NEW: Helper function to calculate and format discount ---
+    // @unchanged (getDiscountDetails helper function)
     const getDiscountDetails = (order) => {
         if (!order || !order.order_discounts || order.order_discounts.length === 0) { //
             return { text: null, amount: 0 };
         }
-        // Assuming one discount per order for simplicity
         const discountInfo = order.order_discounts[0]?.discounts; //
         if (!discountInfo || order.subtotal === undefined) {
              return { text: null, amount: 0 };
         }
-
         let amount = 0;
         let text = '';
         if (discountInfo.type === 'percentage') { //
@@ -58,7 +138,6 @@ export default function OrdersPage() {
              text = `Discount (${discountInfo.code} - $${Number(discountInfo.value).toFixed(2)})`;
         }
         amount = Math.max(0, amount);
-
         return { text, amount };
     }
 
@@ -67,21 +146,22 @@ export default function OrdersPage() {
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <h1 className="text-3xl font-bold mb-6">Manage Orders</h1>
 
-            <div className="bg-gray-800 p-6 rounded-lg">
+            {/* @unchanged (Main orders table display logic) */}
+             <div className="bg-gray-800 p-6 rounded-lg">
                 {isLoading ? (
                     <p>Loading orders...</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="bg-gray-900">
-                            <tr className="border-b border-gray-600">
-                                <th className="p-3">Order ID</th>
-                                <th className="p-3">Date</th>
-                                <th className="p-3">Customer</th>
-                                <th className="p-3">Total</th>
-                                <th className="p-3">Status</th>
-                                <th className="p-3">Actions</th>
-                            </tr>
+                                <tr className="border-b border-gray-600">
+                                    <th className="p-3">Order ID</th>
+                                    <th className="p-3">Date</th>
+                                    <th className="p-3">Customer</th>
+                                    <th className="p-3">Total</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3">Actions</th>
+                                </tr>
                             </thead>
                             <tbody>
                             {orders.map(order => (
@@ -109,11 +189,13 @@ export default function OrdersPage() {
             {selectedOrder && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
                     <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+                        {/* @unchanged (Modal Header) */}
+                         <div className="p-6 border-b border-gray-700 flex justify-between items-center">
                             <h2 className="text-2xl font-bold">Order #{selectedOrder.id}</h2>
                             <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-white">&times;</button>
                         </div>
                         <div className="p-6 space-y-6">
+                            {/* @unchanged (Order Items display) */}
                             <div>
                                 <h3 className="font-semibold mb-2">Order Items</h3>
                                 <div className="space-y-2">
@@ -128,11 +210,12 @@ export default function OrdersPage() {
                                     ))}
                                 </div>
                             </div>
-                             {/* --- NEW: Display Order Totals --- */}
+                            {/* @unchanged (Totals display) */}
                              <div>
                                 <h3 className="font-semibold mb-2">Totals</h3>
                                 <div className="space-y-1 text-sm bg-gray-900/50 p-3 rounded">
-                                    <div className="flex justify-between">
+                                    {/* ... totals details ... */}
+                                     <div className="flex justify-between">
                                         <span className="text-gray-400">Subtotal</span>
                                         <span>${selectedOrder.subtotal?.toFixed(2) ?? '0.00'}</span>
                                     </div>
@@ -142,7 +225,6 @@ export default function OrdersPage() {
                                             <span>-${getDiscountDetails(selectedOrder).amount.toFixed(2)}</span>
                                         </div>
                                     )}
-                                     {/* Add Shipping if applicable */}
                                      <div className="flex justify-between">
                                         <span className="text-gray-400">Shipping</span>
                                         <span>$0.00</span> {/* Placeholder */}
@@ -153,10 +235,11 @@ export default function OrdersPage() {
                                     </div>
                                 </div>
                             </div>
-                            {/* @unchanged (Shipping Details display) */}
+                            {/* @unchanged (Shipping Address display) */}
                             <div>
-                                <h3 className="font-semibold mb-2">Shipping Details</h3>
-                                {selectedOrder.addresses ? (
+                                <h3 className="font-semibold mb-2">Shipping Address</h3>
+                                {/* ... address details ... */}
+                                 {selectedOrder.addresses ? (
                                     <div className="text-sm text-gray-300 bg-gray-900/50 p-3 rounded">
                                         <p>{selectedOrder.addresses.address_line_1}</p>
                                         {selectedOrder.addresses.address_line_2 && <p>{selectedOrder.addresses.address_line_2}</p>}
@@ -165,8 +248,44 @@ export default function OrdersPage() {
                                     </div>
                                 ) : <p className="text-sm text-gray-500">No address provided (guest checkout).</p>}
                             </div>
-                            {/* In a future step, a form to update status and tracking would go here */}
+
+                            {/* --- NEW: Tracking Information Form --- */}
+                            <div>
+                                <h3 className="font-semibold mb-2">Shipping Tracking</h3>
+                                <div className="space-y-3 bg-gray-900/50 p-4 rounded">
+                                    <div>
+                                        <label htmlFor="shipping_carrier" className="block text-sm font-medium mb-1">Shipping Carrier</label>
+                                        <input
+                                            type="text"
+                                            id="shipping_carrier"
+                                            value={shippingCarrier}
+                                            onChange={(e) => setShippingCarrier(e.target.value)}
+                                            placeholder="e.g., FedEx, UPS, USPS"
+                                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"
+                                        />
+                                    </div>
+                                    <div>
+                                         <label htmlFor="tracking_number" className="block text-sm font-medium mb-1">Tracking Number</label>
+                                         <input
+                                            type="text"
+                                            id="tracking_number"
+                                            value={trackingNumber}
+                                            onChange={(e) => setTrackingNumber(e.target.value)}
+                                            placeholder="Enter tracking number"
+                                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"
+                                        />
+                                    </div>
+                                     <button
+                                        onClick={handleSaveTracking}
+                                        disabled={isSavingTracking}
+                                        className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
+                                     >
+                                        {isSavingTracking ? 'Saving...' : 'Save Tracking Info'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
+                         {/* @unchanged (Modal Footer) */}
                         <div className="p-4 bg-gray-900/50 text-right">
                             <button onClick={() => setSelectedOrder(null)} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">
                                 Close

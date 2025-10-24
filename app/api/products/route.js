@@ -2,8 +2,8 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
+// @unchanged (GET function remains the same)
 export async function GET() {
-    // @unchanged (GET function from inventory update is sufficient, but we add collections for consistency)
     const { data, error } = await supabase
         .from('products')
         .select(`
@@ -13,8 +13,10 @@ export async function GET() {
                 inventory_levels (*)
             ),
             categories (*),
-            collections (*)
-        `);
+            collections (*),
+            tags (*) // Also fetch tags here for consistency
+        `)
+        .order('created_at', { ascending: false }); // Default order
 
     if (error) {
         console.error('Error fetching products:', error);
@@ -24,27 +26,42 @@ export async function GET() {
 }
 
 export async function POST(request) {
-    // We now accept 'collection_ids' in the request body
-    const { name, description, variants, tags = [], category_id, collection_ids = [] } = await request.json();
+    // --- Extract SEO fields from the request body ---
+    const {
+        name,
+        description,
+        seo_title, //
+        seo_description, //
+        variants,
+        tags = [],
+        category_id,
+        collection_ids = []
+    } = await request.json();
 
+    // @unchanged (Validation for name and variants)
     if (!name || !variants || variants.length === 0) {
-        return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+        return NextResponse.json({ error: 'Missing required fields (name, variants).' }, { status: 400 });
     }
 
     let newProductId = null;
 
     try {
-        // Step 1: Insert the main product
+        // --- Step 1: Insert the main product, including SEO fields ---
         const { data: productData, error: productError } = await supabase
-            .from('products')
-            .insert([{ name, description }])
+            .from('products') //
+            .insert([{
+                name,
+                description,
+                seo_title: seo_title || null, // Add seo_title
+                seo_description: seo_description || null // Add seo_description
+            }])
             .select()
             .single();
         if (productError) throw productError;
 
         newProductId = productData.id;
 
-        // Step 2: Insert variants (without inventory data)
+        // @unchanged (Step 2: Insert variants)
         const variantsToInsert = variants.map(v => ({
             sku: v.sku,
             price: v.price,
@@ -58,34 +75,34 @@ export async function POST(request) {
             .select();
         if (variantError) throw variantError;
 
-        // Step 3: Use the returned variant IDs to create their inventory records
+        // @unchanged (Step 3: Insert inventory levels)
         const inventoryToInsert = insertedVariants.map((variant, index) => ({
             variant_id: variant.id,
             on_hand: variants[index].on_hand || 0
         }));
-        const { error: inventoryError } = await supabase.from('inventory_levels').insert(inventoryToInsert);
+        const { error: inventoryError } = await supabase.from('inventory_levels').insert(inventoryToInsert); //
         if (inventoryError) throw inventoryError;
 
-        // --- NEW: Step 4: Link product to its category ---
-        if (category_id) {
+        // @unchanged (Step 4: Link product to category)
+        if (category_id) { //
             const { error: categoryLinkError } = await supabase
                 .from('product_categories')
                 .insert({ product_id: newProductId, category_id: category_id });
             if (categoryLinkError) throw categoryLinkError;
         }
 
-        // --- NEW: Step 5: Link product to its collections ---
-        if (collection_ids.length > 0) {
+        // @unchanged (Step 5: Link product to collections)
+        if (collection_ids.length > 0) { //
             const collectionLinks = collection_ids.map(collectionId => ({
                 product_id: newProductId,
                 collection_id: collectionId,
             }));
-            const { error: collectionLinkError } = await supabase.from('product_collections').insert(collectionLinks);
+            const { error: collectionLinkError } = await supabase.from('product_collections').insert(collectionLinks); //
             if (collectionLinkError) throw collectionLinkError;
         }
 
-        // @unchanged (Step 6: Handle tags is the same)
-        if (tags.length > 0) {
+        // @unchanged (Step 6: Handle tags)
+         if (tags.length > 0) {
             const tagObjects = await Promise.all(
                 tags.map(async (tagName) => {
                     let { data: existingTag } = await supabase.from('tags').select('id').eq('name', tagName).single();
@@ -101,11 +118,19 @@ export async function POST(request) {
             if (productTagsError) throw productTagsError;
         }
 
-        // @unchanged (Step 7: Refetch the complete product data is the same, but the query is updated)
+
+        // --- Step 7: Refetch the complete product data (query includes SEO fields implicitly via *) ---
         const { data: fullNewProduct, error: fetchError } = await supabase
-            .from('products')
-            .select('*, product_variants(*, inventory_levels(*)), tags(*), categories(*), collections(*)')
-            .eq('id', newProductId)
+            .from('products') //
+            // Ensure the select includes all necessary related data, including SEO fields (implicitly included by *)
+            .select(`
+                *,
+                product_variants(*, inventory_levels(*)),
+                tags(*),
+                categories(*),
+                collections(*)
+             `)
+            .eq('id', newProductId) //
             .single();
         if (fetchError) throw fetchError;
 
@@ -113,8 +138,10 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Full error during product creation:', error);
+        // Attempt to clean up the product if subsequent steps failed
         if (newProductId) {
-            await supabase.from('products').delete().eq('id', newProductId);
+             console.log(`Attempting to clean up product ID: ${newProductId}`);
+             await supabase.from('products').delete().eq('id', newProductId); //
         }
         return NextResponse.json({ error: 'Failed to create product.', details: error.message }, { status: 500 });
     }

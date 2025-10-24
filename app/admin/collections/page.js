@@ -8,15 +8,19 @@ export default function CollectionsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [editingCollection, setEditingCollection] = useState(null);
 
-    // Form state
+    // --- Form state ---
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [isFeatured, setIsFeatured] = useState(false);
+    // --- NEW: SEO Form State ---
+    const [seoTitle, setSeoTitle] = useState('');
+    const [seoDescription, setSeoDescription] = useState('');
 
+    // @unchanged (fetchCollections remains the same)
     const fetchCollections = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('/api/collections');
+            const response = await fetch('/api/collections'); //
             const data = await response.json();
             setCollections(data || []);
         } catch (error) {
@@ -25,6 +29,7 @@ export default function CollectionsPage() {
         setIsLoading(false);
     };
 
+    // @unchanged (useEffect remains the same)
     useEffect(() => {
         fetchCollections();
     }, []);
@@ -33,6 +38,9 @@ export default function CollectionsPage() {
         setName('');
         setDescription('');
         setIsFeatured(false);
+        // --- NEW: Reset SEO fields ---
+        setSeoTitle('');
+        setSeoDescription('');
         setEditingCollection(null);
     };
 
@@ -41,14 +49,19 @@ export default function CollectionsPage() {
         setName(collection.name);
         setDescription(collection.description || '');
         setIsFeatured(collection.is_featured || false);
+        // --- NEW: Populate SEO fields ---
+        // Assumes DB columns are added and API returns them
+        setSeoTitle(collection.seo_title || '');
+        setSeoDescription(collection.seo_description || '');
     };
 
+    // @unchanged (handleDelete remains the same)
     const handleDelete = async (collectionId) => {
         if (!confirm('Are you sure you want to delete this collection? This can only be done if it has no products.')) {
             return;
         }
         try {
-            const response = await fetch(`/api/collections/${collectionId}`, { method: 'DELETE' });
+            const response = await fetch(`/api/collections/${collectionId}`, { method: 'DELETE' }); ///route.js]
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Failed to delete collection');
@@ -63,10 +76,17 @@ export default function CollectionsPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const isEditing = !!editingCollection;
-        const url = isEditing ? `/api/collections/${editingCollection.id}` : '/api/collections';
+        const url = isEditing ? `/api/collections/${editingCollection.id}` : '/api/collections'; ///route.js]
         const method = isEditing ? 'PUT' : 'POST';
 
-        const body = { name, description, is_featured: isFeatured };
+        const body = {
+            name,
+            description,
+            is_featured: isFeatured,
+            // --- NEW: Include SEO fields ---
+            seo_title: seoTitle || null,
+            seo_description: seoDescription || null,
+        };
 
         try {
             const response = await fetch(url, {
@@ -97,18 +117,48 @@ export default function CollectionsPage() {
                 <div className="md:col-span-1">
                     <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg space-y-4">
                         <h2 className="text-xl font-semibold">{editingCollection ? 'Edit Collection' : 'Add New Collection'}</h2>
+                        {/* @unchanged (Name, Description, Is Featured inputs) */}
                         <div>
                             <label htmlFor="name" className="block text-sm font-medium mb-1">Collection Name</label>
-                            <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md" required />
+                            <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600" required />
                         </div>
                         <div>
                             <label htmlFor="description" className="block text-sm font-medium mb-1">Description</label>
-                            <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md" rows="3"></textarea>
+                            <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600" rows="3"></textarea>
                         </div>
                         <div className="flex items-center">
                             <input id="isFeatured" type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"/>
                             <label htmlFor="isFeatured" className="ml-2 block text-sm">Feature on homepage</label>
                         </div>
+
+                         {/* --- NEW: SEO Fields --- */}
+                         <div>
+                            <label htmlFor="seoTitleCol" className="block text-sm font-medium mb-1">SEO Title (Optional)</label>
+                            <input
+                                id="seoTitleCol" // Use unique ID if needed
+                                type="text"
+                                value={seoTitle}
+                                onChange={(e) => setSeoTitle(e.target.value)}
+                                placeholder="Max 60 characters recommended"
+                                maxLength="70"
+                                className="w-full bg-gray-700 border border-gray-600 rounded-md p-2"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="seoDescriptionCol" className="block text-sm font-medium mb-1">SEO Meta Description (Optional)</label>
+                            <textarea
+                                id="seoDescriptionCol" // Use unique ID if needed
+                                value={seoDescription}
+                                onChange={(e) => setSeoDescription(e.target.value)}
+                                placeholder="Max 160 characters recommended"
+                                maxLength="170"
+                                className="w-full bg-gray-700 border border-gray-600 rounded-md p-2"
+                                rows="3"
+                            ></textarea>
+                        </div>
+
+
+                        {/* @unchanged (Submit/Cancel buttons) */}
                         <div className="flex gap-4 pt-2">
                             <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
                                 {editingCollection ? 'Update Collection' : 'Save Collection'}
@@ -123,7 +173,8 @@ export default function CollectionsPage() {
                 </div>
 
                 {/* List of existing collections */}
-                <div className="md:col-span-2 bg-gray-800 p-6 rounded-lg">
+                {/* @unchanged (List display logic) */}
+                 <div className="md:col-span-2 bg-gray-800 p-6 rounded-lg">
                     <h2 className="text-xl font-semibold mb-4">Existing Collections</h2>
                     {isLoading ? <p>Loading...</p> : (
                         <div className="space-y-2">
@@ -141,6 +192,7 @@ export default function CollectionsPage() {
                             ))}
                         </div>
                     )}
+                     { !isLoading && collections.length === 0 && <p className="text-gray-500 mt-4 text-center">No collections created yet.</p>}
                 </div>
             </div>
         </div>

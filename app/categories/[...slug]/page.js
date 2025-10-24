@@ -3,10 +3,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import ProductCard from '@/components/ProductCard';
+import ProductCard from '@/components/ProductCard'; //
 import Link from 'next/link';
 
-// Helper to update URL query params without full page reload
+// @unchanged (updateQueryString helper function)
 function updateQueryString(router, pathname, currentParams, newParams) {
     const updatedParams = new URLSearchParams(currentParams.toString());
     Object.entries(newParams).forEach(([key, value]) => {
@@ -32,16 +32,14 @@ export default function CategoryPage(props) {
     const [categoryInfo, setCategoryInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // --- NEW: State for filters and sorting ---
+    // @unchanged (State for filters and sorting)
     const [sortBy, setSortBy] = useState(searchParams.get('sort') || '');
     const [selectedSizes, setSelectedSizes] = useState(searchParams.getAll('size') || []);
     const [selectedColors, setSelectedColors] = useState(searchParams.getAll('color') || []);
-
-    // --- NEW: Derive available filters from products ---
-    // In a real app, you might fetch these separately or aggregate them more efficiently
     const [availableSizes, setAvailableSizes] = useState([]);
     const [availableColors, setAvailableColors] = useState([]);
 
+    // @unchanged (fetchCategoryProducts function)
     const fetchCategoryProducts = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -51,13 +49,11 @@ export default function CategoryPage(props) {
                 size: selectedSizes, // Automatically handles multiple values
                 color: selectedColors
             });
-
-            // Clean up empty params
              queryParams.forEach((value, key) => {
-                 if (!value) queryParams.delete(key);
+                 if (!value || (Array.isArray(value) && value.length === 0)) queryParams.delete(key); // Check for empty array too
              });
 
-
+            // API now returns SEO fields for category/route.js]
             const response = await fetch(`/api/products/category/${categoryPath}?${queryParams.toString()}`);
 
             if (!response.ok) throw new Error('Category not found');
@@ -66,7 +62,7 @@ export default function CategoryPage(props) {
             setCategoryInfo(data.category);
             setProducts(data.products || []);
 
-            // --- Derive filters from the *fetched* products ---
+            // Derive filters from fetched products
             const sizes = new Set();
             const colors = new Set();
             (data.products || []).forEach(p => {
@@ -85,22 +81,44 @@ export default function CategoryPage(props) {
         } finally {
             setIsLoading(false);
         }
-    }, [slug, sortBy, selectedSizes, selectedColors]); // Dependencies for useCallback
+    }, [slug, sortBy, selectedSizes, selectedColors]);
 
-    // Initial fetch and fetch on filter/sort changes
+    // @unchanged (Initial fetch and fetch on filter/sort changes effect)
     useEffect(() => {
         if (slug && slug.length > 0) {
             fetchCategoryProducts();
         }
-    }, [fetchCategoryProducts, slug]); // slug added as dependency
+    }, [fetchCategoryProducts, slug]);
 
-    // --- NEW: Handlers for filter/sort changes ---
+    // --- NEW: useEffect for updating SEO Meta Tags ---
+    useEffect(() => {
+        if (categoryInfo) {
+            // Set Title
+            document.title = categoryInfo.seo_title || `${categoryInfo.name} | AI Fashion Store`; // Fallback to category name
+
+            // Set Meta Description
+            const metaDescriptionTag = document.querySelector('meta[name="description"]');
+            const descriptionContent = categoryInfo.seo_description || categoryInfo.description || `Browse ${categoryInfo.name} products at AI Fashion Store.`; // Fallback chain
+
+            if (metaDescriptionTag) {
+                metaDescriptionTag.setAttribute('content', descriptionContent);
+            } else {
+                const newMetaTag = document.createElement('meta');
+                newMetaTag.setAttribute('name', 'description');
+                newMetaTag.setAttribute('content', descriptionContent);
+                document.head.appendChild(newMetaTag);
+            }
+        }
+        // Optional cleanup can go here if needed
+    }, [categoryInfo]); // Run when categoryInfo changes
+
+
+    // @unchanged (Handlers for filter/sort changes)
     const handleSortChange = (e) => {
         const newSortBy = e.target.value;
         setSortBy(newSortBy);
         updateQueryString(router, pathname, searchParams, { sort: newSortBy });
     };
-
     const handleSizeChange = (size) => {
         const newSizes = selectedSizes.includes(size)
             ? selectedSizes.filter(s => s !== size)
@@ -108,7 +126,6 @@ export default function CategoryPage(props) {
         setSelectedSizes(newSizes);
         updateQueryString(router, pathname, searchParams, { size: newSizes });
     };
-
     const handleColorChange = (color) => {
          const newColors = selectedColors.includes(color)
             ? selectedColors.filter(c => c !== color)
@@ -117,8 +134,8 @@ export default function CategoryPage(props) {
         updateQueryString(router, pathname, searchParams, { color: newColors });
     };
 
-    // --- Loading/Not Found states are the same ---
-    if (isLoading && !categoryInfo) { // Show loading only on initial load
+    // @unchanged (Loading/Not Found states)
+    if (isLoading && !categoryInfo) {
         return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Loading category...</p></div>;
     }
     if (!categoryInfo && !isLoading) {
@@ -133,16 +150,19 @@ export default function CategoryPage(props) {
         );
     }
 
+    // @unchanged (Rest of the JSX rendering)
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-7xl mx-auto">
+                {/* Header Section */}
                 <h1 className="text-4xl font-extrabold text-center mb-4">{categoryInfo?.name}</h1>
                 <p className="text-center text-gray-400 mb-8 max-w-2xl mx-auto">{categoryInfo?.description}</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                    {/* --- NEW: Filters Sidebar --- */}
+                    {/* Filters Sidebar */}
                     <aside className="md:col-span-1 bg-gray-800 p-6 rounded-lg self-start sticky top-24">
-                        <h2 className="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Filters</h2>
+                        {/* ... filter controls ... */}
+                         <h2 className="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Filters</h2>
                         {/* Sort Dropdown */}
                         <div className="mb-6">
                              <label htmlFor="sort" className="block text-sm font-medium mb-2">Sort By</label>
@@ -163,6 +183,7 @@ export default function CategoryPage(props) {
                                         <span>{size}</span>
                                     </label>
                                 ))}
+                                {availableSizes.length === 0 && <p className="text-xs text-gray-500">None available</p>}
                             </div>
                         </div>
                         {/* Color Filters */}
@@ -175,18 +196,20 @@ export default function CategoryPage(props) {
                                         <span>{color}</span>
                                     </label>
                                 ))}
+                                 {availableColors.length === 0 && <p className="text-xs text-gray-500">None available</p>}
                             </div>
                         </div>
                     </aside>
 
-                    {/* --- Product Grid --- */}
+                    {/* Product Grid */}
                     <div className="md:col-span-3">
-                        {isLoading ? (
+                        {/* ... product grid logic ... */}
+                         {isLoading ? (
                             <p className="text-center py-10">Updating products...</p>
                         ) : products.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {products.map(product => (
-                                    <ProductCard key={product.id} product={product} />
+                                    <ProductCard key={product.id} product={product} /> //
                                 ))}
                             </div>
                         ) : (
