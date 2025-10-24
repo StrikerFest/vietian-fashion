@@ -5,12 +5,13 @@ import { supabase } from '@/lib/supabaseClient';
 // GET all orders for the admin panel
 export async function GET() {
     try {
-        // This is a complex query to get all order details in one go
+        // --- Updated query to include discount information ---
         const { data, error } = await supabase
             .from('orders')
             .select(`
                 id,
                 created_at,
+                subtotal, // Include subtotal
                 total_amount,
                 status,
                 shipping_carrier,
@@ -27,8 +28,11 @@ export async function GET() {
                         size,
                         products ( name )
                     )
+                ),
+                order_discounts (
+                    discounts ( code, type, value )
                 )
-            `)
+            `) // Added join for order_discounts -> discounts
             .order('created_at', { ascending: false }); // Show newest orders first
 
         if (error) throw error;

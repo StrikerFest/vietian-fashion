@@ -15,13 +15,13 @@ export default function OrderConfirmationPage(props) {
             const fetchOrderDetails = async () => {
                 setIsLoading(true);
                 try {
-                    // This is a rare case where a client component fetches data directly,
-                    // as we don't have a dedicated API for a single order yet.
+                    // --- Modify the query to include discount information ---
                     const { data, error } = await supabase
                         .from('orders')
                         .select(`
                             id,
                             created_at,
+                            subtotal,
                             total_amount,
                             order_items (
                                 quantity,
@@ -30,10 +30,13 @@ export default function OrderConfirmationPage(props) {
                                     sku, color, size,
                                     products ( name )
                                 )
+                            ),
+                            order_discounts (
+                                discounts ( code, type, value )
                             )
-                        `)
-                        .eq('id', orderId)
-                        .single();
+                        `) // Fetch related discounts via order_discounts
+                        .eq('id', orderId) //
+                        .single(); // Expect only one order
 
                     if (error) throw error;
                     setOrder(data);
@@ -64,6 +67,23 @@ export default function OrderConfirmationPage(props) {
         );
     }
 
+    // --- Extract discount information ---
+    // Since order_discounts is a linking table, Supabase returns an array.
+    // We assume only one discount per order for now.
+    const appliedDiscount = order.order_discounts?.[0]?.discounts; //
+
+    // --- Calculate discount amount (same logic as CartContext) ---
+    let discountAmount = 0;
+    if (appliedDiscount && order.subtotal) {
+        if (appliedDiscount.type === 'percentage') { //
+            const discountValue = Math.min(Math.max(appliedDiscount.value, 0), 100);
+            discountAmount = (order.subtotal * discountValue) / 100;
+        } else if (appliedDiscount.type === 'fixed') { //
+            discountAmount = Math.min(appliedDiscount.value, order.subtotal);
+        }
+        discountAmount = Math.max(0, discountAmount);
+    }
+
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-2xl mx-auto text-center">
@@ -84,9 +104,27 @@ export default function OrderConfirmationPage(props) {
                             </div>
                         </div>
                     ))}
-                    <div className="flex justify-between font-bold text-lg pt-4">
-                        <span>Total Paid</span>
-                        <span>${order.total_amount.toFixed(2)}</span>
+                    {/* --- Display Subtotal, Discount, and Total --- */}
+                    <div className="space-y-1 pt-4">
+                         <div className="flex justify-between text-gray-300">
+                            <span>Subtotal</span>
+                            <span>${order.subtotal.toFixed(2)}</span>
+                        </div>
+                        {appliedDiscount && (
+                             <div className="flex justify-between text-green-400">
+                                <span>Discount ({appliedDiscount.code})</span>
+                                <span>-${discountAmount.toFixed(2)}</span>
+                            </div>
+                        )}
+                         {/* Add Shipping if applicable */}
+                         <div className="flex justify-between text-gray-300">
+                            <span>Shipping</span>
+                            <span>$0.00</span> {/* Assuming free for now */}
+                        </div>
+                        <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-bold text-lg">
+                            <span>Total Paid</span>
+                            <span>${order.total_amount.toFixed(2)}</span>
+                        </div>
                     </div>
                 </div>
 

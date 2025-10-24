@@ -12,6 +12,7 @@ export default function OrdersPage() {
         const fetchOrders = async () => {
             setIsLoading(true);
             try {
+                // Fetch orders - This endpoint now includes discount info
                 const response = await fetch('/api/orders');
                 if (!response.ok) throw new Error('Failed to fetch orders');
                 const data = await response.json();
@@ -34,6 +35,33 @@ export default function OrdersPage() {
             default: return <span className={`${baseClasses} bg-gray-700 text-gray-300`}>Pending</span>;
         }
     };
+
+    // --- NEW: Helper function to calculate and format discount ---
+    const getDiscountDetails = (order) => {
+        if (!order || !order.order_discounts || order.order_discounts.length === 0) { //
+            return { text: null, amount: 0 };
+        }
+        // Assuming one discount per order for simplicity
+        const discountInfo = order.order_discounts[0]?.discounts; //
+        if (!discountInfo || order.subtotal === undefined) {
+             return { text: null, amount: 0 };
+        }
+
+        let amount = 0;
+        let text = '';
+        if (discountInfo.type === 'percentage') { //
+             const discountValue = Math.min(Math.max(discountInfo.value, 0), 100);
+             amount = (order.subtotal * discountValue) / 100;
+             text = `Discount (${discountInfo.code} - ${discountValue}%)`;
+        } else if (discountInfo.type === 'fixed') { //
+             amount = Math.min(discountInfo.value, order.subtotal);
+             text = `Discount (${discountInfo.code} - $${Number(discountInfo.value).toFixed(2)})`;
+        }
+        amount = Math.max(0, amount);
+
+        return { text, amount };
+    }
+
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -72,6 +100,7 @@ export default function OrdersPage() {
                             ))}
                             </tbody>
                         </table>
+                         { !isLoading && orders.length === 0 && <p className="text-gray-500 mt-4 text-center">No orders found.</p>}
                     </div>
                 )}
             </div>
@@ -99,6 +128,32 @@ export default function OrdersPage() {
                                     ))}
                                 </div>
                             </div>
+                             {/* --- NEW: Display Order Totals --- */}
+                             <div>
+                                <h3 className="font-semibold mb-2">Totals</h3>
+                                <div className="space-y-1 text-sm bg-gray-900/50 p-3 rounded">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">Subtotal</span>
+                                        <span>${selectedOrder.subtotal?.toFixed(2) ?? '0.00'}</span>
+                                    </div>
+                                    {getDiscountDetails(selectedOrder).text && (
+                                         <div className="flex justify-between text-green-400">
+                                            <span>{getDiscountDetails(selectedOrder).text}</span>
+                                            <span>-${getDiscountDetails(selectedOrder).amount.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                     {/* Add Shipping if applicable */}
+                                     <div className="flex justify-between">
+                                        <span className="text-gray-400">Shipping</span>
+                                        <span>$0.00</span> {/* Placeholder */}
+                                    </div>
+                                    <div className="border-t border-gray-700 pt-1 mt-1 flex justify-between font-bold text-base">
+                                        <span>Grand Total</span>
+                                        <span>${selectedOrder.total_amount.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* @unchanged (Shipping Details display) */}
                             <div>
                                 <h3 className="font-semibold mb-2">Shipping Details</h3>
                                 {selectedOrder.addresses ? (

@@ -4,12 +4,48 @@
 import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Import the router
+import { useRouter } from 'next/navigation';
 
 export default function CartPage() {
-    const { cartItems, removeFromCart, updateQuantity, subtotal, clearCart } = useCart();
+    // --- Get discount-related state and functions from context ---
+    const {
+        cartItems,
+        removeFromCart,
+        updateQuantity,
+        subtotal,
+        clearCart,
+        appliedDiscount, // The applied discount object
+        discountCodeInput, // The value in the input field
+        setDiscountCodeInput, // Function to update the input field
+        applyDiscountCode, // Function to validate and apply the code
+        removeDiscountCode, // Function to remove the applied code
+        discountAmount, // Calculated discount amount
+        total // Final total after discount
+    } = useCart(); //
+
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    // --- NEW: State for discount application UI ---
+    const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
+    const [discountMessage, setDiscountMessage] = useState({ type: '', text: '' }); // To show success/error
+
     const router = useRouter();
+
+    const handleApplyDiscount = async (e) => {
+        e.preventDefault();
+        setIsApplyingDiscount(true);
+        setDiscountMessage({ type: '', text: '' }); // Clear previous message
+        const result = await applyDiscountCode(discountCodeInput); // Use the function from context
+        setDiscountMessage({
+            type: result.success ? 'success' : 'error',
+            text: result.message
+        });
+        setIsApplyingDiscount(false);
+    };
+
+    const handleRemoveDiscount = () => {
+        removeDiscountCode(); // Use the function from context
+        setDiscountMessage({ type: '', text: '' }); // Clear any messages
+    };
 
     const handleCheckout = async () => {
         setIsCheckingOut(true);
@@ -17,8 +53,11 @@ export default function CartPage() {
             const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // In a real app with user auth, you'd pass userId and addressId here
-                body: JSON.stringify({ cartItems }),
+                // --- Pass cart items AND the applied discount ID ---
+                body: JSON.stringify({
+                    cartItems,
+                    discountId: appliedDiscount?.id || null // Pass the ID if a discount is applied
+                }),
             });
 
             if (!response.ok) {
@@ -30,7 +69,6 @@ export default function CartPage() {
 
             if (data.success) {
                 clearCart();
-                // Redirect to a confirmation page
                 router.push(`/order-confirmation/${data.orderId}`);
             }
         } catch (error) {
@@ -76,25 +114,74 @@ export default function CartPage() {
                             ))}
                         </div>
 
-                        {/* Order Summary with updated button */}
-                        <div className="bg-gray-800 p-6 rounded-lg self-start">
-                            <h2 className="text-xl font-bold mb-4">Order Summary</h2>
-                            <div className="flex justify-between mb-2">
-                                <span className="text-gray-400">Subtotal</span>
-                                <span>${subtotal.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-gray-400 mb-4">
-                                <span>Shipping</span>
-                                <span>Free</span>
-                            </div>
-                            <div className="border-t border-gray-700 pt-4 flex justify-between font-bold text-lg">
-                                <span>Total</span>
-                                <span>${subtotal.toFixed(2)}</span>
+                        {/* Order Summary & Discount */}
+                        <div className="bg-gray-800 p-6 rounded-lg self-start space-y-4">
+                            <h2 className="text-xl font-bold">Order Summary</h2>
+                            {/* --- Discount Code Section --- */}
+                            {!appliedDiscount ? (
+                                <form onSubmit={handleApplyDiscount}>
+                                    <label htmlFor="discount-code" className="block text-sm font-medium mb-1">Discount Code</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            id="discount-code"
+                                            value={discountCodeInput}
+                                            onChange={(e) => setDiscountCodeInput(e.target.value)}
+                                            placeholder="Enter code"
+                                            className="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600"
+                                            disabled={isApplyingDiscount}
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
+                                            disabled={isApplyingDiscount || !discountCodeInput}
+                                        >
+                                            {isApplyingDiscount ? '...' : 'Apply'}
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <div className="text-sm">
+                                    <p className="flex justify-between items-center">
+                                        <span>Discount Applied: <span className="font-mono bg-gray-700 px-2 py-0.5 rounded">{appliedDiscount.code}</span></span>
+                                        <button onClick={handleRemoveDiscount} className="text-red-500 hover:text-red-400 font-semibold text-xs">(Remove)</button>
+                                    </p>
+                                </div>
+                            )}
+                            {/* --- Display Discount Success/Error Messages --- */}
+                            {discountMessage.text && (
+                                <p className={`text-sm ${discountMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
+                                    {discountMessage.text}
+                                </p>
+                            )}
+
+                            {/* --- Totals --- */}
+                            <div className="border-t border-gray-700 pt-4 space-y-2">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-400">Subtotal</span>
+                                    <span>${subtotal.toFixed(2)}</span>
+                                </div>
+                                {/* Show discount amount if applied */}
+                                {appliedDiscount && (
+                                    <div className="flex justify-between text-green-400">
+                                        <span>Discount ({appliedDiscount.code})</span>
+                                        <span>-${discountAmount.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-gray-400">
+                                    <span>Shipping</span>
+                                    <span>Free</span>
+                                </div>
+                                <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-bold text-lg">
+                                    <span>Total</span>
+                                    {/* Display the final total from context */}
+                                    <span>${total.toFixed(2)}</span>
+                                </div>
                             </div>
                             <button
                                 onClick={handleCheckout}
                                 disabled={isCheckingOut}
-                                className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg disabled:bg-gray-500 disabled:cursor-not-allowed"
+                                className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg disabled:bg-gray-500 disabled:cursor-not-allowed"
                             >
                                 {isCheckingOut ? 'Processing...' : 'Proceed to Checkout'}
                             </button>
