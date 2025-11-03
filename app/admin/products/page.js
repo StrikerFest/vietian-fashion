@@ -36,6 +36,9 @@ export default function AdminProductsPage() {
     // --- NEW: State for bulk export ---
     const [isExporting, setIsExporting] = useState(false);
 
+    // --- NEW: State for selected products ---
+    const [selectedProductIds, setSelectedProductIds] = useState([]);
+
     // @unchanged (useEffect for fetching initial data)
     useEffect(() => {
         const fetchData = async () => {
@@ -139,9 +142,9 @@ export default function AdminProductsPage() {
                 const errorData = await response.json();
                 throw new Error(errorData.error || `Failed to ${isEditing ? 'update' : 'create'} product`);
             }
-             const productsRes = await fetch('/api/products');
-             const productsData = await productsRes.json();
-             setProducts(productsData || []);
+            const productsRes = await fetch('/api/products');
+            const productsData = await productsRes.json();
+            setProducts(productsData || []);
             resetForm();
             alert(`Product ${isEditing ? 'updated' : 'created'} successfully!`);
         } catch (error) {
@@ -186,41 +189,68 @@ export default function AdminProductsPage() {
         }
     };
 
-    // --- NEW: Handle Bulk Export Click ---
-    const handleExport = async () => {
-        setIsExporting(true);
-        try {
-            // Call the export API endpoint we just created
-            const response = await fetch('/api/products/bulk-export');
 
+    // --- NEW: Handler for selecting/deselecting a single product ---
+    const handleSelectProduct = (productId) => {
+        setSelectedProductIds((prevSelected) =>
+            prevSelected.includes(productId)
+                ? prevSelected.filter((id) => id !== productId) // Deselect
+                : [...prevSelected, productId] // Select
+        );
+    };
+
+    // --- NEW: Handler for selecting/deselecting all products ---
+    const handleSelectAllProducts = (e) => {
+        if (e.target.checked) {
+            // Select all product IDs from the current `products` state
+            setSelectedProductIds(products.map((p) => p.id));
+        } else {
+            // Deselect all
+            setSelectedProductIds([]);
+        }
+    };
+
+    // --- MODIFIED: Handle Bulk Export Click ---
+    const handleExport = async (mode = 'all') => {
+        if (mode === 'selected' && selectedProductIds.length === 0) {
+            alert('Please select products to export.');
+            return;
+        }
+
+        setIsExporting(true);
+        let exportUrl = '/api/products/bulk-export'; //
+
+        if (mode === 'selected') {
+            // Append selected IDs as a query parameter
+            const params = new URLSearchParams();
+            params.append('ids', selectedProductIds.join(','));
+            exportUrl = `${exportUrl}?${params.toString()}`;
+        }
+
+        try {
+            const response = await fetch(exportUrl);
             if (!response.ok) {
-                // Try to parse a JSON error message from the response
                 try {
-                     const errorData = await response.json();
-                     throw new Error(errorData.error || 'Failed to export products.');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to export products.');
                 } catch (jsonError) {
-                    // Fallback if the response isn't JSON
                     throw new Error(`Failed to export products. Status: ${response.status}`);
                 }
             }
 
-            // Get the blob data (the CSV file content)
             const blob = await response.blob();
-
-            // Create a temporary URL for this blob
             const url = window.URL.createObjectURL(blob);
-
-            // Create a temporary <a> tag to trigger the download
             const a = document.createElement('a');
             a.href = url;
-            a.download = "products_export.csv"; // The desired filename
-            document.body.appendChild(a); // Append the link to the DOM
-            a.click(); // Programmatically click the link
-
-            // Clean up by removing the link and revoking the URL
+            // Generate a dynamic filename
+            const filename = mode === 'selected'
+                ? `products_export_selected_${selectedProductIds.length}.csv`
+                : 'products_export_all.csv';
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
-
         } catch (error) {
             console.error('Export failed:', error);
             alert(`Error exporting products: ${error.message}`);
@@ -304,6 +334,10 @@ export default function AdminProductsPage() {
             alert(`Error deleting product: ${error.message}`);
         }
     };
+
+    // --- NEW: Calculate "Select All" checkbox state ---
+    const allVisibleProductsSelected = products.length > 0 && selectedProductIds.length === products.length;
+
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -446,7 +480,7 @@ export default function AdminProductsPage() {
                 </form>
             )}
 
-            {/* --- Bulk Import/Export Section --- */}
+            {/* --- MODIFIED: Bulk Import/Export Section --- */}
             <div className="bg-gray-800 p-6 rounded-lg mb-8">
                 <h2 className="text-xl font-semibold mb-4">Bulk Import & Export</h2>
 
@@ -477,34 +511,52 @@ export default function AdminProductsPage() {
                     </p>
                 )}
 
-                {/* --- NEW: Export Button --- */}
+                {/* --- MODIFIED: Export Buttons --- */}
                 <div className="mt-6 pt-6 border-t border-gray-700">
                     <h3 className="text-lg font-semibold mb-2">Bulk Export</h3>
                     <p className="text-sm text-gray-400 mb-4">
-                        Download a CSV file of all current products, variants, and inventory.
+                        Download a CSV file of selected products or all products.
                     </p>
-                    <button
-                        type="button"
-                        onClick={handleExport}
-                        disabled={isExporting}
-                        className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
-                    >
-                        {isExporting ? 'Exporting...' : 'Export All Products'}
-                    </button>
+                    <div className="flex flex-wrap gap-4">
+                        <button
+                            type="button"
+                            onClick={() => handleExport('selected')}
+                            disabled={isExporting || selectedProductIds.length === 0}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
+                        >
+                            {isExporting ? 'Exporting...' : `Export Selected (${selectedProductIds.length})`}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleExport('all')}
+                            disabled={isExporting}
+                            className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
+                        >
+                            {isExporting ? 'Exporting...' : `Export All (${products.length})`}
+                        </button>
+                    </div>
                 </div>
 
             </div>
 
-            {/* --- Existing Products Table --- */}
+            {/* --- MODIFIED: Existing Products Table --- */}
             <div className="bg-gray-800 p-6 rounded-lg mt-8">
-                {/* ... table structure ... */}
-                <h2 className="text-xl font-semibold mb-4">Existing Products</h2>
-                {isLoading ? (<p>Loading products...</p>) : (
+                 <h2 className="text-xl font-semibold mb-4">Existing Products</h2>
+                 {isLoading ? (<p>Loading products...</p>) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left table-auto">
-                            {/* ... thead ... */}
                             <thead className="bg-gray-900">
                             <tr>
+                                {/* --- NEW: Select All Checkbox --- */}
+                                <th className="p-3 w-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={allVisibleProductsSelected}
+                                        onChange={handleSelectAllProducts}
+                                        // ref property can be used for indeterminate state if needed
+                                        className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                </th>
                                 <th className="p-3 w-1/3">Product Name</th>
                                 <th className="p-3">Variants</th>
                                 <th className="p-3">Total Stock</th>
@@ -513,10 +565,19 @@ export default function AdminProductsPage() {
                                 <th className="p-3">Actions</th>
                             </tr>
                             </thead>
-                            {/* ... tbody ... */}
                             <tbody>
                             {products.map(product => (
                                 <tr key={product.id} className="border-b border-gray-700 hover:bg-gray-700/50 text-sm align-top">
+                                    {/* --- NEW: Row Checkbox --- */}
+                                    <td className="p-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedProductIds.includes(product.id)}
+                                            onChange={() => handleSelectProduct(product.id)}
+                                            className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                    </td>
+                                    {/* @unchanged (Rest of the table cells) */}
                                     <td className="p-3 font-medium">{product.name}</td>
                                     <td className="p-3">{product.product_variants?.length || 0}</td>
                                     <td className="p-3">
