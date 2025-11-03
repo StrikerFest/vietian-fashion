@@ -3,38 +3,28 @@
 
 import { useState, useEffect } from 'react';
 
-// @unchanged (StarRatingDisplay component remains the same)
-function StarRatingDisplay({ rating }) {
-    const totalStars = 5;
-    let stars = [];
-    for (let i = 1; i <= totalStars; i++) {
-        stars.push(
-            <span key={i} className={`text-xl ${i <= rating ? 'text-yellow-400' : 'text-gray-600'}`}>
-                ★
-            </span>
-        );
-    }
-    return <div className="flex">{stars}</div>;
-}
-
-
 export default function OrdersPage() {
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedOrder, setSelectedOrder] = useState(null); // For the details modal
+    const [selectedOrder, setSelectedOrder] = useState(null);
 
-    // --- NEW: State for tracking info form within the modal ---
+    // @unchanged (State for tracking info modal)
     const [shippingCarrier, setShippingCarrier] = useState('');
     const [trackingNumber, setTrackingNumber] = useState('');
     const [isSavingTracking, setIsSavingTracking] = useState(false);
 
-    // @unchanged (fetchOrders logic remains the same)
+    // --- NEW: State for export filters ---
+    const [filterStartDate, setFilterStartDate] = useState('');
+    const [filterEndDate, setFilterEndDate] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [isExporting, setIsExporting] = useState(false);
+
+    // @unchanged (fetchOrders logic)
     useEffect(() => {
         const fetchOrders = async () => {
             setIsLoading(true);
             try {
-                // Fetch orders - This endpoint includes discount info
-                const response = await fetch('/api/orders');
+                const response = await fetch('/api/orders'); //
                 if (!response.ok) throw new Error('Failed to fetch orders');
                 const data = await response.json();
                 setOrders(data || []);
@@ -46,13 +36,12 @@ export default function OrdersPage() {
         fetchOrders();
     }, []);
 
-    // --- NEW: Effect to populate tracking form when modal opens ---
+    // @unchanged (Effect to populate tracking form)
     useEffect(() => {
         if (selectedOrder) {
             setShippingCarrier(selectedOrder.shipping_carrier || ''); //
             setTrackingNumber(selectedOrder.tracking_number || ''); //
         } else {
-            // Reset form when modal closes
             setShippingCarrier('');
             setTrackingNumber('');
             setIsSavingTracking(false);
@@ -60,10 +49,9 @@ export default function OrdersPage() {
     }, [selectedOrder]);
 
 
-    // --- NEW: Handler to save tracking info ---
+    // @unchanged (Handler to save tracking info)
     const handleSaveTracking = async () => {
         if (!selectedOrder) return;
-        // Basic check: require at least one field
         if (!shippingCarrier && !trackingNumber) {
             alert('Please enter Shipping Carrier or Tracking Number.');
             return;
@@ -105,8 +93,61 @@ export default function OrdersPage() {
         }
     };
 
+    // --- NEW: Handler for exporting orders ---
+    const handleExport = async () => {
+        setIsExporting(true);
 
-    // @unchanged (OrderStatusBadge component remains the same)
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (filterStartDate) {
+            params.append('start', new Date(filterStartDate).toISOString());
+        }
+        if (filterEndDate) {
+            // Add 1 day to end date to make it inclusive (e.g., end of 2023-10-31)
+            const endDate = new Date(filterEndDate);
+            endDate.setDate(endDate.getDate() + 1);
+            params.append('end', endDate.toISOString());
+        }
+        if (filterStatus) {
+            params.append('status', filterStatus);
+        }
+
+        const exportUrl = `/api/orders/export?${params.toString()}`;
+
+        try {
+            // We will create this API endpoint next
+            const response = await fetch(exportUrl);
+
+            if (!response.ok) {
+                 try {
+                     const errorData = await response.json();
+                     throw new Error(errorData.error || 'Failed to export orders.');
+                } catch (jsonError) {
+                    throw new Error(`Failed to export orders. Status: ${response.status}`);
+                }
+            }
+
+            // Trigger file download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `orders_export_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert(`Error exporting orders: ${error.message}`);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+
+    // @unchanged (OrderStatusBadge component)
     const OrderStatusBadge = ({ status }) => {
         const baseClasses = "px-2 py-1 text-xs font-semibold rounded-full";
         switch (status?.toLowerCase()) {
@@ -146,8 +187,64 @@ export default function OrdersPage() {
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <h1 className="text-3xl font-bold mb-6">Manage Orders</h1>
 
-            {/* @unchanged (Main orders table display logic) */}
-             <div className="bg-gray-800 p-6 rounded-lg">
+            {/* --- NEW: Export Orders Section --- */}
+            <div className="bg-gray-800 p-6 rounded-lg mb-8">
+                <h2 className="text-xl font-semibold mb-4">Export Orders</h2>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    {/* Start Date */}
+                    <div>
+                        <label htmlFor="startDate" className="block text-sm font-medium mb-1">Start Date</label>
+                        <input
+                            type="date"
+                            id="startDate"
+                            value={filterStartDate}
+                            onChange={(e) => setFilterStartDate(e.target.value)}
+                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-gray-300"
+                        />
+                    </div>
+                    {/* End Date */}
+                    <div>
+                        <label htmlFor="endDate" className="block text-sm font-medium mb-1">End Date</label>
+                        <input
+                            type="date"
+                            id="endDate"
+                            value={filterEndDate}
+                            onChange={(e) => setFilterEndDate(e.target.value)}
+                            min={filterStartDate || ''} // End date cannot be before start date
+                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-gray-300"
+                        />
+                    </div>
+                    {/* Status Filter */}
+                    <div>
+                        <label htmlFor="status" className="block text-sm font-medium mb-1">Status</label>
+                        <select
+                            id="status"
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"
+                        >
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    {/* Export Button */}
+                    <button
+                        onClick={handleExport}
+                        disabled={isExporting}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
+                    >
+                        {isExporting ? 'Exporting...' : 'Export Orders'}
+                    </button>
+                </div>
+            </div>
+
+            {/* --- Existing Orders List --- */}
+            <div className="bg-gray-800 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4">Existing Orders</h2>
                 {isLoading ? (
                     <p>Loading orders...</p>
                 ) : (
