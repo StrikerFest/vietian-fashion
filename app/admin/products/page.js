@@ -6,24 +6,19 @@ import { useState, useEffect } from 'react';
 // @unchanged (emptyVariant constant remains the same)
 const emptyVariant = { sku: '', price: '', size: '', color: '', on_hand: '' };
 
-// Changed function name to reflect the page's purpose
 export default function AdminProductsPage() {
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
-
-    // @unchanged (Existing state for collections, categories)
     const [collections, setCollections] = useState([]);
     const [categories, setCategories] = useState([]);
 
     // --- Form state ---
     const [productName, setProductName] = useState('');
     const [productDescription, setProductDescription] = useState('');
-    // --- SEO Form State ---
     const [seoTitle, setSeoTitle] = useState('');
     const [seoDescription, setSeoDescription] = useState('');
-    // @unchanged (Existing state for variants, image, tags, etc.)
     const [variants, setVariants] = useState([{ ...emptyVariant }]);
     const [imageFile, setImageFile] = useState(null);
     const [tags, setTags] = useState([]);
@@ -33,13 +28,19 @@ export default function AdminProductsPage() {
     const [categoryId, setCategoryId] = useState('');
     const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
 
+    // --- NEW: State for bulk import ---
+    const [importFile, setImportFile] = useState(null);
+    const [isImporting, setIsImporting] = useState(false);
+    const [importMessage, setImportMessage] = useState({ type: '', text: '' });
 
-    // @unchanged (useEffect for fetching initial data remains the same)
+    // --- NEW: State for bulk export ---
+    const [isExporting, setIsExporting] = useState(false);
+
+    // @unchanged (useEffect for fetching initial data)
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Fetch products, categories, and collections
                 const [productsRes, categoriesRes, collectionsRes] = await Promise.all([
                     fetch('/api/products'),
                     fetch('/api/categories'),
@@ -51,7 +52,6 @@ export default function AdminProductsPage() {
                 const productsData = await productsRes.json();
                 const categoriesData = await categoriesRes.json();
                 const collectionsData = await collectionsRes.json();
-
                 setProducts(productsData || []);
                 setCategories(categoriesData || []);
                 setCollections(collectionsData || []);
@@ -63,7 +63,7 @@ export default function AdminProductsPage() {
         fetchData();
     }, []);
 
-    // @unchanged (resetForm function, including SEO fields)
+    // @unchanged (resetForm function)
     const resetForm = () => {
         setProductName('');
         setProductDescription('');
@@ -78,17 +78,16 @@ export default function AdminProductsPage() {
         setEditingProduct(null);
     };
 
-    // @unchanged (handleEdit function, including SEO fields)
+    // @unchanged (handleEdit function)
     const handleEdit = (product) => {
         setEditingProduct(product);
         setProductName(product.name);
         setProductDescription(product.description || '');
         setSeoTitle(product.seo_title || ''); //
         setSeoDescription(product.seo_description || ''); //
-
         const variantsWithInventory = product.product_variants.map(v => ({
             ...v,
-            on_hand: v.inventory_levels?.[0]?.on_hand ?? 0 // Corrected access/page.js]
+            on_hand: v.inventory_levels?.[0]?.on_hand ?? 0
         }));
         setVariants(variantsWithInventory.length > 0 ? variantsWithInventory : [{ ...emptyVariant }]);
         setTags(product.tags ? product.tags.map(t => t.name) : []);
@@ -97,7 +96,7 @@ export default function AdminProductsPage() {
         setShowForm(true);
     };
 
-    // @unchanged (handleCollectionChange remains the same)
+    // @unchanged (handleCollectionChange function)
     const handleCollectionChange = (collectionId) => {
         setSelectedCollectionIds(prev =>
             prev.includes(collectionId)
@@ -106,20 +105,18 @@ export default function AdminProductsPage() {
         );
     };
 
-    // @unchanged (handleSubmit function, including SEO fields)
+    // @unchanged (handleSubmit function)
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-
         const isEditing = !!editingProduct;
         const url = isEditing ? `/api/products/${editingProduct.id}` : '/api/products';
         const method = isEditing ? 'PUT' : 'POST';
-
         const productData = {
             name: productName,
             description: productDescription,
-            seo_title: seoTitle || null, // Send null if empty
-            seo_description: seoDescription || null, // Send null if empty
+            seo_title: seoTitle || null,
+            seo_description: seoDescription || null,
             variants: variants.map(v => ({
                 id: v.id,
                 sku: v.sku,
@@ -132,32 +129,103 @@ export default function AdminProductsPage() {
             category_id: categoryId || null, //
             collection_ids: selectedCollectionIds, //
         };
-
         try {
             const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(productData),
             });
-
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || `Failed to ${isEditing ? 'update' : 'create'} product`);
             }
-
-            // Refetch all products after save/update
-            const productsRes = await fetch('/api/products');
-            const productsData = await productsRes.json();
-            setProducts(productsData || []);
-
+             const productsRes = await fetch('/api/products');
+             const productsData = await productsRes.json();
+             setProducts(productsData || []);
             resetForm();
             alert(`Product ${isEditing ? 'updated' : 'created'} successfully!`);
-
         } catch (error) {
             console.error('Submission failed:', error);
             alert(`Error: ${error.message}`);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    // --- NEW: Handle Bulk Import Submission ---
+    const handleImportSubmit = async (e) => {
+        e.preventDefault();
+        if (!importFile) {
+            setImportMessage({ type: 'error', text: 'Please select a CSV file to import.' });
+            return;
+        }
+        setIsImporting(true);
+        setImportMessage({ type: '', text: '' });
+        const formData = new FormData();
+        formData.append('file', importFile);
+        try {
+            const response = await fetch('/api/products/bulk-import', {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Bulk import failed.');
+            }
+            setImportMessage({ type: 'success', text: `Import successful! ${data.created_products} products created, ${data.created_variants} variants added.` });
+            setImportFile(null);
+            document.getElementById('importFile').value = null;
+            const productsRes = await fetch('/api/products'); //
+            const productsData = await productsRes.json();
+            setProducts(productsData || []);
+        } catch (error) {
+            console.error('Import failed:', error);
+            setImportMessage({ type: 'error', text: `Error: ${error.message}` });
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
+    // --- NEW: Handle Bulk Export Click ---
+    const handleExport = async () => {
+        setIsExporting(true);
+        try {
+            // Call the export API endpoint we just created
+            const response = await fetch('/api/products/bulk-export');
+
+            if (!response.ok) {
+                // Try to parse a JSON error message from the response
+                try {
+                     const errorData = await response.json();
+                     throw new Error(errorData.error || 'Failed to export products.');
+                } catch (jsonError) {
+                    // Fallback if the response isn't JSON
+                    throw new Error(`Failed to export products. Status: ${response.status}`);
+                }
+            }
+
+            // Get the blob data (the CSV file content)
+            const blob = await response.blob();
+
+            // Create a temporary URL for this blob
+            const url = window.URL.createObjectURL(blob);
+
+            // Create a temporary <a> tag to trigger the download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "products_export.csv"; // The desired filename
+            document.body.appendChild(a); // Append the link to the DOM
+            a.click(); // Programmatically click the link
+
+            // Clean up by removing the link and revoking the URL
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert(`Error exporting products: ${error.message}`);
+        } finally {
+            setIsExporting(false);
         }
     };
 
@@ -173,7 +241,6 @@ export default function AdminProductsPage() {
         formData.append('image', imageFile);
         formData.append('name', productName);
         formData.append('description', productDescription);
-
         try {
             const response = await fetch('/api/generate-tags', { //
                 method: 'POST',
@@ -238,13 +305,11 @@ export default function AdminProductsPage() {
         }
     };
 
-
-    // @unchanged (JSX structure for form and table remains the same, but update title)
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            {/* --- Updated Title --- */}
             <h1 className="text-3xl font-bold mb-6">Manage Products</h1>
 
+            {/* --- Add Product Button --- */}
             <div className="mb-6">
                 <button
                     onClick={() => { showForm ? resetForm() : setShowForm(true); }}
@@ -254,7 +319,7 @@ export default function AdminProductsPage() {
                 </button>
             </div>
 
-            {/* --- Form Section (includes SEO fields added previously) --- */}
+            {/* --- Add/Edit Product Form (conditionally rendered) --- */}
             {showForm && (
                 <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg mt-4 space-y-6">
                     {/* ... form content ... */}
@@ -380,6 +445,55 @@ export default function AdminProductsPage() {
                     </div>
                 </form>
             )}
+
+            {/* --- Bulk Import/Export Section --- */}
+            <div className="bg-gray-800 p-6 rounded-lg mb-8">
+                <h2 className="text-xl font-semibold mb-4">Bulk Import & Export</h2>
+
+                {/* --- Import Form --- */}
+                <form onSubmit={handleImportSubmit} className="flex flex-col sm:flex-row sm:items-end gap-4">
+                    <div className="flex-grow">
+                        <label htmlFor="importFile" className="block text-sm font-medium mb-1">Import CSV File</label>
+                        <input
+                            type="file"
+                            id="importFile"
+                            accept=".csv, text/csv"
+                            onChange={(e) => setImportFile(e.target.files[0])}
+                            className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600 cursor-pointer"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={isImporting || !importFile}
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                        {isImporting ? 'Importing...' : 'Upload & Import'}
+                    </button>
+                </form>
+                {/* Display Import Success/Error Messages */}
+                {importMessage.text && (
+                    <p className={`mt-4 text-sm ${importMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
+                        {importMessage.text}
+                    </p>
+                )}
+
+                {/* --- NEW: Export Button --- */}
+                <div className="mt-6 pt-6 border-t border-gray-700">
+                    <h3 className="text-lg font-semibold mb-2">Bulk Export</h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                        Download a CSV file of all current products, variants, and inventory.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleExport}
+                        disabled={isExporting}
+                        className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
+                    >
+                        {isExporting ? 'Exporting...' : 'Export All Products'}
+                    </button>
+                </div>
+
+            </div>
 
             {/* --- Existing Products Table --- */}
             <div className="bg-gray-800 p-6 rounded-lg mt-8">
