@@ -59,7 +59,7 @@ export default function OrderConfirmationPage(props) {
         return (
             <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center text-center p-8">
                 <h1 className="text-4xl font-bold mb-4">Order Not Found</h1>
-                <p className="text-gray-400 mb-6">We couldn't find the order details. Please check your account for your order history.</p>
+                <p className="text-gray-400 mb-6">{`We couldn't find the order details. Please check your account for your order history.`}</p>
                 <Link href="/" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg">
                     Return to Homepage
                 </Link>
