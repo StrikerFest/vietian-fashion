@@ -1,26 +1,26 @@
 // app/collections/[slug]/page.js
 'use client';
 
-import ProductListingPage from '@/components/ProductListingPage'; // Import the new reusable component
-import { metadata as rootMetadata } from '@/app/layout'; // Import root metadata for fallbacks
+import ProductListingPage from '@/components/ProductListingPage';
+// Remove the rootMetadata import
+// import { metadata as rootMetadata } from '@/app/layout';
 
 export default function CollectionPage(props) {
     const { slug } = props.params;
 
-    // Guard against invalid/missing slugs
     if (!slug) {
         return null;
     }
 
-    // Construct the specific API URL for this collection
-    const fetchUrl = `/api/products/collection/${slug}`; ///route.js]
+    const fetchUrl = `/api/products/collection/${slug}`; //
 
     return (
         <ProductListingPage
             fetchUrl={fetchUrl}
             pageType="Collection"
-            defaultTitle={rootMetadata.title || "AI Fashion Store"}
-            defaultDescription={rootMetadata.description || "Your next outfit, discovered by AI."}
+            // Hardcode the fallback values instead of importing
+            defaultTitle="AI Fashion Store"
+            defaultDescription="Your next outfit, discovered by AI."
         />
     );
 }
