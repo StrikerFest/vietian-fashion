@@ -1,10 +1,11 @@
 // components/ProductListingPage.js
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // Import useState
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/ProductCard'; //
 import Link from 'next/link';
+import QuickViewModal from '@/components/QuickViewModal'; // --- NEW: Import the modal ---
 
 // Helper to update URL query params without full page reload
 function updateQueryString(router, pathname, currentParams, newParams) {
@@ -13,7 +14,7 @@ function updateQueryString(router, pathname, currentParams, newParams) {
         if (value === null || value === undefined || value === '') {
             updatedParams.delete(key);
         } else if (Array.isArray(value)) {
-            updatedParams.delete(key); // Clear existing values for arrays
+            updatedParams.delete(key);
             value.forEach(v => updatedParams.append(key, v));
         } else {
             updatedParams.set(key, value);
@@ -37,7 +38,7 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
     const searchParams = useSearchParams();
 
     const [products, setProducts] = useState([]);
-    const [pageInfo, setPageInfo] = useState(null); // Generic state for categoryInfo or collectionInfo
+    const [pageInfo, setPageInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
     // --- State for filters and sorting ---
@@ -49,6 +50,10 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
     const [availableSizes, setAvailableSizes] = useState([]);
     const [availableColors, setAvailableColors] = useState([]);
 
+    // --- NEW: State for Quick View Modal ---
+    const [quickViewProductId, setQuickViewProductId] = useState(null);
+
+    // @unchanged (fetchProducts function)
     const fetchProducts = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -90,25 +95,21 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
         } finally {
             setIsLoading(false);
         }
-    }, [fetchUrl, pageType, sortBy, selectedSizes, selectedColors]); // Dependencies updated to use fetchUrl
+    }, [fetchUrl, pageType, sortBy, selectedSizes, selectedColors]);
 
     // Initial fetch and fetch on filter/sort changes
     useEffect(() => {
         if (fetchUrl) {
             fetchProducts();
         }
-    }, [fetchProducts, fetchUrl]); // Dependencies updated to use fetchUrl
+    }, [fetchProducts, fetchUrl]);
 
     // --- useEffect for updating SEO Meta Tags ---
     useEffect(() => {
         if (pageInfo) {
-            // Set Title
             document.title = pageInfo.seo_title || `${pageInfo.name} | ${defaultTitle}`;
-
-            // Set Meta Description
             const metaDescriptionTag = document.querySelector('meta[name="description"]');
             const descriptionContent = pageInfo.seo_description || pageInfo.description || `Browse ${pageInfo.name} products at ${defaultTitle}.`;
-
             if (metaDescriptionTag) {
                 metaDescriptionTag.setAttribute('content', descriptionContent);
             } else {
@@ -118,7 +119,6 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                 document.head.appendChild(newMetaTag);
             }
         }
-        // Optional cleanup
         return () => {
             document.title = defaultTitle;
             const metaDescriptionTag = document.querySelector('meta[name="description"]');
@@ -128,6 +128,13 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
         };
     }, [pageInfo, defaultTitle, defaultDescription]);
 
+    // --- NEW: Handlers for opening/closing the modal ---
+    const handleOpenQuickView = (productId) => {
+        setQuickViewProductId(productId);
+    };
+    const handleCloseQuickView = () => {
+        setQuickViewProductId(null);
+    };
 
     // --- Handlers for filter/sort changes (unchanged) ---
     const handleSortChange = (e) => {
