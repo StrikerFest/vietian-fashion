@@ -19,6 +19,9 @@ export default function OrdersPage() {
     const [filterStatus, setFilterStatus] = useState('');
     const [isExporting, setIsExporting] = useState(false);
 
+    // --- NEW: State for cancellation ---
+    const [isCancelling, setIsCancelling] = useState(false);
+
     // @unchanged (fetchOrders logic)
     useEffect(() => {
         const fetchOrders = async () => {
@@ -42,9 +45,11 @@ export default function OrdersPage() {
             setShippingCarrier(selectedOrder.shipping_carrier || ''); //
             setTrackingNumber(selectedOrder.tracking_number || ''); //
         } else {
+            // Reset all modal-specific states when it closes
             setShippingCarrier('');
             setTrackingNumber('');
             setIsSavingTracking(false);
+            setIsCancelling(false); // Reset cancelling state
         }
     }, [selectedOrder]);
 
@@ -65,26 +70,18 @@ export default function OrdersPage() {
                 body: JSON.stringify({
                     shipping_carrier: shippingCarrier, //
                     tracking_number: trackingNumber, //
-                    // Optionally update status here too if needed
                 }),
             });
-
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Failed to update tracking info');
             }
-
             const { order: updatedOrder } = await response.json();
-
-            // Update the main orders list state
             setOrders(prevOrders =>
                 prevOrders.map(o => (o.id === updatedOrder.id ? updatedOrder : o))
             );
-            // Update the selectedOrder state as well so modal shows new data
             setSelectedOrder(updatedOrder);
-
             alert('Tracking information saved successfully!');
-
         } catch (error) {
             console.error('Error saving tracking info:', error);
             alert(`Error: ${error.message}`);
@@ -115,9 +112,7 @@ export default function OrdersPage() {
         const exportUrl = `/api/orders/export?${params.toString()}`;
 
         try {
-            // We will create this API endpoint next
             const response = await fetch(exportUrl);
-
             if (!response.ok) {
                  try {
                      const errorData = await response.json();
@@ -126,8 +121,6 @@ export default function OrdersPage() {
                     throw new Error(`Failed to export orders. Status: ${response.status}`);
                 }
             }
-
-            // Trigger file download
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -137,12 +130,53 @@ export default function OrdersPage() {
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
-
         } catch (error) {
             console.error('Export failed:', error);
             alert(`Error exporting orders: ${error.message}`);
         } finally {
             setIsExporting(false);
+        }
+    };
+
+    // --- NEW: Handler for cancelling an order ---
+    const handleCancelOrder = async () => {
+        if (!selectedOrder) return;
+        if (!confirm('Are you sure you want to cancel this order? This will restock the items and cannot be undone.')) {
+            return;
+        }
+
+        setIsCancelling(true);
+        try {
+            // Call the same API endpoint, but with a different body
+            const response = await fetch(`/api/orders/${selectedOrder.id}`, { ///route.js]
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'cancelled' // Send the cancel signal
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to cancel order');
+            }
+
+            const { order: updatedOrder, message } = await response.json();
+
+            // Update the main orders list state
+            setOrders(prevOrders =>
+                prevOrders.map(o => (o.id === updatedOrder.id ? updatedOrder : o))
+            );
+            // Update the selectedOrder state to reflect the change in the modal
+            setSelectedOrder(updatedOrder);
+
+            alert(message || 'Order cancelled successfully!');
+
+        } catch (error) {
+            console.error('Error cancelling order:', error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            setIsCancelling(false);
         }
     };
 
@@ -286,10 +320,11 @@ export default function OrdersPage() {
             {selectedOrder && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
                     <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+
                         {/* @unchanged (Modal Header) */}
                          <div className="p-6 border-b border-gray-700 flex justify-between items-center">
                             <h2 className="text-2xl font-bold">Order #{selectedOrder.id}</h2>
-                            <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-white">&times;</button>
+                            <OrderStatusBadge status={selectedOrder.status} /> {/* Show status in header */}
                         </div>
                         <div className="p-6 space-y-6">
                             {/* @unchanged (Order Items display) */}
@@ -308,21 +343,21 @@ export default function OrdersPage() {
                                 </div>
                             </div>
                             {/* @unchanged (Totals display) */}
-                             <div>
+                            <div>
                                 <h3 className="font-semibold mb-2">Totals</h3>
                                 <div className="space-y-1 text-sm bg-gray-900/50 p-3 rounded">
                                     {/* ... totals details ... */}
-                                     <div className="flex justify-between">
+                                    <div className="flex justify-between">
                                         <span className="text-gray-400">Subtotal</span>
                                         <span>${selectedOrder.subtotal?.toFixed(2) ?? '0.00'}</span>
                                     </div>
                                     {getDiscountDetails(selectedOrder).text && (
-                                         <div className="flex justify-between text-green-400">
+                                        <div className="flex justify-between text-green-400">
                                             <span>{getDiscountDetails(selectedOrder).text}</span>
                                             <span>-${getDiscountDetails(selectedOrder).amount.toFixed(2)}</span>
                                         </div>
                                     )}
-                                     <div className="flex justify-between">
+                                    <div className="flex justify-between">
                                         <span className="text-gray-400">Shipping</span>
                                         <span>$0.00</span> {/* Placeholder */}
                                     </div>
@@ -336,7 +371,7 @@ export default function OrdersPage() {
                             <div>
                                 <h3 className="font-semibold mb-2">Shipping Address</h3>
                                 {/* ... address details ... */}
-                                 {selectedOrder.addresses ? (
+                                {selectedOrder.addresses ? (
                                     <div className="text-sm text-gray-300 bg-gray-900/50 p-3 rounded">
                                         <p>{selectedOrder.addresses.address_line_1}</p>
                                         {selectedOrder.addresses.address_line_2 && <p>{selectedOrder.addresses.address_line_2}</p>}
@@ -346,45 +381,63 @@ export default function OrdersPage() {
                                 ) : <p className="text-sm text-gray-500">No address provided (guest checkout).</p>}
                             </div>
 
-                            {/* --- NEW: Tracking Information Form --- */}
-                            <div>
-                                <h3 className="font-semibold mb-2">Shipping Tracking</h3>
-                                <div className="space-y-3 bg-gray-900/50 p-4 rounded">
-                                    <div>
-                                        <label htmlFor="shipping_carrier" className="block text-sm font-medium mb-1">Shipping Carrier</label>
-                                        <input
-                                            type="text"
-                                            id="shipping_carrier"
-                                            value={shippingCarrier}
-                                            onChange={(e) => setShippingCarrier(e.target.value)}
-                                            placeholder="e.g., FedEx, UPS, USPS"
-                                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"
-                                        />
+                            {/* --- MODIFIED: Tracking Form (conditionally render) --- */}
+                            {/* Only show tracking form if order is not cancelled or delivered */}
+                            {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
+                                <div>
+                                    <h3 className="font-semibold mb-2">Shipping Tracking</h3>
+                                    <div className="space-y-3 bg-gray-900/50 p-4 rounded">
+                                        {/* ... (shipping/tracking inputs and save button) ... */}
+                                        <div>
+                                            <label htmlFor="shipping_carrier" className="block text-sm font-medium mb-1">Shipping Carrier</label>
+                                            <input
+                                                type="text"
+                                                id="shipping_carrier"
+                                                value={shippingCarrier}
+                                                onChange={(e) => setShippingCarrier(e.target.value)}
+                                                placeholder="e.g., FedEx, UPS, USPS"
+                                                className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="tracking_number" className="block text-sm font-medium mb-1">Tracking Number</label>
+                                            <input
+                                                type="text"
+                                                id="tracking_number"
+                                                value={trackingNumber}
+                                                onChange={(e) => setTrackingNumber(e.target.value)}
+                                                placeholder="Enter tracking number"
+                                                className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleSaveTracking}
+                                            disabled={isSavingTracking}
+                                            className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
+                                        >
+                                            {isSavingTracking ? 'Saving...' : 'Save Tracking Info'}
+                                        </button>
                                     </div>
-                                    <div>
-                                         <label htmlFor="tracking_number" className="block text-sm font-medium mb-1">Tracking Number</label>
-                                         <input
-                                            type="text"
-                                            id="tracking_number"
-                                            value={trackingNumber}
-                                            onChange={(e) => setTrackingNumber(e.target.value)}
-                                            placeholder="Enter tracking number"
-                                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"
-                                        />
-                                    </div>
-                                     <button
-                                        onClick={handleSaveTracking}
-                                        disabled={isSavingTracking}
-                                        className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
-                                     >
-                                        {isSavingTracking ? 'Saving...' : 'Save Tracking Info'}
-                                    </button>
                                 </div>
-                            </div>
+                            )}
                         </div>
-                         {/* @unchanged (Modal Footer) */}
-                        <div className="p-4 bg-gray-900/50 text-right">
-                            <button onClick={() => setSelectedOrder(null)} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">
+
+                         {/* --- MODIFIED: Modal Footer with Cancel Button --- */}
+                        <div className="p-4 bg-gray-900/50 flex justify-between items-center">
+                            {/* Cancel Button (Danger Zone) */}
+                            <button
+                                onClick={handleCancelOrder}
+                                disabled={isCancelling || selectedOrder.status === 'cancelled' || selectedOrder.status === 'delivered'}
+                                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
+                            >
+                                {isCancelling ? 'Cancelling...' : 'Cancel Order'}
+                            </button>
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setSelectedOrder(null)}
+                                className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md"
+                            >
                                 Close
                             </button>
                         </div>
