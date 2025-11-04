@@ -1,11 +1,15 @@
 // app/layout.js
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { CartProvider } from "@/context/CartContext";
-import Navbar from "@/components/Navbar"; // Import the provider
+// Remove the direct imports for CartProvider and Navbar
+// import { CartProvider } from "@/context/CartContext";
+// import Navbar from "@/components/Navbar";
+// Import the new client-side wrapper
+import Providers from "./providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
+// This metadata export will now work correctly
 export const metadata = {
     title: "AI Fashion Store",
     description: "Your next outfit, discovered by AI.",
@@ -15,10 +19,13 @@ export default function RootLayout({ children }) {
     return (
         <html lang="en">
         <body className={inter.className}>
-        <CartProvider>
-            <Navbar /> {/* Add the Navbar here */}
+        {/* This <Providers> component is marked 'use client',
+              but the RootLayout itself remains a Server Component,
+              allowing 'metadata' to be exported.
+            */}
+        <Providers>
             {children}
-        </CartProvider>
+        </Providers>
         </body>
         </html>
     );
