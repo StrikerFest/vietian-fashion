@@ -2,39 +2,43 @@
 'use client';
 
 import { useState } from 'react';
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/context/CartContext'; //
+// --- NEW: Import useAuth ---
+import { useAuth } from '@/context/AuthContext'; //
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function CartPage() {
-    // --- Get discount-related state and functions from context ---
+    // --- Get discount-related state and functions from useCart ---
     const {
         cartItems,
         removeFromCart,
         updateQuantity,
         subtotal,
         clearCart,
-        appliedDiscount, // The applied discount object
-        discountCodeInput, // The value in the input field
-        setDiscountCodeInput, // Function to update the input field
-        applyDiscountCode, // Function to validate and apply the code
-        removeDiscountCode, // Function to remove the applied code
-        discountAmount, // Calculated discount amount
-        total // Final total after discount
+        appliedDiscount,
+        discountCodeInput,
+        setDiscountCodeInput,
+        applyDiscountCode,
+        removeDiscountCode,
+        discountAmount,
+        total
     } = useCart(); //
 
-    const [isCheckingOut, setIsCheckingOut] = useState(false);
-    // --- NEW: State for discount application UI ---
-    const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
-    const [discountMessage, setDiscountMessage] = useState({ type: '', text: '' }); // To show success/error
+    // --- NEW: Get user session from useAuth ---
+    const { session } = useAuth(); //
 
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
+    const [discountMessage, setDiscountMessage] = useState({ type: '', text: '' });
     const router = useRouter();
 
+    // @unchanged (handleApplyDiscount and handleRemoveDiscount)
     const handleApplyDiscount = async (e) => {
         e.preventDefault();
         setIsApplyingDiscount(true);
-        setDiscountMessage({ type: '', text: '' }); // Clear previous message
-        const result = await applyDiscountCode(discountCodeInput); // Use the function from context
+        setDiscountMessage({ type: '', text: '' });
+        const result = await applyDiscountCode(discountCodeInput);
         setDiscountMessage({
             type: result.success ? 'success' : 'error',
             text: result.message
@@ -43,20 +47,22 @@ export default function CartPage() {
     };
 
     const handleRemoveDiscount = () => {
-        removeDiscountCode(); // Use the function from context
-        setDiscountMessage({ type: '', text: '' }); // Clear any messages
+        removeDiscountCode();
+        setDiscountMessage({ type: '', text: '' });
     };
 
+    // --- MODIFIED: handleCheckout ---
     const handleCheckout = async () => {
         setIsCheckingOut(true);
         try {
-            const response = await fetch('/api/checkout', {
+            const response = await fetch('/api/checkout', { //
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // --- Pass cart items AND the applied discount ID ---
                 body: JSON.stringify({
                     cartItems,
-                    discountId: appliedDiscount?.id || null // Pass the ID if a discount is applied
+                    discountId: appliedDiscount?.id || null, //
+                    // --- Pass the user ID from the session ---
+                    userId: session?.user?.id || null //
                 }),
             });
 
@@ -69,7 +75,7 @@ export default function CartPage() {
 
             if (data.success) {
                 clearCart();
-                router.push(`/order-confirmation/${data.orderId}`);
+                router.push(`/order-confirmation/${data.orderId}`); ///page.js]
             }
         } catch (error) {
             console.error('Checkout error:', error);
@@ -78,6 +84,7 @@ export default function CartPage() {
         }
     };
 
+    // @unchanged (Rest of the JSX)
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-4xl mx-auto">
@@ -117,7 +124,7 @@ export default function CartPage() {
                         {/* Order Summary & Discount */}
                         <div className="bg-gray-800 p-6 rounded-lg self-start space-y-4">
                             <h2 className="text-xl font-bold">Order Summary</h2>
-                            {/* --- Discount Code Section --- */}
+                            {/* Discount Code Section */}
                             {!appliedDiscount ? (
                                 <form onSubmit={handleApplyDiscount}>
                                     <label htmlFor="discount-code" className="block text-sm font-medium mb-1">Discount Code</label>
@@ -148,20 +155,19 @@ export default function CartPage() {
                                     </p>
                                 </div>
                             )}
-                            {/* --- Display Discount Success/Error Messages --- */}
+                            {/* Display Discount Success/Error Messages */}
                             {discountMessage.text && (
                                 <p className={`text-sm ${discountMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
                                     {discountMessage.text}
                                 </p>
                             )}
 
-                            {/* --- Totals --- */}
+                            {/* Totals */}
                             <div className="border-t border-gray-700 pt-4 space-y-2">
                                 <div className="flex justify-between">
                                     <span className="text-gray-400">Subtotal</span>
                                     <span>${subtotal.toFixed(2)}</span>
                                 </div>
-                                {/* Show discount amount if applied */}
                                 {appliedDiscount && (
                                     <div className="flex justify-between text-green-400">
                                         <span>Discount ({appliedDiscount.code})</span>
@@ -174,7 +180,6 @@ export default function CartPage() {
                                 </div>
                                 <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-bold text-lg">
                                     <span>Total</span>
-                                    {/* Display the final total from context */}
                                     <span>${total.toFixed(2)}</span>
                                 </div>
                             </div>

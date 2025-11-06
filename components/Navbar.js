@@ -99,14 +99,14 @@ export default function Navbar() {
                         )}
                     </Link>
 
-                    {/* --- NEW: Auth Section --- */}
+                    {/* --- MODIFIED: Auth Section --- */}
                     {session ? (
                         // If user is logged in
                         <>
-                            {/* We can add a "My Account" link here later */}
-                            {/* <Link href="/account" className="text-sm hover:text-indigo-400">
+                            {/* --- "My Account" link is now active --- */}
+                            <Link href="/account" className="text-sm hover:text-indigo-400">
                                 My Account
-                            </Link> */}
+                            </Link>
                             <button
                                 onClick={handleLogout}
                                 className="bg-gray-600 hover:bg-gray-500 text-white font-medium py-2 px-3 rounded-md text-sm"
