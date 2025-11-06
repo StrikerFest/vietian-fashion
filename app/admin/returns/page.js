@@ -11,6 +11,8 @@ function StatusBadge({ status }) {
         case 'approved': return <span className={`${baseClasses} bg-green-800 text-green-200`}>Approved</span>;
         case 'rejected': return <span className={`${baseClasses} bg-red-800 text-red-200`}>Rejected</span>;
         case 'processed': return <span className={`${baseClasses} bg-blue-800 text-blue-200`}>Processed</span>; // 'approved' status from RPC will set order to 'refunded'
+        case 'refunded': return <span className={`${baseClasses} bg-blue-800 text-blue-200`}>Refunded</span>;
+        case 'partially-refunded': return <span className={`${baseClasses} bg-indigo-800 text-indigo-200`}>Part-Refunded</span>;
         default: return <span className={`${baseClasses} bg-gray-700 text-gray-300`}>{status}</span>;
     }
 }
@@ -26,7 +28,7 @@ export default function ReturnsPage() {
     const fetchRequests = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('/api/returns'); //
+            const response = await fetch('/api/returns'); // Fetches from the GET route
             if (!response.ok) throw new Error('Failed to fetch return requests');
             const data = await response.json();
             setRequests(data || []);
@@ -85,12 +87,12 @@ export default function ReturnsPage() {
 
             const { data: updatedRequestData, message } = await response.json();
 
-            // Update the main list with the new data
-            setRequests(prevRequests =>
-                prevRequests.map(r => (r.id === updatedRequestData.id ? updatedRequestData : r))
-            );
-            // Update the data in the modal
-            setSelectedRequest(updatedRequestData);
+            // Refetch all requests to get the most up-to-date list
+            // (especially to update the main order status if changed by RPC)
+            await fetchRequests();
+
+            // Close the modal
+            handleCloseModal();
 
             alert(message || `Request ${status} successfully.`);
 
@@ -124,35 +126,35 @@ export default function ReturnsPage() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="bg-gray-900">
-                            <tr>
-                                <th className="p-3">Request ID</th>
-                                <th className="p-3">Date</th>
-                                <th className="p-3">Order ID</th>
-                                <th className="p-3">Customer</th>
-                                <th className="p-3">Items</th>
-                                <th className="p-3">Status</th>
-                                <th className="p-3">Actions</th>
-                            </tr>
+                                <tr>
+                                    <th className="p-3">Request ID</th>
+                                    <th className="p-3">Date</th>
+                                    <th className="p-3">Order ID</th>
+                                    <th className="p-3">Customer</th>
+                                    <th className="p-3">Items</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3">Actions</th>
+                                </tr>
                             </thead>
                             <tbody>
-                            {requests.map(req => (
-                                <tr key={req.id} className="border-b border-gray-700 hover:bg-gray-700/50 text-sm">
-                                    <td className="p-3 font-mono">#{req.id}</td>
-                                    <td className="p-3">{new Date(req.created_at).toLocaleDateString()}</td>
-                                    <td className="p-3 font-mono">#{req.order_id}</td>
-                                    <td className="p-3">{req.users?.email || 'Guest'}</td>
-                                    <td className="p-3">{req.return_items?.reduce((sum, item) => sum + item.quantity, 0) || 0}</td>
-                                    <td className="p-3"><StatusBadge status={req.status} /></td>
-                                    <td className="p-3">
-                                        <button
-                                            onClick={() => handleViewDetails(req)}
-                                            className="text-indigo-400 hover:text-indigo-300 font-semibold"
-                                        >
-                                            View Details
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
+                                {requests.map(req => (
+                                    <tr key={req.id} className="border-b border-gray-700 hover:bg-gray-700/50 text-sm">
+                                        <td className="p-3 font-mono">#{req.id}</td>
+                                        <td className="p-3">{new Date(req.created_at).toLocaleDateString()}</td>
+                                        <td className="p-3 font-mono">#{req.order_id}</td>
+                                        <td className="p-3">{req.users?.email || 'Guest'}</td>
+                                        <td className="p-3">{req.return_items?.reduce((sum, item) => sum + item.quantity, 0) || 0}</td>
+                                        <td className="p-3"><StatusBadge status={req.status} /></td>
+                                        <td className="p-3">
+                                            <button
+                                                onClick={() => handleViewDetails(req)}
+                                                className="text-indigo-400 hover:text-indigo-300 font-semibold"
+                                            >
+                                                View Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                         { !isLoading && requests.length === 0 && <p className="text-gray-500 mt-4 text-center">No return requests found.</p>}
@@ -231,12 +233,12 @@ export default function ReturnsPage() {
                                 </div>
                             )}
                             {selectedRequest.admin_notes && selectedRequest.status !== 'pending' && (
-                                <div>
+                               <div>
                                     <h3 className="font-semibold mb-2">Admin Notes</h3>
                                     <p className="text-sm text-gray-300 p-3 bg-gray-900/50 rounded min-h-[50px]">
                                         {selectedRequest.admin_notes}
                                     </p>
-                                </div>
+                               </div>
                             )}
 
                         </div>
@@ -261,7 +263,9 @@ export default function ReturnsPage() {
                                 </div>
                             ) : (
                                 // If already processed, just show a placeholder or nothing
-                                <div />
+                                <div>
+                                    <span className="text-sm text-gray-400 italic">This request has been {selectedRequest.status}.</span>
+                                </div>
                             )}
                             <button onClick={handleCloseModal} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">
                                 Close
