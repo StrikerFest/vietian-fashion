@@ -7,9 +7,9 @@ const CartContext = createContext();
 
 export function CartProvider({ children }) {
     const [cartItems, setCartItems] = useState([]);
-    // --- NEW: Discount State ---
-    const [appliedDiscount, setAppliedDiscount] = useState(null); // Stores the full discount object if valid
-    const [discountCodeInput, setDiscountCodeInput] = useState(''); // Stores the user's input
+    // @unchanged (Discount State)
+    const [appliedDiscount, setAppliedDiscount] = useState(null);
+    const [discountCodeInput, setDiscountCodeInput] = useState('');
 
     const addToCart = (product, variant) => {
         setCartItems(prevItems => {
@@ -19,8 +19,10 @@ export function CartProvider({ children }) {
                     item.id === variant.id ? { ...item, quantity: item.quantity + 1 } : item
                 );
             }
+            // --- MODIFIED: Add productId to the cart item object ---
             return [...prevItems, {
                 ...variant,
+                productId: product.id, // <-- ADDED THIS
                 productName: product.name,
                 imageUrl: product.image_url || 'https://placehold.co/100x100/1F2937/FFFFFF?text=Item',
                 quantity: 1
@@ -29,10 +31,12 @@ export function CartProvider({ children }) {
         alert(`${product.name} (${variant.color} / ${variant.size}) added to cart!`);
     };
 
+    // @unchanged (removeFromCart function)
     const removeFromCart = (variantId) => {
         setCartItems(prevItems => prevItems.filter(item => item.id !== variantId));
     };
 
+    // @unchanged (updateQuantity function)
     const updateQuantity = (variantId, newQuantity) => {
         if (newQuantity < 1) {
             removeFromCart(variantId);
@@ -45,6 +49,7 @@ export function CartProvider({ children }) {
         }
     };
 
+    // @unchanged (clearCart function)
     const clearCart = () => {
         setCartItems([]);
         setAppliedDiscount(null); // Also clear discount on cart clear
