@@ -1,25 +1,39 @@
 // app/page.js
 'use client';
 
+// --- NEW: Import useState and QuickViewModal ---
 import { useState } from 'react';
 import Link from 'next/link';
-import ProductCard from '@/components/ProductCard'; // We'll need this
+import ProductCard from '@/components/ProductCard';
+// --- NEW ---
+import QuickViewModal from '@/components/QuickViewModal';
 
 export default function HomePage() {
-    // --- NEW STATES for the search feature ---
+    // @unchanged (searchQuery, searchResults, etc. states)
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [hasSearched, setHasSearched] = useState(false); // To know when to show results/messages
+    const [hasSearched, setHasSearched] = useState(false);
 
-    // Function to handle the form submission
+    // --- NEW: State and handlers for the modal ---
+    const [quickViewProductId, setQuickViewProductId] = useState(null);
+
+    const handleOpenQuickView = (productId) => {
+        setQuickViewProductId(productId);
+    };
+
+    const handleCloseQuickView = () => {
+        setQuickViewProductId(null);
+    };
+
+    // @unchanged (handleSearch function)
     const handleSearch = async (e) => {
         e.preventDefault();
-        if (!searchQuery.trim()) return; // Don't search if the query is empty
+        if (!searchQuery.trim()) return;
 
         setIsLoading(true);
         setHasSearched(true);
-        setSearchResults([]); // Clear old results
+        setSearchResults([]);
 
         try {
             const response = await fetch('/api/recommendations', {
@@ -36,7 +50,6 @@ export default function HomePage() {
             setSearchResults(data.products || []);
         } catch (error) {
             console.error("Search failed:", error);
-            // In case of an error, we'll just show the "no results" message
             setSearchResults([]);
         } finally {
             setIsLoading(false);
@@ -45,7 +58,7 @@ export default function HomePage() {
 
     return (
         <main className="min-h-screen bg-gray-900 text-white">
-            {/* Hero Section with NEW Search Form */}
+            {/* @unchanged (Hero Section with Search Form) */}
             <div className="text-center py-20 px-4">
                 <h1 className="text-5xl font-extrabold mb-4">AI-Powered Fashion</h1>
                 <p className="text-lg text-gray-400 mb-8 max-w-2xl mx-auto">
@@ -72,10 +85,11 @@ export default function HomePage() {
                 </form>
             </div>
 
-            {/* --- NEW Dynamic Search Results Section --- */}
+            {/* --- MODIFIED: Dynamic Search Results Section --- */}
             <div className="py-12 px-4">
                 {hasSearched && (
                     <>
+                        {/* @unchanged (h2, loading/empty messages) */}
                         <h2 className="text-3xl font-bold text-center mb-8">
                             {isLoading ? 'Searching for your style...' : 'Our Recommendations For You'}
                         </h2>
@@ -85,7 +99,12 @@ export default function HomePage() {
                             ) : searchResults.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
                                     {searchResults.map(product => (
-                                        <ProductCard key={product.id} product={product} />
+                                        // --- FIX: Pass the onQuickViewClick prop ---
+                                        <ProductCard
+                                            key={product.id}
+                                            product={product}
+                                            onQuickViewClick={handleOpenQuickView}
+                                        />
                                     ))}
                                 </div>
                             ) : (
@@ -97,6 +116,12 @@ export default function HomePage() {
                     </>
                 )}
             </div>
+
+            {/* --- NEW: Render the modal (it's hidden by default) --- */}
+            <QuickViewModal
+                productId={quickViewProductId}
+                onClose={handleCloseQuickView}
+            />
         </main>
     );
 }

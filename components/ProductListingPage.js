@@ -1,13 +1,13 @@
 // components/ProductListingPage.js
 'use client';
 
-import { useState, useEffect, useCallback } from 'react'; // Import useState
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import ProductCard from '@/components/ProductCard'; //
+import ProductCard from '@/components/ProductCard';
 import Link from 'next/link';
-import QuickViewModal from '@/components/QuickViewModal'; // --- NEW: Import the modal ---
+import QuickViewModal from '@/components/QuickViewModal';
 
-// Helper to update URL query params without full page reload
+// @unchanged (updateQueryString helper)
 function updateQueryString(router, pathname, currentParams, newParams) {
     const updatedParams = new URLSearchParams(currentParams.toString());
     Object.entries(newParams).forEach(([key, value]) => {
@@ -23,15 +23,6 @@ function updateQueryString(router, pathname, currentParams, newParams) {
     router.push(`${pathname}?${updatedParams.toString()}`, { scroll: false });
 }
 
-/**
- * A reusable component for displaying a filterable, sortable product list.
- * It is used by both the Category and Collection pages.
- * @param {object} props
- * @param {string} props.fetchUrl - The API endpoint to fetch products from.
- * @param {string} props.pageType - The type of page (e.g., "Category", "Collection").
- * @param {string} props.defaultTitle - The default site title for SEO fallback.
- * @param {string} props.defaultDescription - The default site description for SEO fallback.
- */
 export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, defaultDescription }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -41,19 +32,17 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
     const [pageInfo, setPageInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // --- State for filters and sorting ---
+    // @unchanged (Filter states)
     const [sortBy, setSortBy] = useState(searchParams.get('sort') || '');
     const [selectedSizes, setSelectedSizes] = useState(searchParams.getAll('size') || []);
     const [selectedColors, setSelectedColors] = useState(searchParams.getAll('color') || []);
-
-    // --- State for available filters ---
     const [availableSizes, setAvailableSizes] = useState([]);
     const [availableColors, setAvailableColors] = useState([]);
 
-    // --- NEW: State for Quick View Modal ---
+    // --- Modal State ---
     const [quickViewProductId, setQuickViewProductId] = useState(null);
 
-    // @unchanged (fetchProducts function)
+    // @unchanged (fetchProducts callback)
     const fetchProducts = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -66,17 +55,13 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                 if (!value || (Array.isArray(value) && value.length === 0)) queryParams.delete(key);
             });
 
-            // Use the fetchUrl prop to get data
             const response = await fetch(`${fetchUrl}?${queryParams.toString()}`);
-
             if (!response.ok) throw new Error(`${pageType} not found`);
 
             const data = await response.json();
-            // Set page info from either `data.category` or `data.collection`
             setPageInfo(data.category || data.collection || null);
             setProducts(data.products || []);
 
-            // Derive filters from the *fetched* products
             const sizes = new Set();
             const colors = new Set();
             (data.products || []).forEach(p => {
@@ -97,14 +82,14 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
         }
     }, [fetchUrl, pageType, sortBy, selectedSizes, selectedColors]);
 
-    // Initial fetch and fetch on filter/sort changes
+    // @unchanged (useEffect for initial fetch)
     useEffect(() => {
         if (fetchUrl) {
             fetchProducts();
         }
     }, [fetchProducts, fetchUrl]);
 
-    // --- useEffect for updating SEO Meta Tags ---
+    // @unchanged (useEffect for SEO)
     useEffect(() => {
         if (pageInfo) {
             document.title = pageInfo.seo_title || `${pageInfo.name} | ${defaultTitle}`;
@@ -128,7 +113,7 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
         };
     }, [pageInfo, defaultTitle, defaultDescription]);
 
-    // --- NEW: Handlers for opening/closing the modal ---
+    // --- Modal Handlers ---
     const handleOpenQuickView = (productId) => {
         setQuickViewProductId(productId);
     };
@@ -136,31 +121,24 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
         setQuickViewProductId(null);
     };
 
-    // --- Handlers for filter/sort changes (unchanged) ---
+    // @unchanged (Filter handlers)
     const handleSortChange = (e) => {
         const newSortBy = e.target.value;
         setSortBy(newSortBy);
         updateQueryString(router, pathname, searchParams, { sort: newSortBy });
     };
-
     const handleSizeChange = (size) => {
-        const newSizes = selectedSizes.includes(size)
-            ? selectedSizes.filter(s => s !== size)
-            : [...selectedSizes, size];
+        const newSizes = selectedSizes.includes(size) ? selectedSizes.filter(s => s !== size) : [...selectedSizes, size];
         setSelectedSizes(newSizes);
         updateQueryString(router, pathname, searchParams, { size: newSizes });
     };
-
     const handleColorChange = (color) => {
-        const newColors = selectedColors.includes(color)
-            ? selectedColors.filter(c => c !== color)
-            : [...selectedColors, color];
+        const newColors = selectedColors.includes(color) ? selectedColors.filter(c => c !== color) : [...selectedColors, color];
         setSelectedColors(newColors);
         updateQueryString(router, pathname, searchParams, { color: newColors });
     };
 
-    // --- Loading/Not Found states (updated to use pageType) ---
-    if (isLoading && !pageInfo) { // Show loading only on initial load
+    if (isLoading && !pageInfo) {
         return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Loading {pageType.toLowerCase()}...</p></div>;
     }
     if (!pageInfo && !isLoading) {
@@ -182,10 +160,9 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                 <p className="text-center text-gray-400 mb-8 max-w-2xl mx-auto">{pageInfo?.description}</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                    {/* --- Filters Sidebar (unchanged) --- */}
+                    {/* @unchanged (Filters Sidebar) */}
                     <aside className="md:col-span-1 bg-gray-800 p-6 rounded-lg self-start sticky top-24">
                         <h2 className="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Filters</h2>
-                        {/* Sort Dropdown */}
                         <div className="mb-6">
                             <label htmlFor="sort" className="block text-sm font-medium mb-2">Sort By</label>
                             <select id="sort" value={sortBy} onChange={handleSortChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600">
@@ -195,7 +172,6 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                                 <option value="name-asc">Name: A to Z</option>
                             </select>
                         </div>
-                        {/* Size Filters */}
                         <div className="mb-6">
                             <h3 className="font-semibold mb-2">Size</h3>
                             <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -208,7 +184,6 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                                 {availableSizes.length === 0 && <p className="text-xs text-gray-500">None available</p>}
                             </div>
                         </div>
-                        {/* Color Filters */}
                         <div>
                             <h3 className="font-semibold mb-2">Color</h3>
                             <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -223,14 +198,18 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                         </div>
                     </aside>
 
-                    {/* --- Product Grid (updated no products text) --- */}
                     <div className="md:col-span-3">
                         {isLoading ? (
                             <p className="text-center py-10">Updating products...</p>
                         ) : products.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {products.map(product => (
-                                    <ProductCard key={product.id} product={product} /> //
+                                    <ProductCard
+                                        key={product.id}
+                                        product={product}
+                                        // --- NEW: Pass the handler ---
+                                        onQuickViewClick={handleOpenQuickView}
+                                    />
                                 ))}
                             </div>
                         ) : (
@@ -239,6 +218,12 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                     </div>
                 </div>
             </div>
+
+            {/* --- NEW: Render the Modal --- */}
+            <QuickViewModal
+                productId={quickViewProductId}
+                onClose={handleCloseQuickView}
+            />
         </main>
     );
 }
