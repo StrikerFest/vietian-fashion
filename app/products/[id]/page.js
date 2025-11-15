@@ -1,9 +1,11 @@
 // app/products/[id]/page.js
 'use client';
 
-import {useState, useEffect} from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import {useCart} from '@/context/CartContext'; //
+import { useCart } from '@/context/CartContext';
+// --- NEW: Import the useParams hook ---
+import { useParams } from 'next/navigation';
 
 // @unchanged (StarRatingDisplay and StarRatingInput components)
 function StarRatingDisplay({rating}) {
@@ -43,30 +45,31 @@ function StarRatingInput({rating, setRating}) {
 }
 
 
-export default function ProductDetailPage(props) {
-    const {id} = props.params;
-    const {addToCart} = useCart(); //
+export default function ProductDetailPage() { // --- REMOVED props ---
+    // --- MODIFIED: Use the hook to get params ---
+    const params = useParams();
+    const { id } = params; // This `id` will be a string
 
+    const { addToCart } = useCart();
+
+    // @unchanged (state hooks)
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedVariant, setSelectedVariant] = useState(null);
-
-    // @unchanged (Reviews state)
     const [reviews, setReviews] = useState([]);
     const [isLoadingReviews, setIsLoadingReviews] = useState(true);
     const [reviewRating, setReviewRating] = useState(0);
     const [reviewComment, setReviewComment] = useState('');
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-    const [reviewMessage, setReviewMessage] = useState({type: '', text: ''});
+    const [reviewMessage, setReviewMessage] = useState({ type: '', text: '' });
 
 
-    // @unchanged (Fetch Product Details effect)
+    // @unchanged (Fetch Product Details effect - will use the `id` from useParams)
     useEffect(() => {
         const initializeProduct = async () => {
             setIsLoading(true);
             try {
                 if (!id) throw new Error("No ID provided");
-                // API route already includes SEO fields via select('*')/route.js]
                 const response = await fetch(`/api/products/${id}`);
                 if (!response.ok) throw new Error('Product not found');
                 const data = await response.json();
@@ -86,35 +89,22 @@ export default function ProductDetailPage(props) {
         }
     }, [id]);
 
-    // --- NEW: useEffect for updating SEO Meta Tags ---
+    // @unchanged (useEffect for updating SEO Meta Tags)
     useEffect(() => {
         if (product) {
-            // Set Title
-            document.title = product.seo_title || `${product.name} | AI Fashion Store`; // Fallback to product name
-
-            // Set Meta Description
+            document.title = product.seo_title || `${product.name} | AI Fashion Store`;
             const metaDescriptionTag = document.querySelector('meta[name="description"]');
-            const descriptionContent = product.seo_description || product.description || "Check out this product from AI Fashion Store."; // Fallback chain
-
+            const descriptionContent = product.seo_description || product.description || "Check out this product from AI Fashion Store.";
             if (metaDescriptionTag) {
                 metaDescriptionTag.setAttribute('content', descriptionContent);
             } else {
-                // If the tag doesn't exist (less likely with Next.js layout), create it
                 const newMetaTag = document.createElement('meta');
                 newMetaTag.setAttribute('name', 'description');
                 newMetaTag.setAttribute('content', descriptionContent);
                 document.head.appendChild(newMetaTag);
             }
         }
-        // Optional cleanup: Reset title/description when component unmounts or product changes
-        // return () => {
-        //     document.title = "AI Fashion Store"; // Reset to default
-        //     const metaDescriptionTag = document.querySelector('meta[name="description"]');
-        //     if (metaDescriptionTag) {
-        //         metaDescriptionTag.setAttribute('content', "Your next outfit, discovered by AI."); // Reset to default
-        //     }
-        // };
-    }, [product]); // Run this effect when the product data changes
+    }, [product]);
 
 
     // @unchanged (Fetch Approved Reviews effect)
@@ -141,33 +131,33 @@ export default function ProductDetailPage(props) {
     const handleReviewSubmit = async (e) => {
         e.preventDefault();
         if (reviewRating === 0) {
-            setReviewMessage({type: 'error', text: 'Please select a star rating.'});
+            setReviewMessage({ type: 'error', text: 'Please select a star rating.' });
             return;
         }
         setIsSubmittingReview(true);
-        setReviewMessage({type: '', text: ''});
+        setReviewMessage({ type: '', text: '' });
         try {
-            const user_id = null; // Placeholder
+            const user_id = null;
             const response = await fetch('/api/reviews', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    product_id: parseInt(id), //
-                    rating: reviewRating, //
-                    comment: reviewComment, //
-                    user_id: user_id //
+                    product_id: parseInt(id),
+                    rating: reviewRating,
+                    comment: reviewComment,
+                    user_id: user_id
                 }),
             });
             const data = await response.json();
             if (!response.ok) {
                 throw new Error(data.error || 'Failed to submit review.');
             }
-            setReviewMessage({type: 'success', text: data.message || 'Review submitted successfully! It will appear after moderation.'});
+            setReviewMessage({ type: 'success', text: data.message || 'Review submitted successfully! It will appear after moderation.' });
             setReviewRating(0);
             setReviewComment('');
         } catch (error) {
             console.error('Review submission error:', error);
-            setReviewMessage({type: 'error', text: error.message || 'An error occurred. Please try again.'});
+            setReviewMessage({ type: 'error', text: error.message || 'An error occurred. Please try again.' });
         } finally {
             setIsSubmittingReview(false);
         }
@@ -176,7 +166,7 @@ export default function ProductDetailPage(props) {
     // @unchanged (handleAddToCart function)
     const handleAddToCart = () => {
         if (product && selectedVariant) {
-            addToCart(product, selectedVariant); //
+            addToCart(product, selectedVariant);
         }
     };
 
@@ -200,9 +190,8 @@ export default function ProductDetailPage(props) {
         <main className="min-h-screen bg-gray-900 text-white p-8">
             {/* --- Product Details Section --- */}
             <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                {/* ... image, product info, variants, add to cart ... */}
                 <div>
-                    <img src={imageUrl} alt={product.name} className="w-full rounded-lg shadow-lg"/>
+                    <img src={imageUrl} alt={product.name} className="w-full rounded-lg shadow-lg" />
                 </div>
                 <div>
                     <h1 className="text-4xl font-extrabold mb-2">{product.name}</h1>
@@ -212,7 +201,6 @@ export default function ProductDetailPage(props) {
                     <div className="mb-6">
                         <h3 className="text-sm font-medium text-gray-300 mb-2">Select Variant:</h3>
                         <div className="flex flex-wrap gap-2">
-                            {/* ... variant buttons ... */}
                             {product.product_variants.map(variant => (
                                 <button
                                     key={variant.id}
@@ -242,14 +230,12 @@ export default function ProductDetailPage(props) {
 
             {/* --- Reviews Section --- */}
             <div className="max-w-4xl mx-auto mt-12 pt-8 border-t border-gray-700">
-                {/* ... Review Form ... */}
                 <div className="bg-gray-800 p-6 rounded-lg mb-8">
-                    {/* ... form content ... */}
                     <h3 className="text-xl font-semibold mb-4">Leave a Review</h3>
                     <form onSubmit={handleReviewSubmit} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium mb-2">Your Rating</label>
-                            <StarRatingInput rating={reviewRating} setRating={setReviewRating}/>
+                            <StarRatingInput rating={reviewRating} setRating={setReviewRating} />
                         </div>
                         <div>
                             <label htmlFor="comment" className="block text-sm font-medium mb-1">Your Review (Optional)</label>
@@ -264,14 +250,13 @@ export default function ProductDetailPage(props) {
                         </div>
                     </form>
                 </div>
-                {/* ... Display Existing Reviews ... */}
                 {isLoadingReviews ? (<p className="text-gray-400">Loading reviews...</p>)
                     : reviews.length > 0 ? (
                         <div className="space-y-6">
                             {reviews.map(review => (
                                 <div key={review.id} className="border-b border-gray-700 pb-4">
                                     <div className="flex items-center mb-2">
-                                        <StarRatingDisplay rating={review.rating}/>
+                                        <StarRatingDisplay rating={review.rating} />
                                         <span className="ml-auto text-xs text-gray-500">{new Date(review.created_at).toLocaleDateString()}</span>
                                     </div>
                                     <p className="text-gray-300">{review.comment || <span className="italic text-gray-500">No comment provided.</span>}</p>
