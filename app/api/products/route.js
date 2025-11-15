@@ -14,7 +14,7 @@ export async function GET() {
             ),
             categories (*),
             collections (*),
-            tags (*) // Also fetch tags here for consistency
+            tags (*) 
         `)
         .order('created_at', { ascending: false }); // Default order
 

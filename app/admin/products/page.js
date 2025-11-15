@@ -461,7 +461,7 @@ export default function AdminProductsPage() {
                                 <input type="number" step="0.01" placeholder="Price" value={variant.price} onChange={(e) => handleVariantChange(index, 'price', e.target.value)} className="bg-gray-700 p-2 rounded-md border border-gray-600" required/>
                                 <input type="text" placeholder="Size" value={variant.size} onChange={(e) => handleVariantChange(index, 'size', e.target.value)} className="bg-gray-700 p-2 rounded-md border border-gray-600" required/>
                                 <input type="text" placeholder="Color" value={variant.color} onChange={(e) => handleVariantChange(index, 'color', e.target.value)} className="bg-gray-700 p-2 rounded-md border border-gray-600" required/>
-                                <input type="number" placeholder="On Hand Stock" value={variant.on_hand} onChange={(e) => handleVariantChange(index, 'on_hand', e.target.value)} className="bg-gray-700 p-2 rounded-md border border-gray-600" required/>
+                                <input type="number" placeholder="On Hand Stock" value={variant.inventory_levels.on_hand} onChange={(e) => handleVariantChange(index, 'on_hand', e.target.value)} className="bg-gray-700 p-2 rounded-md border border-gray-600" required/>
                                 <button type="button" onClick={() => removeVariant(index)} disabled={isSubmitting || variants.length <= 1} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                                     Remove
                                 </button>
@@ -582,7 +582,7 @@ export default function AdminProductsPage() {
                                     <td className="p-3 font-medium">{product.name}</td>
                                     <td className="p-3">{product.product_variants?.length || 0}</td>
                                     <td className="p-3">
-                                        {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0)}
+                                        {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.on_hand || 0), 0)}
                                     </td>
                                     <td className="p-3">{product.categories?.[0]?.name || <span className="text-gray-500 italic">None</span>}</td>
                                     <td className="p-3">

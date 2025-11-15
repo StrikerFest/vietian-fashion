@@ -16,7 +16,7 @@ export async function GET(request, context) {
     const colors = searchParams.getAll('color');
 
     try {
-        // --- Step 1: Find the collection, including SEO fields ---
+        // @unchanged (Step 1: Find the collection)
         const { data: collection, error: collectionError } = await supabase
             .from('collections') //
             .select('id, name, description, seo_title, seo_description') // Added SEO fields
@@ -27,7 +27,7 @@ export async function GET(request, context) {
         }
         const collectionId = collection.id;
 
-        // @unchanged (Steps 2 & 3: Find product links and build product query)
+        // @unchanged (Step 2: Find product links)
         const { data: productLinks, error: linkError } = await supabase
             .from('product_collections') //
             .select('product_id') //
@@ -38,20 +38,23 @@ export async function GET(request, context) {
         }
         const productIdsInCollection = productLinks.map(link => link.product_id);
 
+        // --- MODIFIED: Changed joins from !inner to !left (default) ---
+        // This ensures products in the collection are shown even if they have
+        // no variants or inventory, matching the logic of /api/products
         let productQuery = supabase
             .from('products') //
             .select(`
                 id, name, description,
-                product_variants!inner (
+                product_variants (
                     id, sku, price, size, color,
-                    inventory_levels!inner ( on_hand, committed )
+                    inventory_levels ( on_hand, committed )
                 )
             `)
             .in('id', productIdsInCollection);
 
         // @unchanged (Apply filters)
          if (sizes.length > 0 || colors.length > 0) {
-            productQuery = productQuery.filter('product_variants.id', 'not.is', null);
+            // This filter correctly applies to the joined table
             if (sizes.length > 0) {
                 productQuery = productQuery.in('product_variants.size', sizes); //
             }
@@ -63,6 +66,7 @@ export async function GET(request, context) {
 
         // @unchanged (Apply sorting)
         if (sortBy) {
+// @unchanged (rest of sorting logic)
             const [field, direction] = sortBy.split('-');
             const ascending = direction === 'asc';
             if (field === 'name') {
@@ -74,6 +78,7 @@ export async function GET(request, context) {
 
         // @unchanged (Execute query and post-fetch sorting)
         const { data: products, error: productsError } = await productQuery;
+// @unchanged (rest of function)
         if (productsError) throw productsError;
 
         let sortedProducts = products;

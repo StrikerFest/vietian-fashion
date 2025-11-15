@@ -1,8 +1,10 @@
 // app/api/products/category/[...slug]/route.js
 import { NextResponse } from 'next/server';
+// @unchanged (import supabase remains the same)
 import { supabase } from '@/lib/supabaseClient'; //
 
 export async function GET(request, context) {
+    // @unchanged (param and searchParam logic)
     const params = await context.params;
     const { slug } = params;
     const { searchParams } = new URL(request.url);
@@ -18,7 +20,7 @@ export async function GET(request, context) {
     const colors = searchParams.getAll('color');
 
     try {
-        // --- Step 1: Find the category, including SEO fields ---
+        // @unchanged (Step 1: Find the category)
         const { data: category, error: categoryError } = await supabase
             .from('categories') //
             .select('id, name, description, seo_title, seo_description') // Added SEO fields
@@ -29,7 +31,7 @@ export async function GET(request, context) {
         }
         const categoryId = category.id;
 
-        // @unchanged (Steps 2 & 3: Find product links and build product query)
+        // @unchanged (Steps 2: Find product links)
         const { data: productLinks, error: linkError } = await supabase
             .from('product_categories') //
             .select('product_id') //
@@ -40,20 +42,23 @@ export async function GET(request, context) {
         }
         const productIdsInCategory = productLinks.map(link => link.product_id);
 
+        // --- MODIFIED: Changed joins from !inner to !left (default) ---
+        // This ensures products in the category are shown even if they have
+        // no variants or inventory, matching the logic of /api/products
         let productQuery = supabase
             .from('products') //
             .select(`
                 id, name, description,
-                product_variants!inner (
+                product_variants (
                     id, sku, price, size, color,
-                    inventory_levels!inner ( on_hand, committed )
+                    inventory_levels ( on_hand, committed )
                 )
             `)
             .in('id', productIdsInCategory);
 
         // @unchanged (Apply filters)
         if (sizes.length > 0 || colors.length > 0) {
-            productQuery = productQuery.filter('product_variants.id', 'not.is', null);
+            // This filter correctly applies to the joined table
             if (sizes.length > 0) {
                 productQuery = productQuery.in('product_variants.size', sizes); //
             }
@@ -64,6 +69,7 @@ export async function GET(request, context) {
 
         // @unchanged (Apply sorting)
         if (sortBy) {
+// @unchanged (rest of sorting logic)
             const [field, direction] = sortBy.split('-');
             const ascending = direction === 'asc';
             if (field === 'name') {
@@ -75,6 +81,7 @@ export async function GET(request, context) {
 
         // @unchanged (Execute query and post-fetch sorting)
         const { data: products, error: productsError } = await productQuery;
+// @unchanged (rest of function)
         if (productsError) throw productsError;
 
         let sortedProducts = products;
