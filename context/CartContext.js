@@ -1,16 +1,75 @@
 // context/CartContext.js
 'use client';
 
-import { createContext, useContext, useState, useMemo } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect } from 'react';
 
 const CartContext = createContext();
 
+const CART_STORAGE_KEY = 'vietian_fashion_cart';
+const DISCOUNT_STORAGE_KEY = 'vietian_fashion_discount';
+
 export function CartProvider({ children }) {
     const [cartItems, setCartItems] = useState([]);
-    // @unchanged (Discount State)
     const [appliedDiscount, setAppliedDiscount] = useState(null);
     const [discountCodeInput, setDiscountCodeInput] = useState('');
 
+    // --- NEW: Add a state to track if we have loaded from localStorage ---
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    // --- MODIFIED: Load state from localStorage on initial client render ---
+    useEffect(() => {
+        try {
+            const savedCart = localStorage.getItem(CART_STORAGE_KEY);
+            if (savedCart) {
+                setCartItems(JSON.parse(savedCart));
+            }
+
+            const savedDiscount = localStorage.getItem(DISCOUNT_STORAGE_KEY);
+            if (savedDiscount) {
+                setAppliedDiscount(JSON.parse(savedDiscount));
+            }
+        } catch (error) {
+            console.error("Failed to load cart from localStorage", error);
+            localStorage.removeItem(CART_STORAGE_KEY);
+            localStorage.removeItem(DISCOUNT_STORAGE_KEY);
+        } finally {
+            // --- NEW: Signal that we are done loading ---
+            setIsLoaded(true);
+        }
+    }, []); // Empty array ensures this runs only once on mount
+
+    // --- MODIFIED: Save cartItems to localStorage, but only AFTER loading ---
+    useEffect(() => {
+        // --- NEW: Guard clause to prevent overwriting on initial load ---
+        if (!isLoaded) {
+            return;
+        }
+        try {
+            localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+        } catch (error) {
+            console.error("Failed to save cart to localStorage", error);
+        }
+    }, [cartItems, isLoaded]); // --- NEW: Depend on isLoaded ---
+
+    // --- MODIFIED: Save appliedDiscount to localStorage, but only AFTER loading ---
+    useEffect(() => {
+        // --- NEW: Guard clause ---
+        if (!isLoaded) {
+            return;
+        }
+        try {
+            if (appliedDiscount) {
+                localStorage.setItem(DISCOUNT_STORAGE_KEY, JSON.stringify(appliedDiscount));
+            } else {
+                localStorage.removeItem(DISCOUNT_STORAGE_KEY);
+            }
+        } catch (error) {
+            console.error("Failed to save discount to localStorage", error);
+        }
+    }, [appliedDiscount, isLoaded]); // --- NEW: Depend on isLoaded ---
+
+
+    // @unchanged (addToCart function)
     const addToCart = (product, variant) => {
         setCartItems(prevItems => {
             const existingItem = prevItems.find(item => item.id === variant.id);
@@ -19,10 +78,9 @@ export function CartProvider({ children }) {
                     item.id === variant.id ? { ...item, quantity: item.quantity + 1 } : item
                 );
             }
-            // --- MODIFIED: Add productId to the cart item object ---
             return [...prevItems, {
                 ...variant,
-                productId: product.id, // <-- ADDED THIS
+                productId: product.id,
                 productName: product.name,
                 imageUrl: product.image_url || 'https://placehold.co/100x100/1F2937/FFFFFF?text=Item',
                 quantity: 1
@@ -52,11 +110,11 @@ export function CartProvider({ children }) {
     // @unchanged (clearCart function)
     const clearCart = () => {
         setCartItems([]);
-        setAppliedDiscount(null); // Also clear discount on cart clear
+        setAppliedDiscount(null);
         setDiscountCodeInput('');
     };
 
-    // --- NEW: Function to apply a discount code ---
+    // @unchanged (applyDiscountCode function)
     const applyDiscountCode = async (code) => {
         if (!code) return { success: false, message: 'Please enter a code.' };
 
@@ -73,54 +131,48 @@ export function CartProvider({ children }) {
                 throw new Error(data.error || 'Failed to validate code.');
             }
 
-            setAppliedDiscount(data.discount); // Store the valid discount object
-            setDiscountCodeInput(data.discount.code); // Update input field to show the applied code
+            setAppliedDiscount(data.discount);
+            setDiscountCodeInput(data.discount.code);
             return { success: true, message: 'Discount applied!' };
 
         } catch (error) {
-            setAppliedDiscount(null); // Clear discount if validation fails
+            setAppliedDiscount(null);
             console.error('Discount validation error:', error);
             return { success: false, message: error.message || 'Invalid discount code.' };
         }
     };
 
-    // --- NEW: Function to remove the applied discount ---
+    // @unchanged (removeDiscountCode function)
     const removeDiscountCode = () => {
         setAppliedDiscount(null);
         setDiscountCodeInput('');
         alert('Discount removed.');
     };
 
-
-    // --- Calculate Subtotal (unchanged) ---
+    // @unchanged (useMemo calculations)
     const subtotal = useMemo(() => {
         return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
     }, [cartItems]);
 
-    // --- NEW: Calculate Discount Amount ---
     const discountAmount = useMemo(() => {
         if (!appliedDiscount || subtotal === 0) {
             return 0;
         }
-
-        if (appliedDiscount.type === 'percentage') { //
-            // Ensure value is treated as percentage (e.g., 10 for 10%)
-            const discountValue = Math.min(Math.max(appliedDiscount.value, 0), 100); // Clamp between 0 and 100
+        if (appliedDiscount.type === 'percentage') {
+            const discountValue = Math.min(Math.max(appliedDiscount.value, 0), 100);
             return (subtotal * discountValue) / 100;
-        } else if (appliedDiscount.type === 'fixed') { //
-            // Ensure fixed discount doesn't exceed subtotal
+        } else if (appliedDiscount.type === 'fixed') {
             return Math.min(appliedDiscount.value, subtotal);
         }
-
-        return 0; // Should not happen with validation
+        return 0;
     }, [appliedDiscount, subtotal]);
 
-    // --- NEW: Calculate Final Total ---
     const total = useMemo(() => {
         const calculatedTotal = subtotal - discountAmount;
-        return Math.max(0, calculatedTotal); // Ensure total doesn't go below zero
+        return Math.max(0, calculatedTotal);
     }, [subtotal, discountAmount]);
 
+    // @unchanged (value object)
     const value = {
         cartItems,
         addToCart,
@@ -128,14 +180,13 @@ export function CartProvider({ children }) {
         updateQuantity,
         clearCart,
         subtotal,
-        // New discount properties and functions
         appliedDiscount,
         discountCodeInput,
-        setDiscountCodeInput, // Allow cart page to update the input field directly
+        setDiscountCodeInput,
         applyDiscountCode,
         removeDiscountCode,
         discountAmount,
-        total, // Use this for the final total display
+        total,
     };
 
     return (
