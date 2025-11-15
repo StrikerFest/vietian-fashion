@@ -2,37 +2,40 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext'; // Import the new hook
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-    const { supabase, session } = useAuth(); // Get Supabase client and session
+    // --- MODIFIED: Uses the customer useAuth hook ---
+    const { supabase, session, isLoading: isAuthLoading } = useAuth();
     const router = useRouter();
 
     // Form state
-    const [isSignUp, setIsSignUp] = useState(false); // Toggle between Login and Sign Up
+    const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
     // UI state
     const [message, setMessage] = useState({ type: '', text: '' });
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); // For the form button
 
-    // Redirect if user is already logged in
+    // --- MODIFIED: Redirect ALL logged-in users to homepage ---
     useEffect(() => {
-        if (session) {
-            router.push('/'); // Redirect to homepage
+        // Wait until auth is loaded
+        if (!isAuthLoading && session) {
+            // This is a customer, send them to the homepage
+            router.push('/');
         }
-    }, [session, router]);
+    }, [session, isAuthLoading, router]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        setMessage({ type: '', text: '' }); // Clear previous messages
+        setMessage({ type: '', text: '' });
 
         if (isSignUp) {
-            // --- Sign Up Logic ---
+            // --- UNCHANGED: Sign Up Logic ---
             if (password !== confirmPassword) {
                 setMessage({ type: 'error', text: 'Passwords do not match.' });
                 setIsLoading(false);
@@ -42,24 +45,16 @@ export default function LoginPage() {
             const { error } = await supabase.auth.signUp({
                 email: email,
                 password: password,
-                // You can add 'options' here, like user metadata
-                // options: {
-                //   data: {
-                //     first_name: 'Test', // This would require modifying your users table
-                //   }
-                // }
             });
 
             if (error) {
                 setMessage({ type: 'error', text: error.message });
             } else {
-                // Supabase sends a confirmation email by default
-                // You might have this disabled in your Supabase settings
                 setMessage({ type: 'success', text: 'Sign up successful! Please check your email to confirm.' });
             }
 
         } else {
-            // --- Login Logic ---
+            // --- MODIFIED: Simplified Login Logic ---
             const { error } = await supabase.auth.signInWithPassword({
                 email: email,
                 password: password,
@@ -68,19 +63,21 @@ export default function LoginPage() {
             if (error) {
                 setMessage({ type: 'error', text: error.message });
             }
-            // No need for a success message, the useEffect will redirect
+            // No redirect here. The useEffect hook will catch the
+            // session change and redirect to '/' automatically.
         }
         setIsLoading(false);
     };
 
-    // Don't render the form if the session is loading or already exists
-    if (session) {
+    // --- MODIFIED: Use isAuthLoading from the customer context ---
+    if (isAuthLoading || session) {
         return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Redirecting...</p></div>;
     }
 
     return (
         <main className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-8">
             <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow-xl">
+                {/* --- MODIFIED: Title is for customers --- */}
                 <h1 className="text-3xl font-bold text-center mb-6">
                     {isSignUp ? 'Create Account' : 'Welcome Back'}
                 </h1>
@@ -107,7 +104,7 @@ export default function LoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            minLength={6} // Supabase default minimum
+                            minLength={6}
                             className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             placeholder="••••••••"
                         />
@@ -128,7 +125,6 @@ export default function LoginPage() {
                         </div>
                     )}
 
-                    {/* --- Display Messages --- */}
                     {message.text && (
                         <p className={`text-sm text-center ${message.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
                             {message.text}
@@ -150,7 +146,7 @@ export default function LoginPage() {
                     <button
                         onClick={() => {
                             setIsSignUp(!isSignUp);
-                            setMessage({ type: '', text: '' }); // Clear messages on toggle
+                            setMessage({ type: '', text: '' });
                         }}
                         className="text-sm text-indigo-400 hover:underline"
                     >

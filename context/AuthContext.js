@@ -9,7 +9,6 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
     // 2. Create the client-side Supabase client
-    // We use useState to ensure it's created only once per component instance
     const [supabase] = useState(() => createClientComponentClient());
 
     const [session, setSession] = useState(null);
@@ -21,7 +20,7 @@ export function AuthProvider({ children }) {
         const getSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             setSession(session);
-            setIsLoading(false);
+            setIsLoading(false); // Set loading to false once session is fetched
         };
 
         getSession();
@@ -30,7 +29,7 @@ export function AuthProvider({ children }) {
         const { data: authListener } = supabase.auth.onAuthStateChange(
             (event, session) => {
                 setSession(session);
-                setIsLoading(false);
+                setIsLoading(false); // Also set loading to false on auth change
             }
         );
 
@@ -45,6 +44,7 @@ export function AuthProvider({ children }) {
         supabase,
         session,
         isLoading,
+        // userRole is removed
     };
 
     // We don't render children until we've checked for a session
