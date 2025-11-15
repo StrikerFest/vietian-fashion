@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient'; //
 
 export async function GET(request, context) {
-    const params = await context.params;
+    const { params } = context;
     const { productId } = params;
 
     if (!productId || isNaN(parseInt(productId))) {
@@ -22,8 +22,6 @@ export async function GET(request, context) {
                 created_at,
                 rating,
                 comment
-                // Optional: Join user data if needed
-                // users ( id, first_name, last_name )
             `)
             .eq('product_id', numericProductId) // Filter by product
             .eq('is_approved', true) // Only fetch approved reviews
