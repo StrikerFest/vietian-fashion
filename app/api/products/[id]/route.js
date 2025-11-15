@@ -2,9 +2,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-// @unchanged (GET function remains the same, implicitly includes SEO fields via *)
 export async function GET(request, context) {
-    const params = await context.params;
+    // --- FIX: Removed await from context.params ---
+    const { params } = context;
     const { id } = params;
 
     if (!id || isNaN(parseInt(id))) {
@@ -12,8 +12,7 @@ export async function GET(request, context) {
     }
     const numericProductId = parseInt(id);
 
-
-    // Select *, which includes the seo_title and seo_description fields
+    // @unchanged (Select logic)
     const { data, error } = await supabase
         .from('products')
         .select(`
@@ -23,12 +22,11 @@ export async function GET(request, context) {
             categories (id, name),
             collections (id, name)
         `)
-        .eq('id', numericProductId) //
+        .eq('id', numericProductId)
         .single();
 
     if (error) {
-        // Handle not found error specifically
-         if (error.code === 'PGRST116') { // PostgREST error for zero rows returned
+         if (error.code === 'PGRST116') {
             return NextResponse.json({ error: 'Product not found.' }, { status: 404 });
         }
         console.error(`Error fetching product ${numericProductId}:`, error);
@@ -40,9 +38,9 @@ export async function GET(request, context) {
     return NextResponse.json(data);
 }
 
-// @unchanged (DELETE function remains the same)
 export async function DELETE(request, context) {
-    const params = await context.params;
+    // --- FIX: Removed await from context.params ---
+    const { params } = context;
     const { id } = params;
 
     if (!id || isNaN(parseInt(id))) {
@@ -50,36 +48,23 @@ export async function DELETE(request, context) {
     }
      const numericProductId = parseInt(id);
 
-
     try {
-        // --- Optional but Recommended: Delete related data first in specific order ---
-        // 1. Delete order items (if necessary, depends on ON DELETE cascade/restrict)
-        // await supabase.from('order_items').delete().in('variant_id', variantIds); // Need variantIds first
-
-        // 2. Delete inventory levels
+        // @unchanged (Delete logic)
         const { data: variantsToDelete, error: variantFetchError } = await supabase
-            .from('product_variants').select('id').eq('product_id', numericProductId); //
+            .from('product_variants').select('id').eq('product_id', numericProductId);
         if (variantFetchError) throw variantFetchError;
 
         if (variantsToDelete && variantsToDelete.length > 0) {
             const variantIds = variantsToDelete.map(v => v.id);
-            await supabase.from('inventory_levels').delete().in('variant_id', variantIds); //
-            // 3. Delete product variants
-            await supabase.from('product_variants').delete().eq('product_id', numericProductId); //
+            await supabase.from('inventory_levels').delete().in('variant_id', variantIds);
+            await supabase.from('product_variants').delete().eq('product_id', numericProductId);
         }
 
-        // 4. Delete junction table entries
-        await supabase.from('product_categories').delete().eq('product_id', numericProductId); //
-        await supabase.from('product_collections').delete().eq('product_id', numericProductId); //
-        await supabase.from('product_tags').delete().eq('product_id', numericProductId); //
-        // 5. Delete reviews (if desired, depends on requirements)
-        // await supabase.from('reviews').delete().eq('product_id', numericProductId); //
-        // 6. Delete product images (if applicable)
-        // await supabase.from('product_images').delete().eq('product_id', numericProductId); //
+        await supabase.from('product_categories').delete().eq('product_id', numericProductId);
+        await supabase.from('product_collections').delete().eq('product_id', numericProductId);
+        await supabase.from('product_tags').delete().eq('product_id', numericProductId);
 
-
-        // --- Finally, delete the product itself ---
-        const { error } = await supabase.from('products').delete().eq('id', numericProductId); //
+        const { error } = await supabase.from('products').delete().eq('id', numericProductId);
         if (error) throw error;
 
         return NextResponse.json({ message: 'Product deleted successfully' });
@@ -90,7 +75,7 @@ export async function DELETE(request, context) {
 }
 
 
-// --- Modified PUT function ---
+// --- REVERTED PUT function (using upsert) ---
 export async function PUT(request, context) {
     const params = await context.params;
     const { id: productId } = params;
@@ -100,120 +85,135 @@ export async function PUT(request, context) {
     }
     const numericProductId = parseInt(productId);
 
-
-    // --- Extract SEO fields along with existing fields ---
+    // @unchanged (Extract data from body)
     const {
         name,
         description,
-        seo_title, //
-        seo_description, //
+        seo_title,
+        seo_description,
         variants,
         tags = [],
         category_id,
         collection_ids = []
     } = await request.json();
 
-     // Basic validation
-     if (!name || !variants || variants.length === 0) {
+     if (!name || !variants) {
         return NextResponse.json({ error: 'Missing required fields (name, variants).' }, { status: 400 });
     }
 
     try {
-        // --- Step 1: Update product details, including SEO ---
+        // @unchanged (Step 1: Update product details)
         const { error: productError } = await supabase
-            .from('products') //
+            .from('products')
             .update({
                 name,
                 description,
-                seo_title: seo_title || null, // Update seo_title
-                seo_description: seo_description || null // Update seo_description
+                seo_title: seo_title || null,
+                seo_description: seo_description || null
              })
-            .eq('id', numericProductId); //
+            .eq('id', numericProductId);
         if (productError) throw productError;
 
-        // --- Step 2: Reconcile Variants and Inventory ---
-        // Fetch existing variants to know which inventory levels to delete
-        const { data: existingVariants, error: fetchVariantsError } = await supabase
-            .from('product_variants').select('id').eq('product_id', numericProductId); //
-        if (fetchVariantsError) throw fetchVariantsError;
+        // --- Step 2: REVERTED Variant and Inventory Reconciliation ---
 
-        if (existingVariants && existingVariants.length > 0) {
-            const existingVariantIds = existingVariants.map(v => v.id);
-            // Delete old inventory levels first
-            await supabase.from('inventory_levels').delete().in('variant_id', existingVariantIds); //
-            // Then delete old variants
-            await supabase.from('product_variants').delete().eq('product_id', numericProductId); //
-        }
-
-        // Insert new variants
-        const variantsToInsert = variants.map(v => ({
+        // 2A: Prepare variants for upsert.
+        // We do *not* send the 'id' field, only the 'sku' for conflict resolution.
+        const variantsToUpsert = variants.map(v => ({
             sku: v.sku,
             price: v.price,
             size: v.size,
             color: v.color,
-            product_id: numericProductId //
+            product_id: numericProductId
         }));
-        const { data: insertedVariants, error: variantError } = await supabase
+
+        // 2B: Upsert these variants using 'sku' as the conflict target.
+        const { data: upsertedVariants, error: variantError } = await supabase
             .from('product_variants')
-            .insert(variantsToInsert)
-            .select();
-        if (variantError) throw variantError;
+            .upsert(variantsToUpsert, {
+                onConflict: 'sku' // Assumes 'sku' has a UNIQUE constraint
+            })
+            .select('id, sku'); // Get back the IDs (new or existing)
 
-        // Insert new inventory levels
-        const inventoryToInsert = insertedVariants.map((variant, index) => ({
-            variant_id: variant.id,
-            on_hand: variants[index].on_hand || 0
-        }));
-        const { error: inventoryError } = await supabase
-            .from('inventory_levels') //
-            .insert(inventoryToInsert);
-        if (inventoryError) throw inventoryError;
-
-
-        // @unchanged (Step 3: Reconcile category link)
-        await supabase
-            .from('product_categories') //
-            .delete()
-            .eq('product_id', numericProductId); //
-        if (category_id) { //
-            const { error: categoryLinkError } = await supabase
-                .from('product_categories') //
-                .insert({ product_id: numericProductId, category_id: category_id }); //
-            if (categoryLinkError) throw categoryLinkError;
+        if (variantError) {
+            // This is where the '42P10' error was being thrown
+            throw new Error(`Variant upsert error: ${variantError.message}`);
         }
 
-        // @unchanged (Step 4: Reconcile collection links)
-        await supabase.from('product_collections').delete().eq('product_id', numericProductId); //
-        if (collection_ids && collection_ids.length > 0) { //
-            const collectionLinks = collection_ids.map(collectionId => ({
-                product_id: numericProductId,
-                collection_id: collectionId, //
-            }));
-            await supabase.from('product_collections').insert(collectionLinks); //
+        // 2C: Delete any variants that are *not* in the submitted list.
+        const upsertedVariantIds = upsertedVariants.map(v => v.id);
+
+        if (upsertedVariantIds.length > 0) {
+            const { error: deleteError } = await supabase
+                .from('product_variants')
+                .delete()
+                .eq('product_id', numericProductId)
+                .not('id', 'in', `(${upsertedVariantIds.join(',')})`);
+
+             if (deleteError) {
+                // This will fail if an old, deleted variant is part of an order
+                console.warn(`Could not delete old variants, they might be in an order. ${deleteError.message}`);
+            }
+        } else {
+            // User removed all variants
+            const { error: deleteAllError } = await supabase
+                .from('product_variants')
+                .delete()
+                .eq('product_id', numericProductId);
+
+            if (deleteAllError) {
+                 console.warn(`Could not delete all variants, they might be in an order. ${deleteAllError.message}`);
+            }
         }
 
-        // @unchanged (Step 5: Reconcile tags)
-        await supabase.from('product_tags').delete().eq('product_id', numericProductId); //
+        // 2D: Reconcile Inventory
+        const inventoryToUpsert = variants.map(clientVariant => {
+            // Find the matching variant from the DB list we just upserted
+            const dbVariant = upsertedVariants.find(v => v.sku === clientVariant.sku);
+            return {
+                variant_id: dbVariant.id, // Use the correct database variant ID
+                on_hand: clientVariant.on_hand || 0
+            };
+        });
+
+        if (inventoryToUpsert.length > 0) {
+             const { error: inventoryError } = await supabase
+                .from('inventory_levels')
+                .upsert(inventoryToUpsert, { onConflict: 'variant_id' });
+
+            if (inventoryError) throw inventoryError;
+        }
+
+        // @unchanged (Steps 3-6: Categories, Collections, Tags, Refetch)
+        await supabase.from('product_categories').delete().eq('product_id', numericProductId);
+        if (category_id) {
+            await supabase.from('product_categories').insert({ product_id: numericProductId, category_id: category_id });
+        }
+
+        await supabase.from('product_collections').delete().eq('product_id', numericProductId);
+        if (collection_ids && collection_ids.length > 0) {
+            const collectionLinks = collection_ids.map(collectionId => ({ product_id: numericProductId, collection_id: collectionId }));
+            await supabase.from('product_collections').insert(collectionLinks);
+        }
+
+        await supabase.from('product_tags').delete().eq('product_id', numericProductId);
         if (tags && tags.length > 0) {
              const tagObjects = await Promise.all(
                 tags.map(async (tagName) => {
-                    let { data: existingTag } = await supabase.from('tags').select('id').eq('name', tagName).single(); //
+                    let { data: existingTag } = await supabase.from('tags').select('id').eq('name', tagName).single();
                     if (!existingTag) {
-                        let { data: newTag } = await supabase.from('tags').insert({ name: tagName }).select('id').single(); //
-                        return { tag_id: newTag.id }; //
+                        let { data: newTag } = await supabase.from('tags').insert({ name: tagName }).select('id').single();
+                        return { tag_id: newTag.id };
                     }
-                    return { tag_id: existingTag.id }; //
+                    return { tag_id: existingTag.id };
                 })
             );
-            const productTagLinks = tagObjects.map(tagObj => ({ product_id: numericProductId, tag_id: tagObj.tag_id })); //
-            await supabase.from('product_tags').insert(productTagLinks); //
+            const productTagLinks = tagObjects.map(tagObj => ({ product_id: numericProductId, tag_id: tagObj.tag_id }));
+            await supabase.from('product_tags').insert(productTagLinks);
         }
 
-        // --- Step 6: Refetch and return the updated product using the existing GET logic ---
-        // Pass a modified context with the numeric ID
         const updatedContext = { params: { id: numericProductId } };
-        const response = await GET(request, updatedContext); // Call the GET function in this file
-        return response; // Return the response from GET
+        const response = await GET(request, updatedContext);
+        return response;
 
     } catch (error) {
         console.error(`Error updating product ${numericProductId}:`, error);

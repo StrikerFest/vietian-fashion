@@ -115,6 +115,7 @@ export default function AdminProductsPage() {
         const isEditing = !!editingProduct;
         const url = isEditing ? `/api/products/${editingProduct.id}` : '/api/products';
         const method = isEditing ? 'PUT' : 'POST';
+        //
         const productData = {
             name: productName,
             description: productDescription,
@@ -129,8 +130,8 @@ export default function AdminProductsPage() {
                 on_hand: parseInt(v.on_hand, 10) || 0,
             })),
             tags: tags,
-            category_id: categoryId || null, //
-            collection_ids: selectedCollectionIds, //
+            category_id: categoryId || null,
+            collection_ids: selectedCollectionIds,
         };
         try {
             const response = await fetch(url, {
