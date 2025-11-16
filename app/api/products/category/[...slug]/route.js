@@ -16,8 +16,8 @@ export async function GET(request, context) {
     const categorySlug = slug[slug.length - 1];
 
     const sortBy = searchParams.get('sort');
-    const sizes = searchParams.getAll('size');
-    const colors = searchParams.getAll('color');
+    const sizes = searchParams.getAll('size').filter(size => size);
+    const colors = searchParams.getAll('color').filter(color => color);
 
     try {
         // @unchanged (Step 1: Find the category)
