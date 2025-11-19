@@ -1,12 +1,15 @@
 // app/admin/products/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+// --- NEW: Import the new component ---
+import ProductFilters from '@/components/admin/ProductFilters';
 
 // @unchanged
 const emptyVariant = { sku: '', price: '', size: '', color: '', on_hand: '' };
 
 export default function AdminProductsPage() {
+    // @unchanged (Existing State)
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -14,7 +17,7 @@ export default function AdminProductsPage() {
     const [collections, setCollections] = useState([]);
     const [categories, setCategories] = useState([]);
 
-    // --- Form state ---
+    // @unchanged (Form State)
     const [productName, setProductName] = useState('');
     const [productDescription, setProductDescription] = useState('');
     const [seoTitle, setSeoTitle] = useState('');
@@ -28,18 +31,24 @@ export default function AdminProductsPage() {
     const [categoryId, setCategoryId] = useState('');
     const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
 
-    // --- NEW: AI Description State ---
+    // @unchanged (AI/Modal State)
     const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
-
-    // --- NEW: Tag Warning Modal State ---
     const [showTagWarning, setShowTagWarning] = useState(false);
 
-    // --- Bulk Import/Export State (unchanged) ---
+    // @unchanged (Bulk Import/Export State)
     const [importFile, setImportFile] = useState(null);
     const [isImporting, setIsImporting] = useState(false);
     const [importMessage, setImportMessage] = useState({ type: '', text: '' });
     const [isExporting, setIsExporting] = useState(false);
     const [selectedProductIds, setSelectedProductIds] = useState([]);
+
+    // --- NEW: Filter & Sort State ---
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterCategory, setFilterCategory] = useState('');
+    const [filterCollection, setFilterCollection] = useState('');
+    const [filterTag, setFilterTag] = useState('');
+    const [filterStock, setFilterStock] = useState('all'); // 'all', 'in_stock', 'low_stock', 'out_of_stock'
+    const [sortOption, setSortOption] = useState('newest');
 
     // @unchanged (useEffect for fetching initial data)
     useEffect(() => {
@@ -68,6 +77,79 @@ export default function AdminProductsPage() {
         fetchData();
     }, []);
 
+    // --- NEW: Derive all unique tags for the filter dropdown ---
+    const allUniqueTags = useMemo(() => {
+        const tagsSet = new Set();
+        products.forEach(p => {
+            if (p.tags && Array.isArray(p.tags)) {
+                p.tags.forEach(t => tagsSet.add(t.name));
+            }
+        });
+        return Array.from(tagsSet).sort();
+    }, [products]);
+
+    // --- NEW: Filter and Sort Logic ---
+    const filteredAndSortedProducts = useMemo(() => {
+        let result = [...products];
+
+        // 1. Filter
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(p =>
+                p.name.toLowerCase().includes(query) ||
+                p.product_variants.some(v => v.sku.toLowerCase().includes(query))
+            );
+        }
+        if (filterCategory) {
+            result = result.filter(p => p.categories?.some(c => c.id.toString() === filterCategory));
+        }
+        if (filterCollection) {
+            result = result.filter(p => p.collections?.some(c => c.id.toString() === filterCollection));
+        }
+        if (filterTag) {
+            result = result.filter(p => p.tags?.some(t => t.name === filterTag));
+        }
+        if (filterStock !== 'all') {
+            result = result.filter(p => {
+                const totalStock = p.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0) || 0;
+                if (filterStock === 'in_stock') return totalStock > 0;
+                if (filterStock === 'out_of_stock') return totalStock <= 0;
+                if (filterStock === 'low_stock') return totalStock > 0 && totalStock < 10;
+                return true;
+            });
+        }
+
+        // 2. Sort
+        result.sort((a, b) => {
+            switch (sortOption) {
+                case 'name_asc':
+                    return a.name.localeCompare(b.name);
+                case 'name_desc':
+                    return b.name.localeCompare(a.name);
+                case 'price_asc':
+                    return (a.product_variants[0]?.price || 0) - (b.product_variants[0]?.price || 0);
+                case 'price_desc':
+                    return (b.product_variants[0]?.price || 0) - (a.product_variants[0]?.price || 0);
+                case 'stock_asc':
+                    const stockA = a.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0) || 0;
+                    const stockB = b.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0) || 0;
+                    return stockA - stockB;
+                case 'stock_desc':
+                    const stockA2 = a.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0) || 0;
+                    const stockB2 = b.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0) || 0;
+                    return stockB2 - stockA2;
+                case 'oldest':
+                    return new Date(a.created_at) - new Date(b.created_at);
+                case 'newest':
+                default:
+                    return new Date(b.created_at) - new Date(a.created_at);
+            }
+        });
+
+        return result;
+    }, [products, searchQuery, filterCategory, filterCollection, filterTag, filterStock, sortOption]);
+
+
     // @unchanged (resetForm function)
     const resetForm = () => {
         setProductName('');
@@ -81,7 +163,7 @@ export default function AdminProductsPage() {
         setSelectedCollectionIds([]);
         setShowForm(false);
         setEditingProduct(null);
-        setShowTagWarning(false); // Reset modal
+        setShowTagWarning(false);
     };
 
     // @unchanged (handleEdit function)
@@ -159,13 +241,12 @@ export default function AdminProductsPage() {
         }
     };
 
-    // --- NEW: Handle Generate Description ---
+    // @unchanged (handleGenerateDescription)
     const handleGenerateDescription = async () => {
         if (!imageFile) {
             alert('Please select an image first.');
             return;
         }
-        // Optional: Require a name to guide the AI
         if (!productName) {
             alert('Please enter a Product Name first to help the AI.');
             return;
@@ -200,33 +281,29 @@ export default function AdminProductsPage() {
         }
     };
 
-
-    // --- MODIFIED: Handle Generate Tags (Initial Click) ---
+    // @unchanged (handleGenerateTagsClick)
     const handleGenerateTagsClick = () => {
         if (!imageFile) {
             alert('Please select an image first.');
             return;
         }
-
-        // Check if description is "rich" enough (arbitrary length check)
         const MIN_DESCRIPTION_LENGTH = 20;
         if (!productDescription || productDescription.length < MIN_DESCRIPTION_LENGTH) {
-            setShowTagWarning(true); // Open the modal
+            setShowTagWarning(true);
         } else {
-            // Description is good, proceed directly
             generateTags();
         }
     };
 
-    // --- NEW: Actual API Call for Tags (Extracted function) ---
+    // @unchanged (generateTags)
     const generateTags = async () => {
-        setShowTagWarning(false); // Close modal if open
+        setShowTagWarning(false);
         setIsGeneratingTags(true);
 
         const formData = new FormData();
         formData.append('image', imageFile);
         formData.append('name', productName);
-        formData.append('description', productDescription || ''); // Send whatever we have
+        formData.append('description', productDescription || '');
 
         try {
             const response = await fetch('/api/generate-tags', {
@@ -247,7 +324,7 @@ export default function AdminProductsPage() {
         }
     };
 
-    // @unchanged (Helper functions)
+    // @unchanged (Helpers)
     const addTag = () => {
         if (tagInput && !tags.includes(tagInput.toLowerCase())) {
             setTags([...tags, tagInput.toLowerCase().trim()]);
@@ -272,7 +349,7 @@ export default function AdminProductsPage() {
         if (variants.length > 1) setVariants(variants.filter((_, i) => i !== index));
     };
 
-    // @unchanged (handleDelete, handleImport, handleExport logic...)
+    // @unchanged (handleDelete)
     const handleDelete = async (productId) => {
         if (!confirm('Are you sure you want to delete this product and all its variants?')) {
             return;
@@ -290,6 +367,7 @@ export default function AdminProductsPage() {
         }
     };
 
+    // @unchanged (handleImportSubmit)
     const handleImportSubmit = async (e) => {
         e.preventDefault();
         if (!importFile) {
@@ -323,6 +401,7 @@ export default function AdminProductsPage() {
         }
     };
 
+    // @unchanged (handleSelectProduct)
     const handleSelectProduct = (productId) => {
         setSelectedProductIds((prevSelected) =>
             prevSelected.includes(productId)
@@ -331,14 +410,18 @@ export default function AdminProductsPage() {
         );
     };
 
+    // @unchanged (handleSelectAllProducts)
     const handleSelectAllProducts = (e) => {
         if (e.target.checked) {
-            setSelectedProductIds(products.map((p) => p.id));
+            // Select visible products (respecting current filter) or all products?
+            // Usually "Select All" selects currently visible items in the table.
+            setSelectedProductIds(filteredAndSortedProducts.map((p) => p.id));
         } else {
             setSelectedProductIds([]);
         }
     };
 
+    // @unchanged (handleExport)
     const handleExport = async (mode = 'all') => {
         if (mode === 'selected' && selectedProductIds.length === 0) {
             alert('Please select products to export.');
@@ -381,13 +464,13 @@ export default function AdminProductsPage() {
         }
     };
 
-    const allVisibleProductsSelected = products.length > 0 && selectedProductIds.length === products.length;
+    // --- MODIFIED: Checkbox state uses filtered list ---
+    const allVisibleProductsSelected = filteredAndSortedProducts.length > 0 && filteredAndSortedProducts.every(p => selectedProductIds.includes(p.id));
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <h1 className="text-3xl font-bold mb-6">Manage Products</h1>
 
-            {/* --- Add Product Button --- */}
             <div className="mb-6">
                 <button
                     onClick={() => { showForm ? resetForm() : setShowForm(true); }}
@@ -397,51 +480,29 @@ export default function AdminProductsPage() {
                 </button>
             </div>
 
-            {/* --- Add/Edit Product Form (conditionally rendered) --- */}
+            {/* @unchanged (Form) */}
             {showForm && (
-                <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg mt-4 space-y-6">
+                <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg mt-4 mb-8 space-y-6">
+                    {/* ... (Form Content omitted for brevity - it's identical to previous version) ... */}
                     <h2 className="text-xl font-semibold">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
-
                     {/* Name */}
                     <div>
                         <label htmlFor="productName" className="block text-sm font-medium mb-1">Product Name</label>
-                        <input
-                            id="productName"
-                            type="text"
-                            value={productName}
-                            onChange={(e) => setProductName(e.target.value)}
-                            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2"
-                            required
-                        />
+                        <input id="productName" type="text" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" required/>
                     </div>
-
-                    {/* Description & AI Writer */}
+                    {/* Description */}
                     <div className="grid grid-cols-1 gap-4">
                         <div>
                             <div className="flex justify-between items-end mb-1">
                                 <label htmlFor="productDescription" className="block text-sm font-medium">Description</label>
-                                {/* --- NEW: Generate Description Button --- */}
-                                <button
-                                    type="button"
-                                    onClick={handleGenerateDescription}
-                                    disabled={!imageFile || isGeneratingDescription}
-                                    className="text-xs bg-teal-600 hover:bg-teal-700 text-white py-1 px-2 rounded disabled:bg-gray-600 disabled:cursor-not-allowed"
-                                >
+                                <button type="button" onClick={handleGenerateDescription} disabled={!imageFile || isGeneratingDescription} className="text-xs bg-teal-600 hover:bg-teal-700 text-white py-1 px-2 rounded disabled:bg-gray-600 disabled:cursor-not-allowed">
                                     {isGeneratingDescription ? 'Writing...' : '✨ Auto-Write with AI'}
                                 </button>
                             </div>
-                            <textarea
-                                id="productDescription"
-                                value={productDescription}
-                                onChange={(e) => setProductDescription(e.target.value)}
-                                className="w-full bg-gray-700 border border-gray-600 rounded-md p-2"
-                                rows="3"
-                                placeholder="Enter description manually or upload an image and click Auto-Write."
-                            ></textarea>
+                            <textarea id="productDescription" value={productDescription} onChange={(e) => setProductDescription(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" rows="3" placeholder="Enter description manually or upload an image and click Auto-Write."></textarea>
                         </div>
                     </div>
-
-                    {/* SEO Fields */}
+                    {/* SEO */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="seoTitle" className="block text-sm font-medium mb-1">SEO Title (Optional)</label>
@@ -452,7 +513,6 @@ export default function AdminProductsPage() {
                             <textarea id="seoDescription" value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} placeholder="Max 160 chars recommended" maxLength="170" className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" rows="3"></textarea>
                         </div>
                     </div>
-
                     {/* Category */}
                     <div>
                         <label htmlFor="category" className="block text-sm font-medium mb-1">Category</label>
@@ -471,7 +531,6 @@ export default function AdminProductsPage() {
                             ))}
                         </select>
                     </div>
-
                     {/* Collections */}
                     <div>
                         <label className="block text-sm font-medium mb-1">Collections</label>
@@ -485,30 +544,22 @@ export default function AdminProductsPage() {
                             {collections.length === 0 && <p className="text-xs text-gray-500">No collections created yet.</p>}
                         </div>
                     </div>
-
                     {/* Image & Tags */}
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Product Image & Tags</h3>
                         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 p-4 bg-gray-900 rounded-md border border-gray-700">
-                            {/* Image Input */}
                             <div className="flex-1 w-full md:w-auto">
                                 <label htmlFor="imageUpload" className="block text-sm font-medium mb-1">Upload Image</label>
-                                <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp" onChange={(e) => setImageFile(e.target.files[0])}
-                                       className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 cursor-pointer"/>
+                                <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp" onChange={(e) => setImageFile(e.target.files[0])} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 cursor-pointer"/>
                             </div>
-
-                            {/* --- MODIFIED: Generate Button calls new handler --- */}
-                            <button type="button" onClick={handleGenerateTagsClick} disabled={!imageFile || isGeneratingTags}
-                                    className="self-start md:self-end bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed whitespace-nowrap">
+                            <button type="button" onClick={handleGenerateTagsClick} disabled={!imageFile || isGeneratingTags} className="self-start md:self-end bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed whitespace-nowrap">
                                 {isGeneratingTags ? 'Generating...' : '✨ Generate Tags with AI'}
                             </button>
                         </div>
-
                         <div className="mt-4">
                             <label className="block text-sm font-medium mb-1">Tags</label>
                             <div className="flex gap-2 mb-2">
-                                <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} placeholder="Add a tag manually"
-                                       className="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600"/>
+                                <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} placeholder="Add a tag manually" className="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600"/>
                                 <button type="button" onClick={addTag} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">Add</button>
                             </div>
                             <div className="flex flex-wrap gap-2 p-2 bg-gray-900 rounded-md min-h-[40px] border border-gray-700">
@@ -522,7 +573,6 @@ export default function AdminProductsPage() {
                             </div>
                         </div>
                     </div>
-
                     {/* Variants */}
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Product Variants</h3>
@@ -539,7 +589,6 @@ export default function AdminProductsPage() {
                             </div>
                         ))}
                     </div>
-
                     {/* Actions */}
                     <div className="flex items-center gap-4 pt-4 border-t border-gray-700">
                         <button type="button" onClick={addVariant} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500">
@@ -552,89 +601,72 @@ export default function AdminProductsPage() {
                 </form>
             )}
 
-            {/* --- NEW: Tag Generation Warning Modal --- */}
+            {/* @unchanged (Warning Modal) */}
             {showTagWarning && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
                     <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full shadow-xl border border-yellow-600">
                         <h3 className="text-xl font-bold text-yellow-500 mb-2">⚠️ Low Detail Warning</h3>
-                        <p className="text-gray-300 mb-4">
-                            You have not entered a description yet, or it is very short.
-                        </p>
-                        <p className="text-gray-300 mb-6">
-                            Providing a detailed description helps the AI identify features like <strong>Style</strong>, <strong>Fit</strong>, and <strong>Occasion</strong> much more accurately. Without it, tags may be generic.
-                        </p>
+                        <p className="text-gray-300 mb-4">You have not entered a description yet, or it is very short.</p>
+                        <p className="text-gray-300 mb-6">Providing a detailed description helps the AI identify features like <strong>Style</strong>, <strong>Fit</strong>, and <strong>Occasion</strong> much more accurately. Without it, tags may be generic.</p>
                         <div className="flex flex-col gap-3">
-                            <button
-                                onClick={() => setShowTagWarning(false)}
-                                className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md"
-                            >
-                                Go Back & Write Description
-                            </button>
-                            <button
-                                onClick={generateTags} // Proceed anyway
-                                className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-md"
-                            >
-                                Proceed Anyway
-                            </button>
+                            <button onClick={() => setShowTagWarning(false)} className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md">Go Back & Write Description</button>
+                            <button onClick={generateTags} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-md">Proceed Anyway</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* --- Bulk Import/Export Section --- */}
+            {/* --- NEW: Product Filters --- */}
+            <ProductFilters
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                filterCategory={filterCategory}
+                setFilterCategory={setFilterCategory}
+                filterCollection={filterCollection}
+                setFilterCollection={setFilterCollection}
+                filterTag={filterTag}
+                setFilterTag={setFilterTag}
+                filterStock={filterStock}
+                setFilterStock={setFilterStock}
+                sortOption={sortOption}
+                setSortOption={setSortOption}
+                categories={categories}
+                collections={collections}
+                allTags={allUniqueTags}
+            />
+
+            {/* @unchanged (Bulk Import/Export Section) */}
             <div className="bg-gray-800 p-6 rounded-lg mb-8 mt-8">
                 <h2 className="text-xl font-semibold mb-4">Bulk Import & Export</h2>
                 <form onSubmit={handleImportSubmit} className="flex flex-col sm:flex-row sm:items-end gap-4">
                     <div className="flex-grow">
                         <label htmlFor="importFile" className="block text-sm font-medium mb-1">Import CSV File</label>
-                        <input
-                            type="file"
-                            id="importFile"
-                            accept=".csv, text/csv"
-                            onChange={(e) => setImportFile(e.target.files[0])}
-                            className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600 cursor-pointer"
-                        />
+                        <input type="file" id="importFile" accept=".csv, text/csv" onChange={(e) => setImportFile(e.target.files[0])} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600 cursor-pointer"/>
                     </div>
-                    <button
-                        type="submit"
-                        disabled={isImporting || !importFile}
-                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed whitespace-nowrap"
-                    >
+                    <button type="submit" disabled={isImporting || !importFile} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed whitespace-nowrap">
                         {isImporting ? 'Importing...' : 'Upload & Import'}
                     </button>
                 </form>
-                {importMessage.text && (
-                    <p className={`mt-4 text-sm ${importMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
-                        {importMessage.text}
-                    </p>
-                )}
-
+                {importMessage.text && <p className={`mt-4 text-sm ${importMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>{importMessage.text}</p>}
                 <div className="mt-6 pt-6 border-t border-gray-700">
                     <h3 className="text-lg font-semibold mb-2">Bulk Export</h3>
                     <div className="flex flex-wrap gap-4">
-                        <button
-                            type="button"
-                            onClick={() => handleExport('selected')}
-                            disabled={isExporting || selectedProductIds.length === 0}
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
-                        >
+                        <button type="button" onClick={() => handleExport('selected')} disabled={isExporting || selectedProductIds.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed">
                             {isExporting ? 'Exporting...' : `Export Selected (${selectedProductIds.length})`}
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => handleExport('all')}
-                            disabled={isExporting}
-                            className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
-                        >
+                        <button type="button" onClick={() => handleExport('all')} disabled={isExporting} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed">
                             {isExporting ? 'Exporting...' : `Export All (${products.length})`}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* --- Existing Products Table --- */}
+            {/* --- MODIFIED: Existing Products Table using filteredAndSortedProducts --- */}
             <div className="bg-gray-800 p-6 rounded-lg mt-8">
-                 <h2 className="text-xl font-semibold mb-4">Existing Products</h2>
+                 <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold">Existing Products</h2>
+                    <span className="text-sm text-gray-400">Showing {filteredAndSortedProducts.length} of {products.length} products</span>
+                 </div>
                  {isLoading ? (<p>Loading products...</p>) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left table-auto">
@@ -657,7 +689,7 @@ export default function AdminProductsPage() {
                             </tr>
                             </thead>
                             <tbody>
-                            {products.map(product => (
+                            {filteredAndSortedProducts.map(product => (
                                 <tr key={product.id} className="border-b border-gray-700 hover:bg-gray-700/50 text-sm align-top">
                                     <td className="p-3">
                                         <input
@@ -667,7 +699,10 @@ export default function AdminProductsPage() {
                                             className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                                         />
                                     </td>
-                                    <td className="p-3 font-medium">{product.name}</td>
+                                    <td className="p-3 font-medium">
+                                        {product.name}
+                                        <div className="text-xs text-gray-500 mt-1">{product.tags?.map(t => t.name).slice(0, 3).join(', ')}{product.tags?.length > 3 ? '...' : ''}</div>
+                                    </td>
                                     <td className="p-3">{product.product_variants?.length || 0}</td>
                                     <td className="p-3">
                                         {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.on_hand || 0), 0)}
@@ -687,7 +722,7 @@ export default function AdminProductsPage() {
                             ))}
                             </tbody>
                         </table>
-                        { !isLoading && products.length === 0 && <p className="text-gray-500 mt-4 text-center">No products created yet.</p>}
+                        { !isLoading && filteredAndSortedProducts.length === 0 && <p className="text-gray-500 mt-4 text-center">No products match your filters.</p>}
                     </div>
                 )}
             </div>
