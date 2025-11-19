@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 
-// @unchanged (emptyVariant constant remains the same)
+// @unchanged
 const emptyVariant = { sku: '', price: '', size: '', color: '', on_hand: '' };
 
 export default function AdminProductsPage() {
@@ -28,15 +28,17 @@ export default function AdminProductsPage() {
     const [categoryId, setCategoryId] = useState('');
     const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
 
-    // --- NEW: State for bulk import ---
+    // --- NEW: AI Description State ---
+    const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+
+    // --- NEW: Tag Warning Modal State ---
+    const [showTagWarning, setShowTagWarning] = useState(false);
+
+    // --- Bulk Import/Export State (unchanged) ---
     const [importFile, setImportFile] = useState(null);
     const [isImporting, setIsImporting] = useState(false);
     const [importMessage, setImportMessage] = useState({ type: '', text: '' });
-
-    // --- NEW: State for bulk export ---
     const [isExporting, setIsExporting] = useState(false);
-
-    // --- NEW: State for selected products ---
     const [selectedProductIds, setSelectedProductIds] = useState([]);
 
     // @unchanged (useEffect for fetching initial data)
@@ -79,6 +81,7 @@ export default function AdminProductsPage() {
         setSelectedCollectionIds([]);
         setShowForm(false);
         setEditingProduct(null);
+        setShowTagWarning(false); // Reset modal
     };
 
     // @unchanged (handleEdit function)
@@ -86,8 +89,8 @@ export default function AdminProductsPage() {
         setEditingProduct(product);
         setProductName(product.name);
         setProductDescription(product.description || '');
-        setSeoTitle(product.seo_title || ''); //
-        setSeoDescription(product.seo_description || ''); //
+        setSeoTitle(product.seo_title || '');
+        setSeoDescription(product.seo_description || '');
         const variantsWithInventory = product.product_variants.map(v => ({
             ...v,
             on_hand: v.inventory_levels?.[0]?.on_hand ?? 0
@@ -115,7 +118,7 @@ export default function AdminProductsPage() {
         const isEditing = !!editingProduct;
         const url = isEditing ? `/api/products/${editingProduct.id}` : '/api/products';
         const method = isEditing ? 'PUT' : 'POST';
-        //
+
         const productData = {
             name: productName,
             description: productDescription,
@@ -156,7 +159,137 @@ export default function AdminProductsPage() {
         }
     };
 
-    // --- NEW: Handle Bulk Import Submission ---
+    // --- NEW: Handle Generate Description ---
+    const handleGenerateDescription = async () => {
+        if (!imageFile) {
+            alert('Please select an image first.');
+            return;
+        }
+        // Optional: Require a name to guide the AI
+        if (!productName) {
+            alert('Please enter a Product Name first to help the AI.');
+            return;
+        }
+
+        setIsGeneratingDescription(true);
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        formData.append('name', productName);
+
+        try {
+            const response = await fetch('/api/generate-description', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to generate description.');
+            }
+
+            const data = await response.json();
+            if (data.description) {
+                setProductDescription(data.description);
+            }
+
+        } catch (error) {
+            console.error('Error generating description:', error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            setIsGeneratingDescription(false);
+        }
+    };
+
+
+    // --- MODIFIED: Handle Generate Tags (Initial Click) ---
+    const handleGenerateTagsClick = () => {
+        if (!imageFile) {
+            alert('Please select an image first.');
+            return;
+        }
+
+        // Check if description is "rich" enough (arbitrary length check)
+        const MIN_DESCRIPTION_LENGTH = 20;
+        if (!productDescription || productDescription.length < MIN_DESCRIPTION_LENGTH) {
+            setShowTagWarning(true); // Open the modal
+        } else {
+            // Description is good, proceed directly
+            generateTags();
+        }
+    };
+
+    // --- NEW: Actual API Call for Tags (Extracted function) ---
+    const generateTags = async () => {
+        setShowTagWarning(false); // Close modal if open
+        setIsGeneratingTags(true);
+
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        formData.append('name', productName);
+        formData.append('description', productDescription || ''); // Send whatever we have
+
+        try {
+            const response = await fetch('/api/generate-tags', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'AI tag generation failed');
+            }
+            const data = await response.json();
+            setTags(prevTags => [...new Set([...prevTags, ...data.tags])]);
+        } catch (error) {
+            console.error('Error generating tags:', error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            setIsGeneratingTags(false);
+        }
+    };
+
+    // @unchanged (Helper functions)
+    const addTag = () => {
+        if (tagInput && !tags.includes(tagInput.toLowerCase())) {
+            setTags([...tags, tagInput.toLowerCase().trim()]);
+            setTagInput('');
+        }
+    };
+    const removeTag = (tagToRemove) => {
+        setTags(tags.filter(tag => tag !== tagToRemove));
+    }
+    const handleVariantChange = (index, field, value) => {
+        const updatedVariants = [...variants];
+        updatedVariants[index] = {...updatedVariants[index], [field]: value};
+        if (field === 'on_hand') {
+            updatedVariants[index].on_hand = value;
+        }
+        setVariants(updatedVariants);
+    };
+    const addVariant = () => {
+        setVariants([...variants, { ...emptyVariant }]);
+    };
+    const removeVariant = (index) => {
+        if (variants.length > 1) setVariants(variants.filter((_, i) => i !== index));
+    };
+
+    // @unchanged (handleDelete, handleImport, handleExport logic...)
+    const handleDelete = async (productId) => {
+        if (!confirm('Are you sure you want to delete this product and all its variants?')) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete product');
+            }
+            setProducts(products.filter(p => p.id !== productId));
+            alert('Product deleted successfully!');
+        } catch (error) {
+            alert(`Error deleting product: ${error.message}`);
+        }
+    };
+
     const handleImportSubmit = async (e) => {
         e.preventDefault();
         if (!importFile) {
@@ -179,7 +312,7 @@ export default function AdminProductsPage() {
             setImportMessage({ type: 'success', text: `Import successful! ${data.created_products} products created, ${data.created_variants} variants added.` });
             setImportFile(null);
             document.getElementById('importFile').value = null;
-            const productsRes = await fetch('/api/products'); //
+            const productsRes = await fetch('/api/products');
             const productsData = await productsRes.json();
             setProducts(productsData || []);
         } catch (error) {
@@ -190,44 +323,34 @@ export default function AdminProductsPage() {
         }
     };
 
-
-    // --- NEW: Handler for selecting/deselecting a single product ---
     const handleSelectProduct = (productId) => {
         setSelectedProductIds((prevSelected) =>
             prevSelected.includes(productId)
-                ? prevSelected.filter((id) => id !== productId) // Deselect
-                : [...prevSelected, productId] // Select
+                ? prevSelected.filter((id) => id !== productId)
+                : [...prevSelected, productId]
         );
     };
 
-    // --- NEW: Handler for selecting/deselecting all products ---
     const handleSelectAllProducts = (e) => {
         if (e.target.checked) {
-            // Select all product IDs from the current `products` state
             setSelectedProductIds(products.map((p) => p.id));
         } else {
-            // Deselect all
             setSelectedProductIds([]);
         }
     };
 
-    // --- MODIFIED: Handle Bulk Export Click ---
     const handleExport = async (mode = 'all') => {
         if (mode === 'selected' && selectedProductIds.length === 0) {
             alert('Please select products to export.');
             return;
         }
-
         setIsExporting(true);
-        let exportUrl = '/api/products/bulk-export'; //
-
+        let exportUrl = '/api/products/bulk-export';
         if (mode === 'selected') {
-            // Append selected IDs as a query parameter
             const params = new URLSearchParams();
             params.append('ids', selectedProductIds.join(','));
             exportUrl = `${exportUrl}?${params.toString()}`;
         }
-
         try {
             const response = await fetch(exportUrl);
             if (!response.ok) {
@@ -238,12 +361,10 @@ export default function AdminProductsPage() {
                     throw new Error(`Failed to export products. Status: ${response.status}`);
                 }
             }
-
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            // Generate a dynamic filename
             const filename = mode === 'selected'
                 ? `products_export_selected_${selectedProductIds.length}.csv`
                 : 'products_export_all.csv';
@@ -260,85 +381,7 @@ export default function AdminProductsPage() {
         }
     };
 
-    // @unchanged (handleGenerateTags, addTag, removeTag, handleVariantChange, addVariant, removeVariant, handleDelete functions)
-    const handleGenerateTags = async () => {
-        // ... (implementation remains the same)
-        if (!imageFile) {
-            alert('Please select an image first.');
-            return;
-        }
-        setIsGeneratingTags(true);
-        const formData = new FormData();
-        formData.append('image', imageFile);
-        formData.append('name', productName);
-        formData.append('description', productDescription);
-        try {
-            const response = await fetch('/api/generate-tags', { //
-                method: 'POST',
-                body: formData,
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'AI tag generation failed');
-            }
-            const data = await response.json();
-            setTags(prevTags => [...new Set([...prevTags, ...data.tags])]);
-        } catch (error) {
-            console.error('Error generating tags:', error);
-            alert(`Error: ${error.message}`);
-        } finally {
-            setIsGeneratingTags(false);
-        }
-    };
-    const addTag = () => {
-        // ... (implementation remains the same)
-        if (tagInput && !tags.includes(tagInput.toLowerCase())) {
-            setTags([...tags, tagInput.toLowerCase().trim()]);
-            setTagInput('');
-        }
-    };
-    const removeTag = (tagToRemove) => {
-        // ... (implementation remains the same)
-        setTags(tags.filter(tag => tag !== tagToRemove));
-    }
-    const handleVariantChange = (index, field, value) => {
-        // ... (implementation remains the same)
-        const updatedVariants = [...variants];
-        updatedVariants[index] = {...updatedVariants[index], [field]: value};
-        if (field === 'on_hand') {
-            updatedVariants[index].on_hand = value;
-        }
-        setVariants(updatedVariants);
-    };
-    const addVariant = () => {
-        // ... (implementation remains the same)
-        setVariants([...variants, { ...emptyVariant }]);
-    };
-    const removeVariant = (index) => {
-        // ... (implementation remains the same)
-        if (variants.length > 1) setVariants(variants.filter((_, i) => i !== index));
-    };
-    const handleDelete = async (productId) => {
-        // ... (implementation remains the same)
-        if (!confirm('Are you sure you want to delete this product and all its variants?')) {
-            return;
-        }
-        try {
-            const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to delete product');
-            }
-            setProducts(products.filter(p => p.id !== productId));
-            alert('Product deleted successfully!');
-        } catch (error) {
-            alert(`Error deleting product: ${error.message}`);
-        }
-    };
-
-    // --- NEW: Calculate "Select All" checkbox state ---
     const allVisibleProductsSelected = products.length > 0 && selectedProductIds.length === products.length;
-
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -357,19 +400,47 @@ export default function AdminProductsPage() {
             {/* --- Add/Edit Product Form (conditionally rendered) --- */}
             {showForm && (
                 <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg mt-4 space-y-6">
-                    {/* ... form content ... */}
                     <h2 className="text-xl font-semibold">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
-                    {/* Name/Description */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    {/* Name */}
+                    <div>
+                        <label htmlFor="productName" className="block text-sm font-medium mb-1">Product Name</label>
+                        <input
+                            id="productName"
+                            type="text"
+                            value={productName}
+                            onChange={(e) => setProductName(e.target.value)}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-md p-2"
+                            required
+                        />
+                    </div>
+
+                    {/* Description & AI Writer */}
+                    <div className="grid grid-cols-1 gap-4">
                         <div>
-                            <label htmlFor="productName" className="block text-sm font-medium mb-1">Product Name</label>
-                            <input id="productName" type="text" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" required/>
-                        </div>
-                        <div>
-                            <label htmlFor="productDescription" className="block text-sm font-medium mb-1">Description</label>
-                            <textarea id="productDescription" value={productDescription} onChange={(e) => setProductDescription(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" rows="3"></textarea>
+                            <div className="flex justify-between items-end mb-1">
+                                <label htmlFor="productDescription" className="block text-sm font-medium">Description</label>
+                                {/* --- NEW: Generate Description Button --- */}
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateDescription}
+                                    disabled={!imageFile || isGeneratingDescription}
+                                    className="text-xs bg-teal-600 hover:bg-teal-700 text-white py-1 px-2 rounded disabled:bg-gray-600 disabled:cursor-not-allowed"
+                                >
+                                    {isGeneratingDescription ? 'Writing...' : '✨ Auto-Write with AI'}
+                                </button>
+                            </div>
+                            <textarea
+                                id="productDescription"
+                                value={productDescription}
+                                onChange={(e) => setProductDescription(e.target.value)}
+                                className="w-full bg-gray-700 border border-gray-600 rounded-md p-2"
+                                rows="3"
+                                placeholder="Enter description manually or upload an image and click Auto-Write."
+                            ></textarea>
                         </div>
                     </div>
+
                     {/* SEO Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -381,11 +452,11 @@ export default function AdminProductsPage() {
                             <textarea id="seoDescription" value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} placeholder="Max 160 chars recommended" maxLength="170" className="w-full bg-gray-700 border border-gray-600 rounded-md p-2" rows="3"></textarea>
                         </div>
                     </div>
+
                     {/* Category */}
                     <div>
                         <label htmlFor="category" className="block text-sm font-medium mb-1">Category</label>
                         <select id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600">
-                            {/* ... options ... */}
                             <option value="">-- Select a Category --</option>
                             {categories.filter(c => !c.parent_id).map(parent => (
                                 <optgroup key={parent.id} label={parent.name}>
@@ -400,11 +471,11 @@ export default function AdminProductsPage() {
                             ))}
                         </select>
                     </div>
+
                     {/* Collections */}
                     <div>
                         <label className="block text-sm font-medium mb-1">Collections</label>
                         <div className="max-h-32 overflow-y-auto bg-gray-900 p-3 rounded-md space-y-2 border border-gray-600">
-                            {/* ... checkboxes ... */}
                             {collections.map(collection => (
                                 <div key={collection.id} className="flex items-center">
                                     <input id={`collection-${collection.id}`} type="checkbox" checked={selectedCollectionIds.includes(collection.id)} onChange={() => handleCollectionChange(collection.id)} className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"/>
@@ -414,32 +485,32 @@ export default function AdminProductsPage() {
                             {collections.length === 0 && <p className="text-xs text-gray-500">No collections created yet.</p>}
                         </div>
                     </div>
+
                     {/* Image & Tags */}
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Product Image & Tags</h3>
-                        {/* ... image/tags UI ... */}
                         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 p-4 bg-gray-900 rounded-md border border-gray-700">
-                            {/* ... Image Input ... */}
+                            {/* Image Input */}
                             <div className="flex-1 w-full md:w-auto">
-                                <label htmlFor="imageUpload" className="block text-sm font-medium mb-1">Upload Image (Optional)</label>
+                                <label htmlFor="imageUpload" className="block text-sm font-medium mb-1">Upload Image</label>
                                 <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp" onChange={(e) => setImageFile(e.target.files[0])}
                                        className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 cursor-pointer"/>
                             </div>
-                            {/* ... Generate Button ... */}
-                            <button type="button" onClick={handleGenerateTags} disabled={!imageFile || isGeneratingTags}
-                                    className="self-start md:self-end bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed whitespace-nowrap">
-                                {isGeneratingTags ? 'Generating...' : 'Generate Tags with AI'}
+
+                            {/* --- MODIFIED: Generate Button calls new handler --- */}
+                            <button type="button" onClick={handleGenerateTagsClick} disabled={!imageFile || isGeneratingTags}
+                                    className="self-start md:self-end bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed whitespace-nowrap">
+                                {isGeneratingTags ? 'Generating...' : '✨ Generate Tags with AI'}
                             </button>
                         </div>
+
                         <div className="mt-4">
                             <label className="block text-sm font-medium mb-1">Tags</label>
-                            {/* ... Tag Input ... */}
                             <div className="flex gap-2 mb-2">
                                 <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} placeholder="Add a tag manually"
                                        className="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600"/>
                                 <button type="button" onClick={addTag} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">Add</button>
                             </div>
-                            {/* ... Display Tags ... */}
                             <div className="flex flex-wrap gap-2 p-2 bg-gray-900 rounded-md min-h-[40px] border border-gray-700">
                                 {tags.map(tag => (
                                     <span key={tag} className="flex items-center bg-blue-600 text-white text-sm font-medium pl-3 pr-2 py-1 rounded-full">
@@ -451,10 +522,10 @@ export default function AdminProductsPage() {
                             </div>
                         </div>
                     </div>
+
                     {/* Variants */}
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Product Variants</h3>
-                        {/* ... variants list ... */}
                         {variants.map((variant, index) => (
                             <div key={variant.id || `new-${index}`} className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-3 p-3 bg-gray-900 rounded-md border border-gray-700">
                                 <input type="text" placeholder="SKU" value={variant.sku} onChange={(e) => handleVariantChange(index, 'sku', e.target.value)} className="bg-gray-700 p-2 rounded-md border border-gray-600" required/>
@@ -468,9 +539,9 @@ export default function AdminProductsPage() {
                             </div>
                         ))}
                     </div>
+
                     {/* Actions */}
                     <div className="flex items-center gap-4 pt-4 border-t border-gray-700">
-                        {/* ... Add Variant / Save buttons ... */}
                         <button type="button" onClick={addVariant} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500">
                             + Add Variant
                         </button>
@@ -481,11 +552,38 @@ export default function AdminProductsPage() {
                 </form>
             )}
 
-            {/* --- MODIFIED: Bulk Import/Export Section --- */}
-            <div className="bg-gray-800 p-6 rounded-lg mb-8">
-                <h2 className="text-xl font-semibold mb-4">Bulk Import & Export</h2>
+            {/* --- NEW: Tag Generation Warning Modal --- */}
+            {showTagWarning && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full shadow-xl border border-yellow-600">
+                        <h3 className="text-xl font-bold text-yellow-500 mb-2">⚠️ Low Detail Warning</h3>
+                        <p className="text-gray-300 mb-4">
+                            You have not entered a description yet, or it is very short.
+                        </p>
+                        <p className="text-gray-300 mb-6">
+                            Providing a detailed description helps the AI identify features like <strong>Style</strong>, <strong>Fit</strong>, and <strong>Occasion</strong> much more accurately. Without it, tags may be generic.
+                        </p>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => setShowTagWarning(false)}
+                                className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md"
+                            >
+                                Go Back & Write Description
+                            </button>
+                            <button
+                                onClick={generateTags} // Proceed anyway
+                                className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-md"
+                            >
+                                Proceed Anyway
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                {/* --- Import Form --- */}
+            {/* --- Bulk Import/Export Section --- */}
+            <div className="bg-gray-800 p-6 rounded-lg mb-8 mt-8">
+                <h2 className="text-xl font-semibold mb-4">Bulk Import & Export</h2>
                 <form onSubmit={handleImportSubmit} className="flex flex-col sm:flex-row sm:items-end gap-4">
                     <div className="flex-grow">
                         <label htmlFor="importFile" className="block text-sm font-medium mb-1">Import CSV File</label>
@@ -505,19 +603,14 @@ export default function AdminProductsPage() {
                         {isImporting ? 'Importing...' : 'Upload & Import'}
                     </button>
                 </form>
-                {/* Display Import Success/Error Messages */}
                 {importMessage.text && (
                     <p className={`mt-4 text-sm ${importMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
                         {importMessage.text}
                     </p>
                 )}
 
-                {/* --- MODIFIED: Export Buttons --- */}
                 <div className="mt-6 pt-6 border-t border-gray-700">
                     <h3 className="text-lg font-semibold mb-2">Bulk Export</h3>
-                    <p className="text-sm text-gray-400 mb-4">
-                        Download a CSV file of selected products or all products.
-                    </p>
                     <div className="flex flex-wrap gap-4">
                         <button
                             type="button"
@@ -537,10 +630,9 @@ export default function AdminProductsPage() {
                         </button>
                     </div>
                 </div>
-
             </div>
 
-            {/* --- MODIFIED: Existing Products Table --- */}
+            {/* --- Existing Products Table --- */}
             <div className="bg-gray-800 p-6 rounded-lg mt-8">
                  <h2 className="text-xl font-semibold mb-4">Existing Products</h2>
                  {isLoading ? (<p>Loading products...</p>) : (
@@ -548,13 +640,11 @@ export default function AdminProductsPage() {
                         <table className="w-full text-left table-auto">
                             <thead className="bg-gray-900">
                             <tr>
-                                {/* --- NEW: Select All Checkbox --- */}
                                 <th className="p-3 w-4">
                                     <input
                                         type="checkbox"
                                         checked={allVisibleProductsSelected}
                                         onChange={handleSelectAllProducts}
-                                        // ref property can be used for indeterminate state if needed
                                         className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                                     />
                                 </th>
@@ -569,7 +659,6 @@ export default function AdminProductsPage() {
                             <tbody>
                             {products.map(product => (
                                 <tr key={product.id} className="border-b border-gray-700 hover:bg-gray-700/50 text-sm align-top">
-                                    {/* --- NEW: Row Checkbox --- */}
                                     <td className="p-3">
                                         <input
                                             type="checkbox"
@@ -578,7 +667,6 @@ export default function AdminProductsPage() {
                                             className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                                         />
                                     </td>
-                                    {/* @unchanged (Rest of the table cells) */}
                                     <td className="p-3 font-medium">{product.name}</td>
                                     <td className="p-3">{product.product_variants?.length || 0}</td>
                                     <td className="p-3">
