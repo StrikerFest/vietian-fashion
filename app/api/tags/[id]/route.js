@@ -33,7 +33,7 @@ export async function PUT(request, context) {
     }
 }
 
-// DELETE a tag
+// DELETE (Archive) a tag
 export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
@@ -42,30 +42,20 @@ export async function DELETE(request, context) {
     const tagId = parseInt(id);
 
     try {
-        // 1. Check usage in products
-        const { count, error: checkError } = await supabase
-            .from('product_tags')
-            .select('product_id', { count: 'exact', head: true })
-            .eq('tag_id', tagId);
-
-        if (checkError) throw checkError;
-
-        if (count > 0) {
-            return NextResponse.json({ error: `Cannot delete tag. It is used by ${count} product(s).` }, { status: 400 });
-        }
-
-        // 2. Delete
+        // --- NEW: Soft Delete (Archive) ---
+        // We removed the "check usage in products" step because archiving allows
+        // historical data to persist without breaking foreign keys.
         const { error } = await supabase
             .from('tags')
-            .delete()
+            .update({ deleted_at: new Date().toISOString() })
             .eq('id', tagId);
 
         if (error) throw error;
 
-        return NextResponse.json({ message: 'Tag deleted successfully.' });
+        return NextResponse.json({ message: 'Tag archived successfully.' });
 
     } catch (error) {
-        console.error(`Error deleting tag ${tagId}:`, error);
-        return NextResponse.json({ error: 'Failed to delete tag.', details: error.message }, { status: 500 });
+        console.error(`Error archiving tag ${tagId}:`, error);
+        return NextResponse.json({ error: 'Failed to archive tag.', details: error.message }, { status: 500 });
     }
 }

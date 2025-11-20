@@ -1,17 +1,18 @@
 // app/api/suppliers/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient'; // [cite: strikerfest/vietian-fashion/vietian-fashion-sorting-1-merged-order-1-merged-collection-1-merged-categories-1/lib/supabaseClient.js]
+import { supabase } from '@/lib/supabaseClient';
 
-// GET all suppliers
+// GET all active suppliers
 export async function GET() {
     try {
         const { data, error } = await supabase
-            .from('suppliers') // [cite: Context-sql.sql]
-            .select('*') // Select all columns
-            .order('name', { ascending: true }); // Order alphabetically by name
+            .from('suppliers')
+            .select('*')
+            .is('deleted_at', null) // --- NEW: Only fetch active records ---
+            .order('name', { ascending: true });
 
         if (error) throw error;
-        return NextResponse.json(data || []); // Return data or empty array
+        return NextResponse.json(data || []);
 
     } catch (error) {
         console.error('Error fetching suppliers:', error);
@@ -19,38 +20,64 @@ export async function GET() {
     }
 }
 
-// POST a new supplier
+// POST a new supplier (or restore an archived one)
 export async function POST(request) {
-    // Extract fields based on the suppliers table schema [cite: Context-sql.sql]
     const { name, contact_person, email, phone } = await request.json();
 
-    // Basic validation
     if (!name) {
         return NextResponse.json({ error: 'Supplier Name is required' }, { status: 400 });
     }
-    // Optional: Add more specific validation for email/phone formats if needed
 
     try {
-        const { data, error } = await supabase
-            .from('suppliers') // [cite: Context-sql.sql]
-            .insert([{
-                name, // [cite: Context-sql.sql]
-                contact_person: contact_person || null, // [cite: Context-sql.sql]
-                email: email || null, // [cite: Context-sql.sql]
-                phone: phone || null, // [cite: Context-sql.sql]
-            }])
-            .select() // Select the newly created record
-            .single(); // Expect only one record to be created
+        // --- NEW: Check if supplier exists (active or archived) ---
+        const { data: existing, error: checkError } = await supabase
+            .from('suppliers')
+            .select('*')
+            .eq('name', name)
+            .single();
 
-        if (error) {
-            // Handle unique constraint violation for the 'name' [cite: Context-sql.sql]
-            if (error.code === '23505') {
-                return NextResponse.json({ error: 'A supplier with this name already exists.' }, { status: 409 });
-            }
-            throw error; // Rethrow other errors
+        if (checkError && checkError.code !== 'PGRST116') { // Ignore "not found" error
+            throw checkError;
         }
 
-        return NextResponse.json(data, { status: 201 }); // Return the newly created supplier with 201 status
+        if (existing) {
+            if (existing.deleted_at) {
+                // --- NEW: Restore archived supplier ---
+                const { data: restored, error: restoreError } = await supabase
+                    .from('suppliers')
+                    .update({
+                        deleted_at: null, // Restore
+                        contact_person: contact_person || existing.contact_person,
+                        email: email || existing.email,
+                        phone: phone || existing.phone
+                    })
+                    .eq('id', existing.id)
+                    .select()
+                    .single();
+
+                if (restoreError) throw restoreError;
+                return NextResponse.json(restored, { status: 200 });
+            } else {
+                // Supplier exists and is active
+                return NextResponse.json({ error: 'A supplier with this name already exists.' }, { status: 409 });
+            }
+        }
+
+        // --- Create new supplier ---
+        const { data, error } = await supabase
+            .from('suppliers')
+            .insert([{
+                name,
+                contact_person: contact_person || null,
+                email: email || null,
+                phone: phone || null,
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return NextResponse.json(data, { status: 201 });
 
     } catch (error) {
         console.error('Error creating supplier:', error);
