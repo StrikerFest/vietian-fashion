@@ -1,11 +1,12 @@
 // app/cart/page.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link'; // --- IMPORT LINK ---
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import AddressModal from '@/components/AddressModal';
 
 export default function CartPage() {
     // @unchanged (useCart hook)
@@ -33,6 +34,43 @@ export default function CartPage() {
     const [discountMessage, setDiscountMessage] = useState({ type: '', text: '' });
     const router = useRouter();
 
+    // --- NEW: Address State ---
+    const [addresses, setAddresses] = useState([]);
+    const [selectedAddressId, setSelectedAddressId] = useState(null);
+    const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+    const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
+
+    // --- NEW: Fetch Addresses ---
+    const fetchAddresses = async () => {
+        if (!session) return;
+        setIsLoadingAddresses(true);
+        try {
+            const response = await fetch('/api/account/addresses');
+            if (response.ok) {
+                const data = await response.json();
+                setAddresses(data || []);
+                // Auto-select default or first address
+                const defaultAddr = data.find(a => a.is_default);
+                if (defaultAddr) {
+                    setSelectedAddressId(defaultAddr.id);
+                } else if (data.length > 0) {
+                    setSelectedAddressId(data[0].id);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch addresses", error);
+        } finally {
+            setIsLoadingAddresses(false);
+        }
+    };
+
+    // Fetch addresses when session is available
+    useEffect(() => {
+        if (session) {
+            fetchAddresses();
+        }
+    }, [session]);
+
     // @unchanged (handleApplyDiscount)
     const handleApplyDiscount = async (e) => {
         e.preventDefault();
@@ -54,6 +92,12 @@ export default function CartPage() {
 
     // @unchanged (handleCheckout)
     const handleCheckout = async () => {
+        // --- NEW: Validation for Address ---
+        if (session && !selectedAddressId) {
+            alert('Please select a shipping address.');
+            return;
+        }
+
         setIsCheckingOut(true);
         try {
             const response = await fetch('/api/checkout', {
@@ -62,7 +106,8 @@ export default function CartPage() {
                 body: JSON.stringify({
                     cartItems,
                     discountId: appliedDiscount?.id || null,
-                    userId: session?.user?.id || null
+                    userId: session?.user?.id || null,
+                    addressId: selectedAddressId // --- NEW: Pass the address ID
                 }),
             });
 
@@ -86,7 +131,7 @@ export default function CartPage() {
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-5xl mx-auto">
                 <h1 className="text-4xl font-extrabold mb-8">Your Cart</h1>
 
                 {cartItems.length === 0 ? (
@@ -98,38 +143,100 @@ export default function CartPage() {
                         </Link>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {/* --- MODIFIED: Cart Items List --- */}
-                        <div className="md:col-span-2 space-y-4">
-                            {cartItems.map(item => (
-                                <div key={item.id} className="flex items-center bg-gray-800 p-4 rounded-lg">
-                                    {/* --- ADDED LINK --- */}
-                                    <Link href={`/products/${item.productId}`}>
-                                        <img src={item.imageUrl} alt={item.productName} className="w-20 h-20 rounded-md object-cover mr-4 cursor-pointer"/>
-                                    </Link>
-                                    <div className="flex-grow">
-                                        {/* --- ADDED LINK --- */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* --- Left Column: Items & Address --- */}
+                        <div className="lg:col-span-2 space-y-8">
+
+                            {/* Cart Items List */}
+                            <div className="space-y-4">
+                                {cartItems.map(item => (
+                                    <div key={item.id} className="flex items-center bg-gray-800 p-4 rounded-lg">
                                         <Link href={`/products/${item.productId}`}>
-                                            <h2 className="font-bold hover:text-indigo-400 cursor-pointer">{item.productName}</h2>
+                                            <img src={item.imageUrl} alt={item.productName} className="w-20 h-20 rounded-md object-cover mr-4 cursor-pointer"/>
                                         </Link>
-                                        <p className="text-sm text-gray-400">{item.color} / {item.size}</p>
-                                        <p className="text-indigo-400 font-semibold">${item.price.toFixed(2)}</p>
+                                        <div className="flex-grow">
+                                            <Link href={`/products/${item.productId}`}>
+                                                <h2 className="font-bold hover:text-indigo-400 cursor-pointer">{item.productName}</h2>
+                                            </Link>
+                                            <p className="text-sm text-gray-400">{item.color} / {item.size}</p>
+                                            <p className="text-indigo-400 font-semibold">${item.price.toFixed(2)}</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="px-2 py-1 bg-gray-700 rounded">-</button>
+                                            <span>{item.quantity}</span>
+                                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="px-2 py-1 bg-gray-700 rounded">+</button>
+                                        </div>
+                                        <button onClick={() => removeFromCart(item.id)} className="ml-6 text-red-500 hover:text-red-400 font-semibold">
+                                            Remove
+                                        </button>
                                     </div>
-                                    {/* @unchanged (Quantity controls) */}
-                                    <div className="flex items-center gap-3">
-                                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="px-2 py-1 bg-gray-700 rounded">-</button>
-                                        <span>{item.quantity}</span>
-                                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="px-2 py-1 bg-gray-700 rounded">+</button>
+                                ))}
+                            </div>
+
+                            {/* --- NEW: Shipping Address Section --- */}
+                            {session ? (
+                                <div className="bg-gray-800 p-6 rounded-lg">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-xl font-bold">Shipping Address</h2>
+                                        <button
+                                            onClick={() => setIsAddressModalOpen(true)}
+                                            className="text-sm text-indigo-400 hover:text-indigo-300 font-semibold"
+                                        >
+                                            + New Address
+                                        </button>
                                     </div>
-                                    <button onClick={() => removeFromCart(item.id)} className="ml-6 text-red-500 hover:text-red-400 font-semibold">
-                                        Remove
-                                    </button>
+
+                                    {isLoadingAddresses ? (
+                                        <p className="text-gray-400">Loading addresses...</p>
+                                    ) : addresses.length === 0 ? (
+                                        <div className="text-center p-4 border border-dashed border-gray-600 rounded-lg">
+                                            <p className="text-gray-400 mb-2">No addresses saved.</p>
+                                            <button
+                                                onClick={() => setIsAddressModalOpen(true)}
+                                                className="text-indigo-400 hover:underline"
+                                            >
+                                                Add your first address
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {addresses.map(addr => (
+                                                <div
+                                                    key={addr.id}
+                                                    onClick={() => setSelectedAddressId(addr.id)}
+                                                    className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                                                        selectedAddressId === addr.id
+                                                            ? 'border-indigo-500 bg-indigo-900/20 ring-1 ring-indigo-500'
+                                                            : 'border-gray-600 hover:border-gray-500 bg-gray-700/30'
+                                                    }`}
+                                                >
+                                                    <div className="flex justify-between items-start">
+                                                        <p className="font-semibold">{addr.address_line_1}</p>
+                                                        {selectedAddressId === addr.id && (
+                                                            <span className="text-indigo-400 text-lg">✓</span>
+                                                        )}
+                                                    </div>
+                                                    {addr.address_line_2 && <p className="text-sm text-gray-400">{addr.address_line_2}</p>}
+                                                    <p className="text-sm text-gray-400">{addr.city}, {addr.state_province_region} {addr.postal_code}</p>
+                                                    <p className="text-sm text-gray-400">{addr.country}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="bg-gray-800 p-6 rounded-lg border border-yellow-700/50">
+                                    <h2 className="text-xl font-bold mb-2 text-yellow-500">Guest Checkout</h2>
+                                    <p className="text-gray-300 mb-4">You are checking out as a guest. Please sign in to save your address for future orders.</p>
+                                    <Link href="/login" className="inline-block bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-md transition-colors">
+                                        Sign In / Sign Up
+                                    </Link>
+                                </div>
+                            )}
                         </div>
 
-                        {/* @unchanged (Order Summary & Discount) */}
-                        <div className="bg-gray-800 p-6 rounded-lg self-start space-y-4">
+                        {/* Right Column: Order Summary */}
+                        <div className="bg-gray-800 p-6 rounded-lg self-start space-y-4 sticky top-24">
                             <h2 className="text-xl font-bold">Order Summary</h2>
                             {!appliedDiscount ? (
                                 <form onSubmit={handleApplyDiscount}>
@@ -189,15 +296,25 @@ export default function CartPage() {
                             </div>
                             <button
                                 onClick={handleCheckout}
-                                disabled={isCheckingOut}
-                                className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg disabled:bg-gray-500 disabled:cursor-not-allowed"
+                                disabled={isCheckingOut || (session && !selectedAddressId)}
+                                className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                             >
-                                {isCheckingOut ? 'Processing...' : 'Proceed to Checkout'}
+                                {isCheckingOut ? 'Processing...' : 'Complete Purchase'}
                             </button>
+                            {session && !selectedAddressId && (
+                                <p className="text-xs text-red-400 text-center mt-2">Please select a shipping address to continue.</p>
+                            )}
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* --- NEW: Address Modal --- */}
+            <AddressModal
+                isOpen={isAddressModalOpen}
+                onClose={() => setIsAddressModalOpen(false)}
+                onAddressAdded={fetchAddresses}
+            />
         </main>
     );
 }

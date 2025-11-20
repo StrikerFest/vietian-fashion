@@ -3,10 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient'; // We need direct access to Supabase client here
+import { supabase } from '@/lib/supabaseClient';
+import { useParams } from 'next/navigation'; // Use useParams for consistency
 
-export default function OrderConfirmationPage(props) {
-    const { id: orderId } = props.params;
+export default function OrderConfirmationPage() {
+    const params = useParams();
+    const orderId = params?.id;
+
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -15,7 +18,7 @@ export default function OrderConfirmationPage(props) {
             const fetchOrderDetails = async () => {
                 setIsLoading(true);
                 try {
-                    // --- Modify the query to include discount information ---
+                    // --- MODIFIED: Include addresses in the query ---
                     const { data, error } = await supabase
                         .from('orders')
                         .select(`
@@ -23,6 +26,7 @@ export default function OrderConfirmationPage(props) {
                             created_at,
                             subtotal,
                             total_amount,
+                            status,
                             order_items (
                                 quantity,
                                 price_at_purchase,
@@ -33,10 +37,18 @@ export default function OrderConfirmationPage(props) {
                             ),
                             order_discounts (
                                 discounts ( code, type, value )
+                            ),
+                            addresses (
+                                address_line_1,
+                                address_line_2,
+                                city,
+                                state_province_region,
+                                postal_code,
+                                country
                             )
-                        `) // Fetch related discounts via order_discounts
-                        .eq('id', orderId) //
-                        .single(); // Expect only one order
+                        `)
+                        .eq('id', orderId)
+                        .single();
 
                     if (error) throw error;
                     setOrder(data);
@@ -67,18 +79,16 @@ export default function OrderConfirmationPage(props) {
         );
     }
 
-    // --- Extract discount information ---
-    // Since order_discounts is a linking table, Supabase returns an array.
-    // We assume only one discount per order for now.
-    const appliedDiscount = order.order_discounts?.[0]?.discounts; //
+    const appliedDiscount = order.order_discounts?.[0]?.discounts;
+    const shippingAddress = order.addresses;
 
-    // --- Calculate discount amount (same logic as CartContext) ---
+    // Calculate discount amount for display
     let discountAmount = 0;
     if (appliedDiscount && order.subtotal) {
-        if (appliedDiscount.type === 'percentage') { //
+        if (appliedDiscount.type === 'percentage') {
             const discountValue = Math.min(Math.max(appliedDiscount.value, 0), 100);
             discountAmount = (order.subtotal * discountValue) / 100;
-        } else if (appliedDiscount.type === 'fixed') { //
+        } else if (appliedDiscount.type === 'fixed') {
             discountAmount = Math.min(appliedDiscount.value, order.subtotal);
         }
         discountAmount = Math.max(0, discountAmount);
@@ -86,51 +96,100 @@ export default function OrderConfirmationPage(props) {
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
-            <div className="max-w-2xl mx-auto text-center">
-                <h1 className="text-4xl font-extrabold text-green-400 mb-4">Thank You For Your Order!</h1>
-                <p className="text-lg text-gray-300">Your order has been placed successfully.</p>
-                <p className="text-gray-400 mt-2">Order ID: <span className="font-mono">#{order.id}</span></p>
+            <div className="max-w-3xl mx-auto">
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl font-extrabold text-green-400 mb-4">Thank You For Your Order!</h1>
+                    <p className="text-lg text-gray-300">Your order has been placed successfully.</p>
+                    <p className="text-gray-400 mt-2">Order ID: <span className="font-mono text-white">#{order.id}</span></p>
+                </div>
 
-                <div className="bg-gray-800 rounded-lg text-left p-6 mt-8 space-y-4">
-                    <h2 className="text-xl font-bold mb-4">Order Summary</h2>
-                    {order.order_items.map((item, index) => (
-                        <div key={index} className="flex justify-between items-center border-b border-gray-700 pb-2">
-                            <div>
-                                <p className="font-semibold">{item.product_variants.products.name}</p>
-                                <p className="text-sm text-gray-400">{item.product_variants.color} / {item.product_variants.size}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                    {/* --- Order Items Column --- */}
+                    <div className="bg-gray-800 rounded-lg p-6 space-y-4">
+                        <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">Order Summary</h2>
+                        <div className="space-y-4">
+                            {order.order_items.map((item, index) => (
+                                <div key={index} className="flex justify-between items-start text-sm">
+                                    <div>
+                                        <p className="font-semibold">{item.product_variants.products.name}</p>
+                                        <p className="text-gray-400">{item.product_variants.color} / {item.product_variants.size}</p>
+                                        <p className="text-gray-500 text-xs">Qty: {item.quantity}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p>${(item.price_at_purchase * item.quantity).toFixed(2)}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Totals */}
+                        <div className="space-y-1 pt-4 border-t border-gray-700 text-sm">
+                            <div className="flex justify-between text-gray-300">
+                                <span>Subtotal</span>
+                                <span>${order.subtotal.toFixed(2)}</span>
                             </div>
-                            <div className="text-right">
-                                <p>{item.quantity} x ${item.price_at_purchase.toFixed(2)}</p>
+                            {appliedDiscount && (
+                                <div className="flex justify-between text-green-400">
+                                    <span>Discount ({appliedDiscount.code})</span>
+                                    <span>-${discountAmount.toFixed(2)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between text-gray-300">
+                                <span>Shipping</span>
+                                <span>Free</span>
+                            </div>
+                            <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-bold text-lg text-white">
+                                <span>Total Paid</span>
+                                <span>${order.total_amount.toFixed(2)}</span>
                             </div>
                         </div>
-                    ))}
-                    {/* --- Display Subtotal, Discount, and Total --- */}
-                    <div className="space-y-1 pt-4">
-                         <div className="flex justify-between text-gray-300">
-                            <span>Subtotal</span>
-                            <span>${order.subtotal.toFixed(2)}</span>
+                    </div>
+
+                    {/* --- NEW: Shipping & Details Column --- */}
+                    <div className="space-y-6">
+                        {/* Shipping Address */}
+                        <div className="bg-gray-800 rounded-lg p-6">
+                            <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">Shipping To</h2>
+                            {shippingAddress ? (
+                                <div className="text-gray-300 text-sm space-y-1">
+                                    <p className="font-semibold text-white">{shippingAddress.address_line_1}</p>
+                                    {shippingAddress.address_line_2 && <p>{shippingAddress.address_line_2}</p>}
+                                    <p>{shippingAddress.city}, {shippingAddress.state_province_region} {shippingAddress.postal_code}</p>
+                                    <p>{shippingAddress.country}</p>
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 italic">No shipping address provided (Guest Checkout or Digital Item).</p>
+                            )}
                         </div>
-                        {appliedDiscount && (
-                             <div className="flex justify-between text-green-400">
-                                <span>Discount ({appliedDiscount.code})</span>
-                                <span>-${discountAmount.toFixed(2)}</span>
+
+                        {/* Order Status / Info */}
+                        <div className="bg-gray-800 rounded-lg p-6">
+                            <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">Order Details</h2>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-400">Status</span>
+                                    <span className="capitalize bg-gray-700 px-2 py-0.5 rounded text-xs font-semibold">{order.status}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-400">Date</span>
+                                    <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <div className="mt-4 pt-4">
+                                    <p className="text-gray-400 text-xs">
+                                        You will receive an email confirmation shortly. You can track your order status in your account.
+                                    </p>
+                                </div>
                             </div>
-                        )}
-                         {/* Add Shipping if applicable */}
-                         <div className="flex justify-between text-gray-300">
-                            <span>Shipping</span>
-                            <span>$0.00</span> {/* Assuming free for now */}
-                        </div>
-                        <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-bold text-lg">
-                            <span>Total Paid</span>
-                            <span>${order.total_amount.toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
 
-                <Link href="/products" className="inline-block mt-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg">
-                    Continue Shopping
-                </Link>
+                <div className="text-center mt-12">
+                    <Link href="/products" className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg transition-colors">
+                        Continue Shopping
+                    </Link>
+                </div>
             </div>
         </main>
     );
