@@ -1,0 +1,65 @@
+// app/api/admin/users/[id]/route.js
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabaseClient';
+
+// GET single user details
+export async function GET(request, context) {
+    const params = await context.params;
+    const { id } = params;
+
+    if (!id) return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select(`
+                *,
+                addresses (*),
+                orders (
+                    id, created_at, status, total_amount,
+                    order_items ( count )
+                )
+            `)
+            .eq('id', id)
+            .is('deleted_at', null)
+            .single();
+
+        if (error) throw error;
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+        // Sort orders by date descending (latest first)
+        if (user.orders) {
+            user.orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        }
+
+        return NextResponse.json(user);
+
+    } catch (error) {
+        console.error('Error fetching user details:', error);
+        return NextResponse.json({ error: 'Failed to fetch user details.', details: error.message }, { status: 500 });
+    }
+}
+
+// DELETE (Archive) a user
+export async function DELETE(request, context) {
+    const params = await context.params;
+    const { id } = params;
+
+    if (!id) return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+
+    try {
+        // Soft Delete
+        const { error } = await supabase
+            .from('users')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        return NextResponse.json({ message: 'User archived successfully.' });
+
+    } catch (error) {
+        console.error('Error archiving user:', error);
+        return NextResponse.json({ error: 'Failed to archive user.', details: error.message }, { status: 500 });
+    }
+}

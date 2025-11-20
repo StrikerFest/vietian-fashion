@@ -1,6 +1,9 @@
 // app/api/admin/purchase-orders/[id]/route.js
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
+import { updateInventory } from '@/utils/inventory'; // --- NEW ---
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 // GET a single purchase order details
 export async function GET(request, context) {
@@ -43,6 +46,11 @@ export async function PUT(request, context) {
 
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
+    // We need the session to log WHO received the stock
+    const cookieStore = cookies();
+    const authSupabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const { data: { session } } = await authSupabase.auth.getSession();
+
     try {
         // 1. Fetch current PO to check status
         const { data: currentPO, error: fetchError } = await supabase
@@ -53,14 +61,12 @@ export async function PUT(request, context) {
 
         if (fetchError) throw fetchError;
 
-        // Prevent re-receiving
         if (currentPO.status === 'received' && status === 'received') {
             return NextResponse.json({ error: 'Order is already received.' }, { status: 400 });
         }
 
-        // 2. If marking as RECEIVED, update inventory
+        // 2. If marking as RECEIVED, update inventory using helper
         if (status === 'received') {
-            // Fetch items
             const { data: items, error: itemsError } = await supabase
                 .from('purchase_order_items')
                 .select('variant_id, quantity')
@@ -68,28 +74,14 @@ export async function PUT(request, context) {
 
             if (itemsError) throw itemsError;
 
-            // Update inventory for each item
             for (const item of items) {
-                // Get current inventory
-                const { data: currentInv, error: invError } = await supabase
-                    .from('inventory_levels')
-                    .select('on_hand')
-                    .eq('variant_id', item.variant_id)
-                    .single();
-
-                // If variant doesn't exist in inventory table yet, create it
-                if (invError && invError.code === 'PGRST116') {
-                    await supabase.from('inventory_levels').insert({
-                        variant_id: item.variant_id,
-                        on_hand: item.quantity
-                    });
-                } else if (currentInv) {
-                    // Update existing
-                    await supabase
-                        .from('inventory_levels')
-                        .update({ on_hand: currentInv.on_hand + item.quantity })
-                        .eq('variant_id', item.variant_id);
-                }
+                // --- MODIFIED: Use updateInventory ---
+                await updateInventory(supabase, {
+                    variantId: item.variant_id,
+                    quantityChange: item.quantity, // Positive to add stock
+                    reason: `Purchase Order #${id} received`,
+                    userId: session?.user?.id || null
+                });
             }
         }
 
@@ -117,7 +109,6 @@ export async function DELETE(request, context) {
     const { id } = params;
 
     try {
-        // Check status before deleting
         const { data: po, error: fetchError } = await supabase
             .from('purchase_orders')
             .select('status')
@@ -127,7 +118,7 @@ export async function DELETE(request, context) {
         if (fetchError) throw fetchError;
 
         if (po.status === 'received') {
-            return NextResponse.json({ error: 'Cannot delete a received order. It has already affected inventory.' }, { status: 400 });
+            return NextResponse.json({ error: 'Cannot delete a received order.' }, { status: 400 });
         }
 
         const { error: deleteError } = await supabase
