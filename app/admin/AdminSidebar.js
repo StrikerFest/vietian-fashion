@@ -11,11 +11,12 @@ const adminLinks = [
     { name: 'Orders', href: '/admin/orders' },
     { name: 'Categories', href: '/admin/categories' },
     { name: 'Collections', href: '/admin/collections' },
-    { name: 'Tags', href: '/admin/tags' }, // --- NEW LINK ADDED ---
+    { name: 'Tags', href: '/admin/tags' },
     { name: 'Discounts', href: '/admin/discounts' },
     { name: 'Reviews', href: '/admin/reviews' },
     { name: 'Returns', href: '/admin/returns' },
     { name: 'Suppliers', href: '/admin/suppliers' },
+    { name: 'Purchase Orders', href: '/admin/purchase-orders' }, // --- NEW LINK ---
 ];
 
 export default function AdminSidebar() {
@@ -40,7 +41,7 @@ export default function AdminSidebar() {
             {/* Navigation Links */}
             <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
                 {adminLinks.map((link) => {
-                    const isActive = pathname === link.href;
+                    const isActive = pathname === link.href || pathname.startsWith(link.href + '/'); // Updated active check
                     return (
                         <Link
                             key={link.name}
