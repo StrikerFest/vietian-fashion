@@ -17,6 +17,7 @@ export async function GET(request) {
             .from('addresses')
             .select('*')
             .eq('user_id', session.user.id)
+            .is('deleted_at', null) // --- NEW: Only active addresses ---
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -28,15 +29,14 @@ export async function GET(request) {
     }
 }
 
+// POST (No change needed for create, just standard insert)
 export async function POST(request) {
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const body = await request.json();
         const { address_line_1, address_line_2, city, state, postal_code, country, is_default } = body;
@@ -45,12 +45,8 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // If setting as default, unset other defaults first
         if (is_default) {
-            await supabase
-                .from('addresses')
-                .update({ is_default: false })
-                .eq('user_id', session.user.id);
+            await supabase.from('addresses').update({ is_default: false }).eq('user_id', session.user.id);
         }
 
         const { data, error } = await supabase
@@ -60,7 +56,7 @@ export async function POST(request) {
                 address_line_1,
                 address_line_2,
                 city,
-                state_province_region: state, // Mapping 'state' from form to DB column
+                state_province_region: state,
                 postal_code,
                 country,
                 is_default: is_default || false
@@ -72,7 +68,6 @@ export async function POST(request) {
 
         return NextResponse.json(data, { status: 201 });
     } catch (error) {
-        console.error('Error creating address:', error);
         return NextResponse.json({ error: 'Failed to create address' }, { status: 500 });
     }
 }

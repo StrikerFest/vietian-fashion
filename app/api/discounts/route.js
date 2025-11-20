@@ -1,14 +1,15 @@
 // app/api/discounts/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient'; //
+import { supabase } from '@/lib/supabaseClient';
 
-// GET all discounts
+// GET all active discounts
 export async function GET() {
     try {
         const { data, error } = await supabase
-            .from('discounts') //
+            .from('discounts')
             .select('*')
-            .order('created_at', { ascending: false }); // Show newest first
+            .is('deleted_at', null) // --- NEW: Only active ---
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
         return NextResponse.json(data);
@@ -19,48 +20,67 @@ export async function GET() {
     }
 }
 
-// POST a new discount
+// POST a new discount (or restore)
 export async function POST(request) {
-    // Extract fields based on the discounts table schema
     const { code, type, value, start_date, end_date, is_active } = await request.json();
 
-    // Basic validation
     if (!code || !type || value === undefined || value === null) {
         return NextResponse.json({ error: 'Code, Type, and Value are required' }, { status: 400 });
     }
-    if (!['percentage', 'fixed'].includes(type)) {
-        return NextResponse.json({ error: 'Invalid discount type' }, { status: 400 });
-    }
-    if (type === 'percentage' && (value < 0 || value > 100)) {
-        return NextResponse.json({ error: 'Percentage value must be between 0 and 100.' }, { status: 400 });
-    }
-    if (type === 'fixed' && value < 0) {
-        return NextResponse.json({ error: 'Fixed value cannot be negative.' }, { status: 400 });
-    }
+
+    const upperCode = code.toUpperCase();
 
     try {
+        // --- NEW: Check for existing ---
+        const { data: existing, error: checkError } = await supabase
+            .from('discounts')
+            .select('id, deleted_at')
+            .eq('code', upperCode)
+            .single();
+
+        if (checkError && checkError.code !== 'PGRST116') throw checkError;
+
+        if (existing) {
+            if (existing.deleted_at) {
+                // --- NEW: Restore ---
+                const { data: restored, error: restoreError } = await supabase
+                    .from('discounts')
+                    .update({
+                        deleted_at: null,
+                        type,
+                        value,
+                        start_date: start_date || null,
+                        end_date: end_date || null,
+                        is_active: is_active !== undefined ? is_active : true
+                    })
+                    .eq('id', existing.id)
+                    .select()
+                    .single();
+
+                if (restoreError) throw restoreError;
+                return NextResponse.json(restored);
+            } else {
+                return NextResponse.json({ error: 'A discount with this code already exists.' }, { status: 409 });
+            }
+        }
+
+        // Create new
         const { data, error } = await supabase
-            .from('discounts') //
+            .from('discounts')
             .insert([{
-                code: code.toUpperCase(), // Ensure code is uppercase
+                code: upperCode,
                 type,
                 value,
                 start_date: start_date || null,
                 end_date: end_date || null,
-                is_active: is_active !== undefined ? is_active : true // Default to active if not provided
+                is_active: is_active !== undefined ? is_active : true
             }])
             .select()
             .single();
 
-        if (error) {
-            // Handle unique constraint violation for the 'code'
-            if (error.code === '23505') {
-                return NextResponse.json({ error: 'A discount with this code already exists.' }, { status: 409 });
-            }
-            throw error; // Rethrow other errors
-        }
+        if (error) throw error;
 
-        return NextResponse.json(data); // Return the newly created discount
+        return NextResponse.json(data);
 
     } catch (error) {
         console.error('Error creating discount:', error);

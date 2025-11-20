@@ -1,21 +1,22 @@
 // app/api/admin/analytics/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient'; //
+import { supabase } from '@/lib/supabaseClient';
 
 export async function GET() {
     try {
         // --- Fetch Total Orders ---
+        // Orders are usually not soft-deleted in this simple schema,
+        // but if you added deleted_at to orders, add the filter here too.
         const { count: totalOrders, error: ordersError } = await supabase
-            .from('orders') //
-            .select('id', { count: 'exact', head: true }); // Efficiently count rows
+            .from('orders')
+            .select('id', { count: 'exact', head: true });
 
         if (ordersError) throw new Error(`Failed to fetch order count: ${ordersError.message}`);
 
         // --- Fetch Total Revenue ---
-        // Summing 'total_amount' for all orders. Refine with status='paid' if needed.
         const { data: revenueData, error: revenueError } = await supabase
-            .from('orders') //
-            .select('total_amount'); //
+            .from('orders')
+            .select('total_amount');
 
         if (revenueError) throw new Error(`Failed to fetch revenue data: ${revenueError.message}`);
 
@@ -23,18 +24,17 @@ export async function GET() {
 
         // --- Fetch Pending Reviews ---
         const { count: pendingReviews, error: reviewsError } = await supabase
-            .from('reviews') //
+            .from('reviews')
             .select('id', { count: 'exact', head: true })
-            .eq('is_approved', false); // Filter for pending reviews
+            .eq('is_approved', false)
+            .is('deleted_at', null); // --- NEW: Exclude archived/deleted reviews ---
 
         if (reviewsError) throw new Error(`Failed to fetch pending review count: ${reviewsError.message}`);
 
-        // --- Combine Stats ---
         const analytics = {
             totalOrders: totalOrders ?? 0,
             totalRevenue: totalRevenue ?? 0,
             pendingReviews: pendingReviews ?? 0,
-            // Add more stats here later (e.g., total products, new customers today)
         };
 
         return NextResponse.json(analytics);

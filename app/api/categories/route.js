@@ -1,19 +1,18 @@
 // app/api/categories/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient'; //
+import { supabase } from '@/lib/supabaseClient';
 
-// GET all categories
+// GET all active categories
 export async function GET() {
     try {
-        // Fetch should include the new SEO fields as well
         const { data, error } = await supabase
-            .from('categories') //
-            .select('*') // Select all columns, including seo_title, seo_description
+            .from('categories')
+            .select('*')
+            .is('deleted_at', null) // --- NEW: Only fetch active categories ---
             .order('name', { ascending: true });
 
         if (error) throw error;
 
-        // The frontend will be responsible for building the hierarchy from this flat list.
         return NextResponse.json(data);
     } catch (error) {
         console.error('Error fetching categories:', error);
@@ -21,47 +20,72 @@ export async function GET() {
     }
 }
 
-// POST a new category
+// POST a new category (or restore an archived one)
 export async function POST(request) {
-    // --- Extract SEO fields from the request body ---
     const {
         name,
         description,
         parent_id,
-        seo_title, // New field
-        seo_description // New field
-     } = await request.json();
+        seo_title,
+        seo_description
+    } = await request.json();
 
-    // @unchanged (Validation for name)
     if (!name) {
         return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
-    // @unchanged (Slug generation)
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     try {
-        // --- Include SEO fields in the insert operation ---
+        // --- NEW: Check for existing category (active or archived) ---
+        const { data: existing, error: checkError } = await supabase
+            .from('categories')
+            .select('id, deleted_at')
+            .or(`name.eq.${name},slug.eq.${slug}`)
+            .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+        }
+
+        if (existing) {
+            if (existing.deleted_at) {
+                // --- NEW: Restore archived category ---
+                const { data: restored, error: restoreError } = await supabase
+                    .from('categories')
+                    .update({
+                        deleted_at: null, // Restore
+                        description: description || null,
+                        parent_id: parent_id || null,
+                        seo_title: seo_title || null,
+                        seo_description: seo_description || null
+                    })
+                    .eq('id', existing.id)
+                    .select()
+                    .single();
+
+                if (restoreError) throw restoreError;
+                return NextResponse.json(restored);
+            } else {
+                return NextResponse.json({ error: 'A category with this name or slug already exists.' }, { status: 409 });
+            }
+        }
+
+        // --- Create new category ---
         const { data, error } = await supabase
-            .from('categories') //
+            .from('categories')
             .insert([{
                 name,
                 slug,
                 description,
-                parent_id: parent_id || null, //
-                seo_title: seo_title || null, // Add seo_title
-                seo_description: seo_description || null // Add seo_description
-             }])
-            .select() // Selects all columns of the inserted row, including SEO fields
+                parent_id: parent_id || null,
+                seo_title: seo_title || null,
+                seo_description: seo_description || null
+            }])
+            .select()
             .single();
 
-        // @unchanged (Error handling for duplicate name/slug)
-        if (error) {
-            if (error.code === '23505') { // Unique constraint violation
-                return NextResponse.json({ error: 'A category with this name or slug already exists.' }, { status: 409 });
-            }
-            throw error;
-        }
+        if (error) throw error;
 
         return NextResponse.json(data);
     } catch (error) {

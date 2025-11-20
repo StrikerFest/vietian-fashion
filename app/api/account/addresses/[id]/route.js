@@ -16,10 +16,10 @@ export async function DELETE(request, context) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Delete the address only if it belongs to the authenticated user
+        // --- NEW: Soft Delete ---
         const { error } = await supabase
             .from('addresses')
-            .delete()
+            .update({ deleted_at: new Date().toISOString() })
             .eq('id', id)
             .eq('user_id', session.user.id); // Security check
 

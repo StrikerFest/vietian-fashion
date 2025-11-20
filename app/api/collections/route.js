@@ -1,14 +1,14 @@
 // app/api/collections/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient'; //
+import { supabase } from '@/lib/supabaseClient';
 
-// GET all collections
+// GET all active collections
 export async function GET() {
     try {
-        // Fetch should include the new SEO fields as well
         const { data, error } = await supabase
-            .from('collections') //
-            .select('*') // Select all columns, including seo_title, seo_description
+            .from('collections')
+            .select('*')
+            .is('deleted_at', null) // --- NEW: Only active collections ---
             .order('name', { ascending: true });
 
         if (error) throw error;
@@ -20,49 +20,74 @@ export async function GET() {
     }
 }
 
-// POST a new collection
+// POST a new collection (or restore)
 export async function POST(request) {
-    // --- Extract SEO fields from the request body ---
     const {
         name,
         description,
         is_featured,
-        seo_title, // New field
-        seo_description // New field
-     } = await request.json();
+        seo_title,
+        seo_description
+    } = await request.json();
 
-    // @unchanged (Validation for name)
     if (!name) {
         return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
-    // @unchanged (Slug generation)
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     try {
-        // --- Include SEO fields in the insert operation ---
+        // --- NEW: Check for existing (active or archived) ---
+        const { data: existing, error: checkError } = await supabase
+            .from('collections')
+            .select('id, deleted_at')
+            .or(`name.eq.${name},slug.eq.${slug}`)
+            .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+        }
+
+        if (existing) {
+            if (existing.deleted_at) {
+                // --- NEW: Restore ---
+                const { data: restored, error: restoreError } = await supabase
+                    .from('collections')
+                    .update({
+                        deleted_at: null,
+                        description: description || null,
+                        is_featured: !!is_featured,
+                        seo_title: seo_title || null,
+                        seo_description: seo_description || null
+                    })
+                    .eq('id', existing.id)
+                    .select()
+                    .single();
+
+                if (restoreError) throw restoreError;
+                return NextResponse.json(restored);
+            } else {
+                return NextResponse.json({ error: 'A collection with this name or slug already exists.' }, { status: 409 });
+            }
+        }
+
+        // Create new
         const { data, error } = await supabase
-            .from('collections') //
+            .from('collections')
             .insert([{
                 name,
                 slug,
                 description,
-                is_featured: !!is_featured, //
-                seo_title: seo_title || null, // Add seo_title
-                seo_description: seo_description || null // Add seo_description
-             }])
-            .select() // Selects all columns of the inserted row
+                is_featured: !!is_featured,
+                seo_title: seo_title || null,
+                seo_description: seo_description || null
+            }])
+            .select()
             .single();
 
-        // @unchanged (Error handling for duplicate name/slug)
-        if (error) {
-            if (error.code === '23505') { // Unique constraint violation
-                return NextResponse.json({ error: 'A collection with this name or slug already exists.' }, { status: 409 });
-            }
-            throw error;
-        }
+        if (error) throw error;
 
-        return NextResponse.json(data); // Return the newly created collection
+        return NextResponse.json(data);
 
     } catch (error) {
         console.error('Error creating collection:', error);
