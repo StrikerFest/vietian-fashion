@@ -2,7 +2,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-// GET all active products
 export async function GET() {
     try {
         const { data, error } = await supabase
@@ -17,7 +16,7 @@ export async function GET() {
                 collections (*),
                 tags (*) 
             `)
-            .is('deleted_at', null) // --- NEW: Only fetch active products ---
+            .is('deleted_at', null)
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -31,10 +30,10 @@ export async function GET() {
 }
 
 export async function POST(request) {
-    // (Existing POST logic remains unchanged)
     const {
         name,
         description,
+        image_url, // --- NEW: Accept image URL ---
         seo_title,
         seo_description,
         variants,
@@ -55,6 +54,7 @@ export async function POST(request) {
             .insert([{
                 name,
                 description,
+                image_url: image_url || null, // --- NEW: Save image URL ---
                 seo_title: seo_title || null,
                 seo_description: seo_description || null
             }])
@@ -71,24 +71,30 @@ export async function POST(request) {
             color: v.color,
             product_id: newProductId
         }));
+
         const { data: insertedVariants, error: variantError } = await supabase
             .from('product_variants')
             .insert(variantsToInsert)
             .select();
         if (variantError) throw variantError;
 
-        const inventoryToInsert = insertedVariants.map((variant, index) => ({
-            variant_id: variant.id,
-            on_hand: variants[index].on_hand || 0
-        }));
+        // --- CRITICAL FIX: Map 'quantity' to 'on_hand' ---
+        const inventoryToInsert = insertedVariants.map((variant, index) => {
+            const inputVariant = variants[index];
+            // Check on_hand first, then quantity, then default to 0
+            const initialStock = inputVariant.on_hand ?? inputVariant.quantity ?? 0;
+
+            return {
+                variant_id: variant.id,
+                on_hand: initialStock
+            };
+        });
+
         const { error: inventoryError } = await supabase.from('inventory_levels').insert(inventoryToInsert);
         if (inventoryError) throw inventoryError;
 
         if (category_id) {
-            const { error: categoryLinkError } = await supabase
-                .from('product_categories')
-                .insert({ product_id: newProductId, category_id: category_id });
-            if (categoryLinkError) throw categoryLinkError;
+            await supabase.from('product_categories').insert({ product_id: newProductId, category_id: category_id });
         }
 
         if (collection_ids.length > 0) {
@@ -96,8 +102,7 @@ export async function POST(request) {
                 product_id: newProductId,
                 collection_id: collectionId,
             }));
-            const { error: collectionLinkError } = await supabase.from('product_collections').insert(collectionLinks);
-            if (collectionLinkError) throw collectionLinkError;
+            await supabase.from('product_collections').insert(collectionLinks);
         }
 
         if (tags.length > 0) {
@@ -112,24 +117,10 @@ export async function POST(request) {
                 })
             );
             const productTagLinks = tagObjects.map(tagObj => ({ product_id: newProductId, tag_id: tagObj.tag_id }));
-            const { error: productTagsError } = await supabase.from('product_tags').insert(productTagLinks);
-            if (productTagsError) throw productTagsError;
+            await supabase.from('product_tags').insert(productTagLinks);
         }
 
-        const { data: fullNewProduct, error: fetchError } = await supabase
-            .from('products')
-            .select(`
-                *,
-                product_variants(*, inventory_levels(*)),
-                tags(*),
-                categories(*),
-                collections(*)
-             `)
-            .eq('id', newProductId)
-            .single();
-        if (fetchError) throw fetchError;
-
-        return NextResponse.json(fullNewProduct);
+        return NextResponse.json(productData);
 
     } catch (error) {
         console.error('Full error during product creation:', error);
