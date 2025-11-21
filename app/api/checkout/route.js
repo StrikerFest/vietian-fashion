@@ -1,7 +1,11 @@
 // app/api/checkout/route.js
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
-import { updateInventory } from '@/utils/inventory'; // --- NEW ---
+import { updateInventory } from '@/utils/inventory';
+import { Resend } from 'resend'; // --- NEW: Import Resend ---
+
+// --- NEW: Initialize Resend ---
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request) {
     const { cartItems, userId, addressId, discountId } = await request.json();
@@ -114,7 +118,6 @@ export async function POST(request) {
         }
 
         // --- Step 7: Decrement Inventory & Log ---
-        // --- MODIFIED: Use updateInventory helper ---
         for (const item of cartItems) {
             try {
                 await updateInventory(supabase, {
@@ -127,6 +130,54 @@ export async function POST(request) {
                 console.error(`CRITICAL: Failed to update inventory for item ${item.id} in order ${newOrder.id}.`, invError);
                 // In a real app, we'd likely want to flag this order for manual review
             }
+        }
+
+        // --- Step 8: Send Order Confirmation Email (NEW) ---
+        try {
+            // A. Determine Customer Email/Name
+            let customerEmail = null;
+            let customerName = "Valued Customer";
+
+            if (userId) {
+                // If logged in, fetch from DB
+                const { data: user } = await supabase.from('users').select('email, first_name').eq('id', userId).single();
+                customerEmail = user?.email;
+                customerName = user?.first_name || "Customer";
+            }
+            // NOTE: If you add a "Guest Email" field to checkout in the future, handle 'else' here:
+            // else { customerEmail = requestBody.guestEmail; }
+
+            // Only send if we have an email
+            if (customerEmail) {
+                // B. Fetch the 'Order Confirmation' Template
+                const { data: template } = await supabase
+                    .from('email_templates')
+                    .select('*')
+                    .eq('type', 'order_confirm')
+                    .eq('is_active', true)
+                    .single();
+
+                if (template) {
+                    // C. Replace Variables in Template
+                    const html = template.body_html
+                        .replace('{{customer_name}}', customerName)
+                        .replace('{{order_id}}', newOrder.id)
+                        .replace('{{total_amount}}', totalAmount.toFixed(2));
+
+                    const subject = template.subject.replace('{{order_id}}', newOrder.id);
+
+                    // D. Send via Resend
+                    await resend.emails.send({
+                        from: 'AI Fashion <orders@yourdomain.com>', // Update with your verified domain
+                        to: customerEmail,
+                        subject: subject,
+                        html: html
+                    });
+                }
+            }
+        } catch (emailError) {
+            // Log but do not fail the request, as the order is already placed/paid
+            console.error("Failed to send confirmation email:", emailError);
         }
 
         return NextResponse.json({ success: true, orderId: newOrder.id });

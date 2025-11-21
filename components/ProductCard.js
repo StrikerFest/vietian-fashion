@@ -1,5 +1,6 @@
 // components/ProductCard.js
 import Link from 'next/link';
+import WishlistButton from '@/components/product/WishlistButton'; // Import
 
 export default function ProductCard({ product, onQuickViewClick }) {
     const firstVariant = product.product_variants?.[0];
@@ -17,6 +18,9 @@ export default function ProductCard({ product, onQuickViewClick }) {
     // --- MODIFIED: Removed 'group' and 'relative' classes ---
     return (
         <div className="bg-gray-800 rounded-lg overflow-hidden transition-transform transform hover:scale-105 flex flex-col">
+            <div className="absolute top-3 right-3 z-10">
+                <WishlistButton productId={product.id}/>
+            </div>
             <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden">
                 <Link href={`/products/${product.id}`} legacyBehavior={false}>
                     <img

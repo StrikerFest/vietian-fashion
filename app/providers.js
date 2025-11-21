@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/context/ToastContext"; // --- NEW ---
 import { usePathname } from "next/navigation";
+import { WishlistProvider } from "@/context/WishlistContext"; // Import this
 
 export default function Providers({ children }) {
     const pathname = usePathname();
@@ -25,10 +26,12 @@ export default function Providers({ children }) {
     return (
         <ToastProvider>
             <AuthProvider>
-                <CartProvider>
-                    <Navbar />
-                    {children}
-                </CartProvider>
+                <WishlistProvider> {/* Add this layer */}
+                    <CartProvider>
+                        <Navbar />
+                        {children}
+                    </CartProvider>
+                </WishlistProvider>
             </AuthProvider>
         </ToastProvider>
     );
