@@ -2,6 +2,7 @@
 'use client';
 
 import { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 const CartContext = createContext();
 
@@ -12,11 +13,12 @@ export function CartProvider({ children }) {
     const [cartItems, setCartItems] = useState([]);
     const [appliedDiscount, setAppliedDiscount] = useState(null);
     const [discountCodeInput, setDiscountCodeInput] = useState('');
-
-    // --- NEW: Add a state to track if we have loaded from localStorage ---
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // --- MODIFIED: Load state from localStorage on initial client render ---
+    // --- NEW: Get the toast function ---
+    const { addToast } = useToast();
+
+    // Load from LocalStorage
     useEffect(() => {
         try {
             const savedCart = localStorage.getItem(CART_STORAGE_KEY);
@@ -29,34 +31,27 @@ export function CartProvider({ children }) {
                 setAppliedDiscount(JSON.parse(savedDiscount));
             }
         } catch (error) {
-            console.error("Failed to load cart from localStorage", error);
+            console.error("Failed to load cart from localStorage", error);o
             localStorage.removeItem(CART_STORAGE_KEY);
             localStorage.removeItem(DISCOUNT_STORAGE_KEY);
         } finally {
-            // --- NEW: Signal that we are done loading ---
             setIsLoaded(true);
         }
-    }, []); // Empty array ensures this runs only once on mount
+    }, []);
 
-    // --- MODIFIED: Save cartItems to localStorage, but only AFTER loading ---
+    // Save Cart to LocalStorage
     useEffect(() => {
-        // --- NEW: Guard clause to prevent overwriting on initial load ---
-        if (!isLoaded) {
-            return;
-        }
+        if (!isLoaded) return;
         try {
             localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
         } catch (error) {
             console.error("Failed to save cart to localStorage", error);
         }
-    }, [cartItems, isLoaded]); // --- NEW: Depend on isLoaded ---
+    }, [cartItems, isLoaded]);
 
-    // --- MODIFIED: Save appliedDiscount to localStorage, but only AFTER loading ---
+    // Save Discount to LocalStorage
     useEffect(() => {
-        // --- NEW: Guard clause ---
-        if (!isLoaded) {
-            return;
-        }
+        if (!isLoaded) return;
         try {
             if (appliedDiscount) {
                 localStorage.setItem(DISCOUNT_STORAGE_KEY, JSON.stringify(appliedDiscount));
@@ -66,10 +61,11 @@ export function CartProvider({ children }) {
         } catch (error) {
             console.error("Failed to save discount to localStorage", error);
         }
-    }, [appliedDiscount, isLoaded]); // --- NEW: Depend on isLoaded ---
+    }, [appliedDiscount, isLoaded]);
 
 
-    // @unchanged (addToCart function)
+    // --- Actions ---
+
     const addToCart = (product, variant) => {
         setCartItems(prevItems => {
             const existingItem = prevItems.find(item => item.id === variant.id);
@@ -86,15 +82,16 @@ export function CartProvider({ children }) {
                 quantity: 1
             }];
         });
-        alert(`${product.name} (${variant.color} / ${variant.size}) added to cart!`);
+
+        // --- MODIFIED: Use Toast instead of Alert ---
+        addToast(`${product.name} added to cart`, 'success');
     };
 
-    // @unchanged (removeFromCart function)
     const removeFromCart = (variantId) => {
         setCartItems(prevItems => prevItems.filter(item => item.id !== variantId));
+        // Optional: addToast('Item removed', 'info');
     };
 
-    // @unchanged (updateQuantity function)
     const updateQuantity = (variantId, newQuantity) => {
         if (newQuantity < 1) {
             removeFromCart(variantId);
@@ -107,14 +104,12 @@ export function CartProvider({ children }) {
         }
     };
 
-    // @unchanged (clearCart function)
     const clearCart = () => {
         setCartItems([]);
         setAppliedDiscount(null);
         setDiscountCodeInput('');
     };
 
-    // @unchanged (applyDiscountCode function)
     const applyDiscountCode = async (code) => {
         if (!code) return { success: false, message: 'Please enter a code.' };
 
@@ -133,23 +128,28 @@ export function CartProvider({ children }) {
 
             setAppliedDiscount(data.discount);
             setDiscountCodeInput(data.discount.code);
+
+            // --- MODIFIED: Toast + Return ---
+            addToast(`Discount ${data.discount.code} applied!`, 'success');
             return { success: true, message: 'Discount applied!' };
 
         } catch (error) {
             setAppliedDiscount(null);
-            console.error('Discount validation error:', error);
+            // We don't toast error here because the UI usually displays it below the input
             return { success: false, message: error.message || 'Invalid discount code.' };
         }
     };
 
-    // @unchanged (removeDiscountCode function)
     const removeDiscountCode = () => {
         setAppliedDiscount(null);
         setDiscountCodeInput('');
-        alert('Discount removed.');
+
+        // --- MODIFIED: Use Toast ---
+        addToast('Discount removed', 'info');
     };
 
-    // @unchanged (useMemo calculations)
+    // --- Calculations ---
+
     const subtotal = useMemo(() => {
         return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
     }, [cartItems]);
@@ -172,7 +172,6 @@ export function CartProvider({ children }) {
         return Math.max(0, calculatedTotal);
     }, [subtotal, discountAmount]);
 
-    // @unchanged (value object)
     const value = {
         cartItems,
         addToCart,

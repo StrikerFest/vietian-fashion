@@ -21,7 +21,7 @@ export default function HeroSection({ onSearch, isLoading }) {
                     Your Style, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">AI Curated.</span>
                 </h1>
                 <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-                    Describe the outfit you're looking for, and let our AI analyze your request to find the perfect match from our collection.
+                    {`Describe the outfit you're looking for, and let our AI analyze your request to find the perfect match from our collection.`}
                 </p>
 
                 <form onSubmit={handleSubmit} className="max-w-xl mx-auto relative">
