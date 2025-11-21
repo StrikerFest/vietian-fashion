@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import AddressModal from '@/components/AddressModal';
 import OrderHistory from '@/components/account/OrderHistory';
 import AddressBook from '@/components/account/AddressBook';
+import ProfileSettings from '@/components/account/ProfileSettings'; // --- NEW ---
 
 export default function AccountPage() {
     const { session, isLoading: isAuthLoading } = useAuth();
@@ -110,8 +111,11 @@ export default function AccountPage() {
                         <OrderHistory orders={orders} isLoading={isLoadingOrders} />
                     </div>
 
-                    {/* Right Column: Addresses */}
-                    <div className="lg:col-span-1">
+                    {/* Right Column: Profile & Addresses */}
+                    <div className="lg:col-span-1 space-y-8">
+                        {/* --- NEW: Profile Settings --- */}
+                        <ProfileSettings />
+
                         <AddressBook
                             addresses={addresses}
                             isLoading={isLoadingAddresses}
