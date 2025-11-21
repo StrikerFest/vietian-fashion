@@ -2,16 +2,25 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-// GET all orders for the admin panel
-export async function GET() {
+export async function GET(request) {
+    const { searchParams } = new URL(request.url);
+
+    // Pagination
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const start = (page - 1) * limit;
+    const end = start + limit - 1;
+
+    // Filter (Optional, for future use or specific status filtering)
+    const status = searchParams.get('status');
+
     try {
-        // --- Updated query to include discount information ---
-        const { data, error } = await supabase
+        let query = supabase
             .from('orders')
             .select(`
                 id,
                 created_at,
-                subtotal, // Include subtotal
+                subtotal, 
                 total_amount,
                 status,
                 shipping_carrier,
@@ -32,12 +41,27 @@ export async function GET() {
                 order_discounts (
                     discounts ( code, type, value )
                 )
-            `) // Added join for order_discounts -> discounts
-            .order('created_at', { ascending: false }); // Show newest orders first
+            `, { count: 'exact' })
+            .order('created_at', { ascending: false })
+            .range(start, end);
+
+        if (status) {
+            query = query.eq('status', status);
+        }
+
+        const { data, error, count } = await query;
 
         if (error) throw error;
 
-        return NextResponse.json(data);
+        return NextResponse.json({
+            data,
+            meta: {
+                page,
+                limit,
+                total: count,
+                totalPages: Math.ceil((count || 0) / limit)
+            }
+        });
 
     } catch (error) {
         console.error('Error fetching orders:', error);

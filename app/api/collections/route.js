@@ -3,16 +3,41 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
 // GET all active collections
-export async function GET() {
+export async function GET(request) {
+    const { searchParams } = new URL(request.url);
+
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const search = searchParams.get('search') || '';
+
+    const start = (page - 1) * limit;
+    const end = start + limit - 1;
+
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('collections')
-            .select('*')
-            .is('deleted_at', null) // --- NEW: Only active collections ---
-            .order('name', { ascending: true });
+            .select('*', { count: 'exact' })
+            .is('deleted_at', null) // Only active
+            .order('name', { ascending: true })
+            .range(start, end);
+
+        if (search) {
+            query = query.ilike('name', `%${search}%`);
+        }
+
+        const { data, error, count } = await query;
 
         if (error) throw error;
-        return NextResponse.json(data);
+
+        return NextResponse.json({
+            data,
+            meta: {
+                page,
+                limit,
+                total: count,
+                totalPages: Math.ceil((count || 0) / limit)
+            }
+        });
 
     } catch (error) {
         console.error('Error fetching collections:', error);
@@ -20,7 +45,7 @@ export async function GET() {
     }
 }
 
-// POST a new collection (or restore)
+// POST - @unchanged
 export async function POST(request) {
     const {
         name,
@@ -37,7 +62,7 @@ export async function POST(request) {
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     try {
-        // --- NEW: Check for existing (active or archived) ---
+        // Check for existing
         const { data: existing, error: checkError } = await supabase
             .from('collections')
             .select('id, deleted_at')
@@ -50,7 +75,7 @@ export async function POST(request) {
 
         if (existing) {
             if (existing.deleted_at) {
-                // --- NEW: Restore ---
+                // Restore
                 const { data: restored, error: restoreError } = await supabase
                     .from('collections')
                     .update({

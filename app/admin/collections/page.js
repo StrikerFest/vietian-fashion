@@ -1,9 +1,10 @@
 // app/admin/collections/page.js
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import CollectionForm from '@/components/admin/CollectionForm';
 import CollectionList from '@/components/admin/CollectionList';
+import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
 
 export default function CollectionsPage() {
     const [collections, setCollections] = useState([]);
@@ -12,44 +13,46 @@ export default function CollectionsPage() {
     const [editingCollection, setEditingCollection] = useState(null);
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortOption, setSortOption] = useState('name_asc');
 
-    const fetchCollections = async () => {
+    // --- NEW: Pagination State ---
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(20);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+
+    const fetchCollections = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('/api/collections');
-            const data = await response.json();
-            setCollections(data || []);
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: limit.toString(),
+                search: searchQuery
+            });
+
+            const response = await fetch(`/api/collections?${params.toString()}`);
+            const result = await response.json();
+
+            if (result.data) {
+                setCollections(result.data);
+                setTotalItems(result.meta.total);
+                setTotalPages(result.meta.totalPages);
+            } else {
+                setCollections(result || []);
+            }
         } catch (error) {
             console.error("Failed to fetch collections:", error);
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
-    };
+    }, [page, limit, searchQuery]);
 
+    // Debounce search
     useEffect(() => {
-        fetchCollections();
-    }, []);
-
-    // Filter & Sort
-    const filteredAndSortedCollections = useMemo(() => {
-        let result = [...collections];
-
-        if (searchQuery) {
-            result = result.filter(c =>
-                c.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-
-        result.sort((a, b) => {
-            switch (sortOption) {
-                case 'name_desc': return b.name.localeCompare(a.name);
-                case 'featured': return (b.is_featured === a.is_featured) ? 0 : b.is_featured ? 1 : -1;
-                case 'name_asc': default: return a.name.localeCompare(b.name);
-            }
-        });
-
-        return result;
-    }, [collections, searchQuery, sortOption]);
+        const timeout = setTimeout(() => {
+            fetchCollections();
+        }, 500);
+        return () => clearTimeout(timeout);
+    }, [fetchCollections]);
 
     const handleDelete = async (collectionId) => {
         if (!confirm('Are you sure you want to delete this collection?')) return;
@@ -57,7 +60,7 @@ export default function CollectionsPage() {
             const response = await fetch(`/api/collections/${collectionId}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Failed to delete collection');
 
-            setCollections(prev => prev.filter(c => c.id !== collectionId));
+            fetchCollections(); // Reload
             alert('Collection deleted successfully!');
         } catch (error) {
             alert(error.message);
@@ -76,11 +79,17 @@ export default function CollectionsPage() {
         fetchCollections();
     };
 
+    // Pagination handlers
+    const handlePageChange = (newPage) => setPage(newPage);
+    const handleLimitChange = (newLimit) => {
+        setLimit(newLimit);
+        setPage(1);
+    };
+
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <h1 className="text-3xl font-bold mb-6">Manage Collections</h1>
 
-            {/* Actions Bar */}
             {!showForm && (
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                     <button
@@ -90,26 +99,15 @@ export default function CollectionsPage() {
                         + Add New Collection
                     </button>
 
-                    <div className="flex gap-3 w-full sm:w-auto">
-                        <div className="relative w-full sm:w-48">
-                            <input
-                                type="text"
-                                placeholder="Search..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-4 pl-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                            <span className="absolute left-2.5 top-2 text-gray-400">🔍</span>
-                        </div>
-                        <select
-                            value={sortOption}
-                            onChange={(e) => setSortOption(e.target.value)}
-                            className="bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="name_asc">Name (A-Z)</option>
-                            <option value="name_desc">Name (Z-A)</option>
-                            <option value="featured">Featured First</option>
-                        </select>
+                    <div className="relative w-full sm:w-64">
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchQuery}
+                            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-4 pl-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <span className="absolute left-2.5 top-2 text-gray-400">🔍</span>
                     </div>
                 </div>
             )}
@@ -128,11 +126,22 @@ export default function CollectionsPage() {
                         {isLoading ? (
                             <p className="text-gray-400 text-center">Loading collections...</p>
                         ) : (
-                            <CollectionList
-                                collections={filteredAndSortedCollections}
-                                onEdit={handleEdit}
-                                onDelete={handleDelete}
-                            />
+                            <>
+                                <CollectionList
+                                    collections={collections}
+                                    onEdit={handleEdit}
+                                    onDelete={handleDelete}
+                                />
+                                <PaginationControls
+                                    currentPage={page}
+                                    totalPages={totalPages}
+                                    totalItems={totalItems}
+                                    limit={limit}
+                                    onPageChange={handlePageChange}
+                                    onLimitChange={handleLimitChange}
+                                    isLoading={isLoading}
+                                />
+                            </>
                         )}
                     </div>
                 )}

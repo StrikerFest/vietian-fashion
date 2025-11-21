@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import Link from 'next/link';
 import QuickViewModal from '@/components/QuickViewModal';
+import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
 
 // @unchanged (updateQueryString helper)
 function updateQueryString(router, pathname, currentParams, newParams) {
@@ -32,6 +33,12 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
     const [pageInfo, setPageInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    // --- NEW: Pagination State ---
+    const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
+    const [limit, setLimit] = useState(parseInt(searchParams.get('limit') || '12'));
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+
     // @unchanged (Filter states)
     const [sortBy, setSortBy] = useState(searchParams.get('sort') || '');
     const [selectedSizes, setSelectedSizes] = useState(searchParams.getAll('size') || []);
@@ -42,29 +49,47 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
     // --- Modal State ---
     const [quickViewProductId, setQuickViewProductId] = useState(null);
 
-    // @unchanged (fetchProducts callback)
+    // Fetch products
     const fetchProducts = useCallback(async () => {
         setIsLoading(true);
         try {
             const queryParams = new URLSearchParams({
                 sort: sortBy,
-                size: selectedSizes,
-                color: selectedColors
-            });
-            queryParams.forEach((value, key) => {
-                if (!value || (Array.isArray(value) && value.length === 0)) queryParams.delete(key);
+                page: page.toString(), // --- NEW ---
+                limit: limit.toString() // --- NEW ---
             });
 
-            const response = await fetch(`${fetchUrl}?${queryParams.toString()}`);
+            selectedSizes.forEach(s => queryParams.append('size', s));
+            selectedColors.forEach(c => queryParams.append('color', c));
+
+            // Combine with fetchUrl which might already have params
+            const separator = fetchUrl.includes('?') ? '&' : '?';
+            const response = await fetch(`${fetchUrl}${separator}${queryParams.toString()}`);
+
             if (!response.ok) throw new Error(`${pageType} not found`);
 
             const data = await response.json();
-            setPageInfo(data.category || data.collection || null);
-            setProducts(data.products || []);
 
+            // Handle both paginated and non-paginated responses for backward compatibility
+            const productList = data.data || data.products || [];
+            setProducts(productList);
+            setPageInfo(data.category || data.collection || null);
+
+            // --- NEW: Set pagination meta ---
+            if (data.meta) {
+                setTotalItems(data.meta.total);
+                setTotalPages(data.meta.totalPages);
+            } else {
+                // Fallback if API doesn't support pagination yet
+                setTotalItems(productList.length);
+                setTotalPages(1);
+            }
+
+            // Extract available filters from *current* items (Simplification)
+            // Ideally this should come from a separate aggregate API to show ALL options
             const sizes = new Set();
             const colors = new Set();
-            (data.products || []).forEach(p => {
+            productList.forEach(p => {
                 p.product_variants.forEach(v => {
                     if (v.size) sizes.add(v.size);
                     if (v.color) colors.add(v.color);
@@ -80,16 +105,14 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
         } finally {
             setIsLoading(false);
         }
-    }, [fetchUrl, pageType, sortBy, selectedSizes, selectedColors]);
+    }, [fetchUrl, pageType, sortBy, selectedSizes, selectedColors, page, limit]);
 
-    // @unchanged (useEffect for initial fetch)
+    // Initial fetch & Page params listener
     useEffect(() => {
-        if (fetchUrl) {
-            fetchProducts();
-        }
-    }, [fetchProducts, fetchUrl]);
+        fetchProducts();
+    }, [fetchProducts]);
 
-    // @unchanged (useEffect for SEO)
+    // SEO update (unchanged)
     useEffect(() => {
         if (pageInfo) {
             document.title = pageInfo.seo_title || `${pageInfo.name} | ${defaultTitle}`;
@@ -97,70 +120,62 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
             const descriptionContent = pageInfo.seo_description || pageInfo.description || `Browse ${pageInfo.name} products at ${defaultTitle}.`;
             if (metaDescriptionTag) {
                 metaDescriptionTag.setAttribute('content', descriptionContent);
-            } else {
-                const newMetaTag = document.createElement('meta');
-                newMetaTag.setAttribute('name', 'description');
-                newMetaTag.setAttribute('content', descriptionContent);
-                document.head.appendChild(newMetaTag);
             }
         }
         return () => {
             document.title = defaultTitle;
-            const metaDescriptionTag = document.querySelector('meta[name="description"]');
-            if (metaDescriptionTag) {
-                metaDescriptionTag.setAttribute('content', defaultDescription);
-            }
         };
     }, [pageInfo, defaultTitle, defaultDescription]);
 
-    // --- Modal Handlers ---
-    const handleOpenQuickView = (productId) => {
-        setQuickViewProductId(productId);
-    };
-    const handleCloseQuickView = () => {
-        setQuickViewProductId(null);
+    // Handlers
+    const handleOpenQuickView = (productId) => setQuickViewProductId(productId);
+    const handleCloseQuickView = () => setQuickViewProductId(null);
+
+    const handleSortChange = (e) => {
+        setSortBy(e.target.value);
+        setPage(1); // Reset page on filter change
+        updateQueryString(router, pathname, searchParams, { sort: e.target.value, page: 1 });
     };
 
-    // @unchanged (Filter handlers)
-    const handleSortChange = (e) => {
-        const newSortBy = e.target.value;
-        setSortBy(newSortBy);
-        updateQueryString(router, pathname, searchParams, { sort: newSortBy });
-    };
     const handleSizeChange = (size) => {
         const newSizes = selectedSizes.includes(size) ? selectedSizes.filter(s => s !== size) : [...selectedSizes, size];
         setSelectedSizes(newSizes);
-        updateQueryString(router, pathname, searchParams, { size: newSizes });
+        setPage(1);
+        updateQueryString(router, pathname, searchParams, { size: newSizes, page: 1 });
     };
+
     const handleColorChange = (color) => {
         const newColors = selectedColors.includes(color) ? selectedColors.filter(c => c !== color) : [...selectedColors, color];
         setSelectedColors(newColors);
-        updateQueryString(router, pathname, searchParams, { color: newColors });
+        setPage(1);
+        updateQueryString(router, pathname, searchParams, { color: newColors, page: 1 });
     };
 
-    if (isLoading && !pageInfo) {
-        return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Loading {pageType.toLowerCase()}...</p></div>;
-    }
-    if (!pageInfo && !isLoading) {
-        return (
-            <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center text-center p-8">
-                <h1 className="text-4xl font-bold mb-4">{pageType} Not Found</h1>
-                <p className="text-gray-400 mb-6">Sorry, we could not find the {pageType.toLowerCase()} you were looking for.</p>
-                <Link href="/products" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg">
-                    Browse All Products
-                </Link>
-            </div>
-        );
+    // --- NEW: Pagination Handlers ---
+    const handlePageChange = (newPage) => {
+        setPage(newPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        updateQueryString(router, pathname, searchParams, { page: newPage });
+    };
+
+    const handleLimitChange = (newLimit) => {
+        setLimit(newLimit);
+        setPage(1);
+        updateQueryString(router, pathname, searchParams, { limit: newLimit, page: 1 });
+    };
+
+    if (isLoading && !pageInfo && products.length === 0) {
+        return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Loading...</p></div>;
     }
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-7xl mx-auto">
-                <h1 className="text-4xl font-extrabold text-center mb-4">{pageInfo?.name}</h1>
+                <h1 className="text-4xl font-extrabold text-center mb-4">{pageInfo?.name || pageType}</h1>
                 <p className="text-center text-gray-400 mb-8 max-w-2xl mx-auto">{pageInfo?.description}</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                    {/* @unchanged (Filters Sidebar) */}
+                    {/* Sidebar */}
                     <aside className="md:col-span-1 bg-gray-800 p-6 rounded-lg self-start sticky top-24">
                         <h2 className="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Filters</h2>
                         <div className="mb-6">
@@ -177,11 +192,10 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                             <div className="space-y-2 max-h-40 overflow-y-auto">
                                 {availableSizes.map(size => (
                                     <label key={size} className="flex items-center space-x-2 cursor-pointer">
-                                        <input type="checkbox" checked={selectedSizes.includes(size)} onChange={() => handleSizeChange(size)} className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"/>
+                                        <input type="checkbox" checked={selectedSizes.includes(size)} onChange={() => handleSizeChange(size)} className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600"/>
                                         <span>{size}</span>
                                     </label>
                                 ))}
-                                {availableSizes.length === 0 && <p className="text-xs text-gray-500">None available</p>}
                             </div>
                         </div>
                         <div>
@@ -189,37 +203,47 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                             <div className="space-y-2 max-h-40 overflow-y-auto">
                                 {availableColors.map(color => (
                                     <label key={color} className="flex items-center space-x-2 cursor-pointer">
-                                        <input type="checkbox" checked={selectedColors.includes(color)} onChange={() => handleColorChange(color)} className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"/>
+                                        <input type="checkbox" checked={selectedColors.includes(color)} onChange={() => handleColorChange(color)} className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600"/>
                                         <span>{color}</span>
                                     </label>
                                 ))}
-                                {availableColors.length === 0 && <p className="text-xs text-gray-500">None available</p>}
                             </div>
                         </div>
                     </aside>
 
+                    {/* Product Grid */}
                     <div className="md:col-span-3">
-                        {isLoading ? (
+                        {isLoading && products.length === 0 ? (
                             <p className="text-center py-10">Updating products...</p>
                         ) : products.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                                {products.map(product => (
-                                    <ProductCard
-                                        key={product.id}
-                                        product={product}
-                                        // --- NEW: Pass the handler ---
-                                        onQuickViewClick={handleOpenQuickView}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    {products.map(product => (
+                                        <ProductCard
+                                            key={product.id}
+                                            product={product}
+                                            onQuickViewClick={handleOpenQuickView}
+                                        />
+                                    ))}
+                                </div>
+                                {/* --- NEW: Pagination Controls --- */}
+                                <PaginationControls
+                                    currentPage={page}
+                                    totalPages={totalPages}
+                                    totalItems={totalItems}
+                                    limit={limit}
+                                    onPageChange={handlePageChange}
+                                    onLimitChange={handleLimitChange}
+                                    isLoading={isLoading}
+                                />
+                            </>
                         ) : (
-                            <p className="text-center text-gray-500 py-10">No products match your current filters in this {pageType.toLowerCase()}.</p>
+                            <p className="text-center text-gray-500 py-10">No products match your current filters.</p>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* --- NEW: Render the Modal --- */}
             <QuickViewModal
                 productId={quickViewProductId}
                 onClose={handleCloseQuickView}

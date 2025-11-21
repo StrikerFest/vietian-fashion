@@ -3,16 +3,33 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
 // GET all active discounts
-export async function GET() {
+export async function GET(request) {
+    const { searchParams } = new URL(request.url);
+
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const start = (page - 1) * limit;
+    const end = start + limit - 1;
+
     try {
-        const { data, error } = await supabase
+        const { data, error, count } = await supabase
             .from('discounts')
-            .select('*')
-            .is('deleted_at', null) // --- NEW: Only active ---
-            .order('created_at', { ascending: false });
+            .select('*', { count: 'exact' })
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .range(start, end);
 
         if (error) throw error;
-        return NextResponse.json(data);
+
+        return NextResponse.json({
+            data,
+            meta: {
+                page,
+                limit,
+                total: count,
+                totalPages: Math.ceil((count || 0) / limit)
+            }
+        });
 
     } catch (error) {
         console.error('Error fetching discounts:', error);
@@ -20,7 +37,7 @@ export async function GET() {
     }
 }
 
-// POST a new discount (or restore)
+// POST - @unchanged
 export async function POST(request) {
     const { code, type, value, start_date, end_date, is_active } = await request.json();
 
@@ -31,7 +48,7 @@ export async function POST(request) {
     const upperCode = code.toUpperCase();
 
     try {
-        // --- NEW: Check for existing ---
+        // Check existing
         const { data: existing, error: checkError } = await supabase
             .from('discounts')
             .select('id, deleted_at')
@@ -42,7 +59,7 @@ export async function POST(request) {
 
         if (existing) {
             if (existing.deleted_at) {
-                // --- NEW: Restore ---
+                // Restore
                 const { data: restored, error: restoreError } = await supabase
                     .from('discounts')
                     .update({

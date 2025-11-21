@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import ProductFilters from '@/components/admin/ProductFilters';
 import ProductForm from '@/components/admin/ProductForm';
 import ProductImportExport from '@/components/admin/ProductImportExport';
+import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
 
 export default function AdminProductsPage() {
     // --- Data State ---
@@ -13,6 +14,12 @@ export default function AdminProductsPage() {
     const [collections, setCollections] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    // --- NEW: Pagination State ---
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(20);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+
     // --- View State ---
     const [showForm, setShowForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
@@ -20,6 +27,8 @@ export default function AdminProductsPage() {
 
     // --- Filter & Sort State ---
     const [searchQuery, setSearchQuery] = useState('');
+    // Note: To support server-side filtering, these would need to be passed to the API.
+    // For Phase 1, complex filtering (category/tag) remains client-side on the *fetched page* // or simplified. Here we implement search query passed to server.
     const [filterCategory, setFilterCategory] = useState('');
     const [filterCollection, setFilterCollection] = useState('');
     const [filterTag, setFilterTag] = useState('');
@@ -30,8 +39,15 @@ export default function AdminProductsPage() {
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
+            // --- NEW: Pass params to API ---
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: limit.toString(),
+                search: searchQuery, // Pass search to server
+            });
+
             const [productsRes, categoriesRes, collectionsRes] = await Promise.all([
-                fetch('/api/products'),
+                fetch(`/api/products?${params.toString()}`),
                 fetch('/api/categories'),
                 fetch('/api/collections')
             ]);
@@ -40,23 +56,35 @@ export default function AdminProductsPage() {
                 throw new Error('Failed to fetch data');
             }
 
-            const productsData = await productsRes.json();
-            setProducts(productsData || []);
+            const result = await productsRes.json();
+
+            // Handle updated API structure
+            if (result.data) {
+                setProducts(result.data);
+                setTotalItems(result.meta.total);
+                setTotalPages(result.meta.totalPages);
+            } else {
+                setProducts(result || []);
+            }
+
             setCategories(await categoriesRes.json() || []);
             setCollections(await collectionsRes.json() || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
-            alert("Error loading data. Please refresh.");
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [page, limit, searchQuery]); // Refetch when page/limit/search changes
 
+    // Debounce search to prevent too many API calls
     useEffect(() => {
-        fetchData();
+        const timeout = setTimeout(() => {
+            fetchData();
+        }, 500);
+        return () => clearTimeout(timeout);
     }, [fetchData]);
 
-    // --- Computed Values ---
+    // --- Computed Values (Client-side refinement on the current page) ---
     const allUniqueTags = useMemo(() => {
         const tagsSet = new Set();
         products.forEach(p => {
@@ -70,14 +98,7 @@ export default function AdminProductsPage() {
     const filteredAndSortedProducts = useMemo(() => {
         let result = [...products];
 
-        // 1. Filter
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(p =>
-                p.name.toLowerCase().includes(query) ||
-                p.product_variants.some(v => v.sku.toLowerCase().includes(query))
-            );
-        }
+        // Client-side filters apply only to the current page of data fetched
         if (filterCategory) {
             result = result.filter(p => p.categories?.some(c => c.id.toString() === filterCategory));
         }
@@ -97,7 +118,7 @@ export default function AdminProductsPage() {
             });
         }
 
-        // 2. Sort
+        // Client-side sort (Note: API sorts by created_at desc by default)
         result.sort((a, b) => {
             switch (sortOption) {
                 case 'name_asc': return a.name.localeCompare(b.name);
@@ -116,13 +137,12 @@ export default function AdminProductsPage() {
         });
 
         return result;
-    }, [products, searchQuery, filterCategory, filterCollection, filterTag, filterStock, sortOption]);
+    }, [products, filterCategory, filterCollection, filterTag, filterStock, sortOption]);
 
     const allVisibleProductsSelected = filteredAndSortedProducts.length > 0 &&
         filteredAndSortedProducts.every(p => selectedProductIds.includes(p.id));
 
     // --- Handlers ---
-
     const handleEdit = (product) => {
         setEditingProduct(product);
         setShowForm(true);
@@ -136,8 +156,7 @@ export default function AdminProductsPage() {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Failed to delete');
             }
-            setProducts(products.filter(p => p.id !== productId));
-            // Also remove from selected if present
+            fetchData(); // Reload data
             setSelectedProductIds(prev => prev.filter(id => id !== productId));
             alert('Product deleted successfully!');
         } catch (error) {
@@ -163,19 +182,20 @@ export default function AdminProductsPage() {
         alert(message);
         setShowForm(false);
         setEditingProduct(null);
-        fetchData(); // Refresh data
+        fetchData();
     };
 
-    const handleFormCancel = () => {
-        setShowForm(false);
-        setEditingProduct(null);
+    // --- NEW: Pagination Handlers ---
+    const handlePageChange = (newPage) => setPage(newPage);
+    const handleLimitChange = (newLimit) => {
+        setLimit(newLimit);
+        setPage(1);
     };
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <h1 className="text-3xl font-bold mb-6">Manage Products</h1>
 
-            {/* Top Actions */}
             {!showForm && (
                 <div className="mb-6">
                     <button
@@ -187,18 +207,16 @@ export default function AdminProductsPage() {
                 </div>
             )}
 
-            {/* Product Form Component */}
             {showForm ? (
                 <ProductForm
                     initialData={editingProduct}
                     categories={categories}
                     collections={collections}
                     onSuccess={handleFormSuccess}
-                    onCancel={handleFormCancel}
+                    onCancel={() => { setShowForm(false); setEditingProduct(null); }}
                 />
             ) : (
                 <>
-                    {/* Filters */}
                     <ProductFilters
                         searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}
@@ -217,97 +235,100 @@ export default function AdminProductsPage() {
                         allTags={allUniqueTags}
                     />
 
-                    {/* Import/Export Component */}
                     <ProductImportExport
                         selectedProductIds={selectedProductIds}
                         onImportSuccess={fetchData}
                     />
 
-                    {/* Products Table */}
                     <div className="bg-gray-800 p-6 rounded-lg mt-8">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-semibold">Existing Products</h2>
                             <span className="text-sm text-gray-400">
-                                Showing {filteredAndSortedProducts.length} of {products.length}
+                                Total in DB: {totalItems}
                             </span>
                         </div>
 
                         {isLoading ? (
                             <p className="text-center py-8 text-gray-400">Loading products...</p>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left table-auto">
-                                    <thead className="bg-gray-900 text-gray-300 border-b border-gray-700">
-                                    <tr>
-                                        <th className="p-3 w-10">
-                                            <input
-                                                type="checkbox"
-                                                checked={allVisibleProductsSelected}
-                                                onChange={handleSelectAllProducts}
-                                                className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
-                                            />
-                                        </th>
-                                        <th className="p-3 w-1/3">Product Name</th>
-                                        <th className="p-3">Variants</th>
-                                        <th className="p-3">Total Stock</th>
-                                        <th className="p-3">Category</th>
-                                        <th className="p-3">Collections</th>
-                                        <th className="p-3 text-right">Actions</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-700">
-                                    {filteredAndSortedProducts.map(product => (
-                                        <tr key={product.id} className="hover:bg-gray-700/50 text-sm align-top">
-                                            <td className="p-3">
+                            <>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left table-auto">
+                                        <thead className="bg-gray-900 text-gray-300 border-b border-gray-700">
+                                        <tr>
+                                            <th className="p-3 w-10">
                                                 <input
                                                     type="checkbox"
-                                                    checked={selectedProductIds.includes(product.id)}
-                                                    onChange={() => handleSelectProduct(product.id)}
+                                                    checked={allVisibleProductsSelected}
+                                                    onChange={handleSelectAllProducts}
                                                     className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                                                 />
-                                            </td>
-                                            <td className="p-3 font-medium">
-                                                <span className="text-white text-base">{product.name}</span>
-                                                <div className="flex flex-wrap gap-1 mt-1">
-                                                    {product.tags?.slice(0, 3).map(t => (
-                                                        <span key={t.id} className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-300">{t.name}</span>
-                                                    ))}
-                                                    {product.tags?.length > 3 && <span className="text-[10px] text-gray-500 self-center">+{product.tags.length - 3}</span>}
-                                                </div>
-                                            </td>
-                                            <td className="p-3 text-gray-300">{product.product_variants?.length || 0}</td>
-                                            <td className="p-3 text-gray-300">
-                                                {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0)}
-                                            </td>
-                                            <td className="p-3 text-gray-300">{product.categories?.[0]?.name || '-'}</td>
-                                            <td className="p-3 text-gray-300">
-                                                {product.collections?.length > 0
-                                                    ? product.collections.map(c => c.name).join(', ')
-                                                    : '-'
-                                                }
-                                            </td>
-                                            <td className="p-3 text-right whitespace-nowrap">
-                                                <button
-                                                    onClick={() => handleEdit(product)}
-                                                    className="text-indigo-400 hover:text-indigo-300 font-semibold mr-3"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(product.id)}
-                                                    className="text-red-500 hover:text-red-400 font-semibold"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </td>
+                                            </th>
+                                            <th className="p-3 w-1/3">Product Name</th>
+                                            <th className="p-3">Variants</th>
+                                            <th className="p-3">Total Stock</th>
+                                            <th className="p-3">Category</th>
+                                            <th className="p-3 text-right">Actions</th>
                                         </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
-                                {!isLoading && filteredAndSortedProducts.length === 0 && (
-                                    <p className="text-gray-500 mt-8 text-center">No products match your filters.</p>
-                                )}
-                            </div>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-700">
+                                        {filteredAndSortedProducts.map(product => (
+                                            <tr key={product.id} className="hover:bg-gray-700/50 text-sm align-top">
+                                                <td className="p-3">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedProductIds.includes(product.id)}
+                                                        onChange={() => handleSelectProduct(product.id)}
+                                                        className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="p-3 font-medium">
+                                                    <span className="text-white text-base">{product.name}</span>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {product.tags?.slice(0, 3).map(t => (
+                                                            <span key={t.id} className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-300">{t.name}</span>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 text-gray-300">{product.product_variants?.length || 0}</td>
+                                                <td className="p-3 text-gray-300">
+                                                    {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0)}
+                                                </td>
+                                                <td className="p-3 text-gray-300">{product.categories?.[0]?.name || '-'}</td>
+                                                <td className="p-3 text-right whitespace-nowrap">
+                                                    <button
+                                                        onClick={() => handleEdit(product)}
+                                                        className="text-indigo-400 hover:text-indigo-300 font-semibold mr-3"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(product.id)}
+                                                        className="text-red-500 hover:text-red-400 font-semibold"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                    {!isLoading && filteredAndSortedProducts.length === 0 && (
+                                        <p className="text-gray-500 mt-8 text-center">No products match.</p>
+                                    )}
+                                </div>
+
+                                {/* --- NEW: Pagination --- */}
+                                <PaginationControls
+                                    currentPage={page}
+                                    totalPages={totalPages}
+                                    totalItems={totalItems}
+                                    limit={limit}
+                                    onPageChange={handlePageChange}
+                                    onLimitChange={handleLimitChange}
+                                    isLoading={isLoading}
+                                />
+                            </>
                         )}
                     </div>
                 </>

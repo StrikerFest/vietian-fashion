@@ -3,9 +3,16 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
 // GET all active reviews (Admin)
-export async function GET() {
+export async function GET(request) {
+    const { searchParams } = new URL(request.url);
+
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const start = (page - 1) * limit;
+    const end = start + limit - 1;
+
     try {
-        const { data, error } = await supabase
+        const { data, error, count } = await supabase
             .from('reviews')
             .select(`
                 id,
@@ -16,13 +23,22 @@ export async function GET() {
                 product_id,
                 products ( name ),
                 user_id
-            `)
-            .is('deleted_at', null) // --- NEW: Filter active ---
-            .order('created_at', { ascending: false });
+            `, { count: 'exact' })
+            .is('deleted_at', null) // Only active
+            .order('created_at', { ascending: false })
+            .range(start, end);
 
         if (error) throw error;
 
-        return NextResponse.json(data || []);
+        return NextResponse.json({
+            data,
+            meta: {
+                page,
+                limit,
+                total: count,
+                totalPages: Math.ceil((count || 0) / limit)
+            }
+        });
 
     } catch (error) {
         console.error('Error fetching reviews:', error);
@@ -30,7 +46,7 @@ export async function GET() {
     }
 }
 
-// POST (Create Review) - No changes needed, creation is always "new"
+// POST (Create Review) - @unchanged
 export async function POST(request) {
     const { product_id, rating, comment, user_id } = await request.json();
 
