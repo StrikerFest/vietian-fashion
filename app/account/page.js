@@ -4,10 +4,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link'; // --- NEW ---
 import AddressModal from '@/components/AddressModal';
 import OrderHistory from '@/components/account/OrderHistory';
 import AddressBook from '@/components/account/AddressBook';
-import ProfileSettings from '@/components/account/ProfileSettings'; // --- NEW ---
+import ProfileSettings from '@/components/account/ProfileSettings';
 
 export default function AccountPage() {
     const { session, isLoading: isAuthLoading } = useAuth();
@@ -98,11 +99,29 @@ export default function AccountPage() {
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-6xl mx-auto">
                 {/* Welcome Header */}
-                <div className="mb-8 pb-6 border-b border-gray-800">
-                    <h1 className="text-4xl font-extrabold mb-2">My Account</h1>
-                    <p className="text-lg text-gray-400">
-                        Welcome back, <span className="text-white font-medium">{session.user.email}</span>
-                    </p>
+                <div className="mb-8 pb-6 border-b border-gray-800 flex flex-col md:flex-row justify-between md:items-end gap-4">
+                    <div>
+                        <h1 className="text-4xl font-extrabold mb-2">My Account</h1>
+                        <p className="text-lg text-gray-400">
+                            Welcome back, <span className="text-white font-medium">{session.user.email}</span>
+                        </p>
+                    </div>
+
+                    {/* --- NEW: Quick Links --- */}
+                    <div className="flex gap-3">
+                        <Link
+                            href="/account/wishlist"
+                            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm font-semibold transition-colors"
+                        >
+                            My Wishlist
+                        </Link>
+                        <Link
+                            href="/account/returns"
+                            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm font-semibold transition-colors"
+                        >
+                            My Returns
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -113,7 +132,6 @@ export default function AccountPage() {
 
                     {/* Right Column: Profile & Addresses */}
                     <div className="lg:col-span-1 space-y-8">
-                        {/* --- NEW: Profile Settings --- */}
                         <ProfileSettings />
 
                         <AddressBook
