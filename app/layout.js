@@ -6,6 +6,7 @@ import "./globals.css";
 // import Navbar from "@/components/Navbar";
 // Import the new client-side wrapper
 import Providers from "./providers";
+import Footer from "@/components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,6 +26,7 @@ export default function RootLayout({ children }) {
             */}
         <Providers>
             {children}
+            <Footer />
         </Providers>
         </body>
         </html>
