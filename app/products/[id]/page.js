@@ -3,78 +3,34 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useCart } from '@/context/CartContext';
-// --- NEW: Import the useParams hook ---
 import { useParams } from 'next/navigation';
+import { useCart } from '@/context/CartContext';
+import ProductGallery from '@/components/product/ProductGallery';
+import VariantSelector from '@/components/product/VariantSelector';
+import ProductReviews from '@/components/product/ProductReviews';
 
-// @unchanged (StarRatingDisplay and StarRatingInput components)
-function StarRatingDisplay({rating}) {
-    const totalStars = 5;
-    let stars = [];
-    for (let i = 1; i <= totalStars; i++) {
-        stars.push(
-            <span key={i} className={`text-xl ${i <= rating ? 'text-yellow-400' : 'text-gray-600'}`}>
-                ★
-            </span>
-        );
-    }
-    return <div className="flex">{stars}</div>;
-}
-
-function StarRatingInput({rating, setRating}) {
-    const totalStars = 5;
-    return (
-        <div className="flex space-x-1">
-            {[...Array(totalStars)].map((_, index) => {
-                const starValue = index + 1;
-                return (
-                    <button
-                        key={starValue}
-                        type="button"
-                        className={`text-3xl transition-colors ${
-                            starValue <= rating ? 'text-yellow-400' : 'text-gray-600 hover:text-yellow-300'
-                        }`}
-                        onClick={() => setRating(starValue)}
-                    >
-                        ★
-                    </button>
-                );
-            })}
-        </div>
-    );
-}
-
-
-export default function ProductDetailPage() { // --- REMOVED props ---
-    // --- MODIFIED: Use the hook to get params ---
+export default function ProductDetailPage() {
     const params = useParams();
-    const { id } = params; // This `id` will be a string
-
+    const { id } = params;
     const { addToCart } = useCart();
 
-    // @unchanged (state hooks)
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedVariant, setSelectedVariant] = useState(null);
-    const [reviews, setReviews] = useState([]);
-    const [isLoadingReviews, setIsLoadingReviews] = useState(true);
-    const [reviewRating, setReviewRating] = useState(0);
-    const [reviewComment, setReviewComment] = useState('');
-    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-    const [reviewMessage, setReviewMessage] = useState({ type: '', text: '' });
 
-
-    // @unchanged (Fetch Product Details effect - will use the `id` from useParams)
+    // Fetch Product
     useEffect(() => {
-        const initializeProduct = async () => {
+        const fetchProduct = async () => {
+            if (!id) return;
             setIsLoading(true);
             try {
-                if (!id) throw new Error("No ID provided");
                 const response = await fetch(`/api/products/${id}`);
                 if (!response.ok) throw new Error('Product not found');
                 const data = await response.json();
                 setProduct(data);
-                if (data.product_variants && data.product_variants.length > 0) {
+
+                // Default to first variant
+                if (data.product_variants?.length > 0) {
                     setSelectedVariant(data.product_variants[0]);
                 }
             } catch (error) {
@@ -84,186 +40,102 @@ export default function ProductDetailPage() { // --- REMOVED props ---
                 setIsLoading(false);
             }
         };
-        if (id) {
-            initializeProduct();
-        }
+        fetchProduct();
     }, [id]);
 
-    // @unchanged (useEffect for updating SEO Meta Tags)
+    // SEO Update (Client-side fallback)
     useEffect(() => {
         if (product) {
-            document.title = product.seo_title || `${product.name} | AI Fashion Store`;
-            const metaDescriptionTag = document.querySelector('meta[name="description"]');
-            const descriptionContent = product.seo_description || product.description || "Check out this product from AI Fashion Store.";
-            if (metaDescriptionTag) {
-                metaDescriptionTag.setAttribute('content', descriptionContent);
-            } else {
-                const newMetaTag = document.createElement('meta');
-                newMetaTag.setAttribute('name', 'description');
-                newMetaTag.setAttribute('content', descriptionContent);
-                document.head.appendChild(newMetaTag);
-            }
+            document.title = product.seo_title || `${product.name} | AI Fashion`;
         }
     }, [product]);
 
-
-    // @unchanged (Fetch Approved Reviews effect)
-    useEffect(() => {
-        const fetchReviews = async () => {
-            if (!id) return;
-            setIsLoadingReviews(true);
-            try {
-                const response = await fetch(`/api/reviews/product/${id}`);
-                if (!response.ok) throw new Error('Failed to fetch reviews');
-                const data = await response.json();
-                setReviews(data || []);
-            } catch (error) {
-                console.error("Failed to fetch reviews:", error);
-                setReviews([]);
-            } finally {
-                setIsLoadingReviews(false);
-            }
-        };
-        fetchReviews();
-    }, [id]);
-
-    // @unchanged (Handle Review Submission)
-    const handleReviewSubmit = async (e) => {
-        e.preventDefault();
-        if (reviewRating === 0) {
-            setReviewMessage({ type: 'error', text: 'Please select a star rating.' });
-            return;
-        }
-        setIsSubmittingReview(true);
-        setReviewMessage({ type: '', text: '' });
-        try {
-            const user_id = null;
-            const response = await fetch('/api/reviews', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    product_id: parseInt(id),
-                    rating: reviewRating,
-                    comment: reviewComment,
-                    user_id: user_id
-                }),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to submit review.');
-            }
-            setReviewMessage({ type: 'success', text: data.message || 'Review submitted successfully! It will appear after moderation.' });
-            setReviewRating(0);
-            setReviewComment('');
-        } catch (error) {
-            console.error('Review submission error:', error);
-            setReviewMessage({ type: 'error', text: error.message || 'An error occurred. Please try again.' });
-        } finally {
-            setIsSubmittingReview(false);
-        }
-    };
-
-    // @unchanged (handleAddToCart function)
     const handleAddToCart = () => {
         if (product && selectedVariant) {
             addToCart(product, selectedVariant);
         }
     };
 
-    // @unchanged (Loading/Not Found states)
-    if (isLoading) {
-        return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Loading product...</div>;
-    }
-    if (!product) {
-        return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Product not found. <Link href="/products" className="ml-2 text-indigo-400">Go back</Link></div>;
-    }
+    if (isLoading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Loading product...</div>;
+    if (!product) return (
+        <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center gap-4">
+            <h1 className="text-2xl font-bold">Product not found</h1>
+            <Link href="/products" className="text-indigo-400 hover:underline">Back to Collection</Link>
+        </div>
+    );
 
-    // @unchanged (Image URL logic)
-    const imageUrl = product.image_url || 'https://placehold.co/600x400/1F2937/FFFFFF?text=No+Image';
-
-    // @unchanged (Inventory logic)
     const stockOnHand = selectedVariant?.inventory_levels?.[0]?.on_hand || 0;
     const isOutOfStock = stockOnHand <= 0;
 
-    // @unchanged (Rest of the JSX rendering)
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
-            {/* --- Product Details Section --- */}
-            <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                <div>
-                    <img src={imageUrl} alt={product.name} className="w-full rounded-lg shadow-lg" />
-                </div>
-                <div>
-                    <h1 className="text-4xl font-extrabold mb-2">{product.name}</h1>
-                    <p className="text-2xl font-semibold text-indigo-400 mb-4">${selectedVariant?.price.toFixed(2)}</p>
-                    <p className="text-gray-400 mb-6">{product.description}</p>
+            <div className="max-w-6xl mx-auto">
+                {/* Breadcrumb */}
+                <nav className="text-sm text-gray-400 mb-8">
+                    <Link href="/products" className="hover:text-white">Products</Link>
+                    <span className="mx-2">/</span>
+                    <span className="text-white">{product.name}</span>
+                </nav>
 
-                    <div className="mb-6">
-                        <h3 className="text-sm font-medium text-gray-300 mb-2">Select Variant:</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {product.product_variants.map(variant => (
-                                <button
-                                    key={variant.id}
-                                    onClick={() => setSelectedVariant(variant)}
-                                    className={`py-2 px-4 rounded-md border text-sm font-semibold transition-colors
-                                        ${selectedVariant?.id === variant.id
-                                        ? 'bg-indigo-600 border-indigo-600 text-white'
-                                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-                                    }`}
-                                >
-                                    {variant.color} / {variant.size}
-                                </button>
-                            ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
+                    {/* Left: Gallery */}
+                    <ProductGallery
+                        imageUrl={product.image_url}
+                        name={product.name}
+                    />
+
+                    {/* Right: Info & Actions */}
+                    <div className="flex flex-col">
+                        <h1 className="text-4xl font-extrabold mb-2 text-white">{product.name}</h1>
+
+                        <div className="mb-6 flex items-baseline gap-4">
+                            <p className="text-3xl font-bold text-indigo-400">
+                                ${selectedVariant?.price.toFixed(2)}
+                            </p>
+                            {isOutOfStock && (
+                                <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs font-bold uppercase rounded border border-red-900/50">
+                                    Out of Stock
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="prose prose-invert text-gray-400 mb-8 leading-relaxed">
+                            {product.description}
+                        </div>
+
+                        <VariantSelector
+                            variants={product.product_variants}
+                            selectedVariant={selectedVariant}
+                            onSelect={setSelectedVariant}
+                        />
+
+                        <div className="mt-auto pt-6 border-t border-gray-700">
+                            <button
+                                onClick={handleAddToCart}
+                                disabled={isOutOfStock || !selectedVariant}
+                                className={`
+                                    w-full py-4 px-6 rounded-lg text-lg font-bold transition-all duration-200
+                                    ${isOutOfStock || !selectedVariant
+                                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-lg hover:shadow-indigo-900/30 shadow-md'
+                                }
+                                `}
+                            >
+                                {!selectedVariant ? 'Select an Option' : isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                            </button>
+
+                            {selectedVariant && !isOutOfStock && (
+                                <p className="text-center text-xs text-green-400 mt-3 flex items-center justify-center gap-1">
+                                    <span className="w-2 h-2 bg-green-500 rounded-full inline-block"></span>
+                                    In Stock ({stockOnHand} units ready to ship)
+                                </p>
+                            )}
                         </div>
                     </div>
-
-                    <button
-                        onClick={handleAddToCart}
-                        disabled={isOutOfStock || !selectedVariant}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
-                    >
-                        {!selectedVariant ? 'Select a Variant' : isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-                    </button>
-                    {selectedVariant && !isOutOfStock && <p className="text-xs text-gray-400 mt-2 text-center">{stockOnHand} in stock</p>}
                 </div>
-            </div>
 
-            {/* --- Reviews Section --- */}
-            <div className="max-w-4xl mx-auto mt-12 pt-8 border-t border-gray-700">
-                <div className="bg-gray-800 p-6 rounded-lg mb-8">
-                    <h3 className="text-xl font-semibold mb-4">Leave a Review</h3>
-                    <form onSubmit={handleReviewSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Your Rating</label>
-                            <StarRatingInput rating={reviewRating} setRating={setReviewRating} />
-                        </div>
-                        <div>
-                            <label htmlFor="comment" className="block text-sm font-medium mb-1">Your Review (Optional)</label>
-                            <textarea id="comment" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} rows="4" placeholder="Tell us what you think..."
-                                      className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"></textarea>
-                        </div>
-                        {reviewMessage.text && (<p className={`text-sm ${reviewMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>{reviewMessage.text}</p>)}
-                        <div>
-                            <button type="submit" disabled={isSubmittingReview || reviewRating === 0} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed">
-                                {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                {isLoadingReviews ? (<p className="text-gray-400">Loading reviews...</p>)
-                    : reviews.length > 0 ? (
-                        <div className="space-y-6">
-                            {reviews.map(review => (
-                                <div key={review.id} className="border-b border-gray-700 pb-4">
-                                    <div className="flex items-center mb-2">
-                                        <StarRatingDisplay rating={review.rating} />
-                                        <span className="ml-auto text-xs text-gray-500">{new Date(review.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                    <p className="text-gray-300">{review.comment || <span className="italic text-gray-500">No comment provided.</span>}</p>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (<p className="text-gray-500">Be the first to review this product!</p>)}
+                {/* Reviews Section */}
+                <ProductReviews productId={product.id} />
             </div>
         </main>
     );
