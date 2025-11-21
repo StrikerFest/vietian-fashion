@@ -117,7 +117,7 @@ export default function CartPage() {
                 <div className="text-center max-w-md">
                     <div className="mb-6 text-6xl">🛒</div>
                     <h1 className="text-3xl font-bold mb-4">Your Cart is Empty</h1>
-                    <p className="text-gray-400 mb-8">Looks like you haven't found your perfect outfit yet.</p>
+                    <p className="text-gray-400 mb-8">{`Looks like you haven't found your perfect outfit yet.`}</p>
                     <Link
                         href="/products"
                         className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
