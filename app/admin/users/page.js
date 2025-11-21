@@ -1,8 +1,8 @@
 // app/admin/users/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react';
+import UsersTable from '@/components/admin/UsersTable';
 
 export default function UsersPage() {
     const [users, setUsers] = useState([]);
@@ -13,6 +13,7 @@ export default function UsersPage() {
         setIsLoading(true);
         try {
             const response = await fetch('/api/admin/users');
+            if (!response.ok) throw new Error('Failed to load users');
             const data = await response.json();
             setUsers(data || []);
         } catch (error) {
@@ -28,81 +29,52 @@ export default function UsersPage() {
 
     const handleArchive = async (userId) => {
         if (!confirm('Are you sure you want to archive this user? They will no longer be able to log in.')) return;
+
         try {
             const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Failed to archive user');
-            setUsers(users.filter(u => u.id !== userId));
+
+            setUsers(prev => prev.filter(u => u.id !== userId));
+            alert('User archived successfully.');
         } catch (error) {
             alert(error.message);
         }
     };
 
-    const filteredUsers = users.filter(user => {
+    const filteredUsers = useMemo(() => {
         const term = searchQuery.toLowerCase();
-        const name = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
-        const email = (user.email || '').toLowerCase();
-        return name.includes(term) || email.includes(term);
-    });
+        return users.filter(user => {
+            const name = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+            const email = (user.email || '').toLowerCase();
+            const id = (user.id || '').toString();
+            return name.includes(term) || email.includes(term) || id.includes(term);
+        });
+    }, [users, searchQuery]);
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <h1 className="text-3xl font-bold mb-6">Customers</h1>
 
-            <div className="bg-gray-800 p-6 rounded-lg">
-                <div className="mb-4">
+            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                {/* Search Bar */}
+                <div className="mb-6 relative max-w-md">
                     <input
                         type="text"
-                        placeholder="Search customers by name or email..."
+                        placeholder="Search by name, email, or ID..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full md:w-1/3 bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-4 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                     />
+                    <svg className="w-4 h-4 absolute left-3.5 top-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                 </div>
 
-                {isLoading ? <p>Loading customers...</p> : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-900">
-                            <tr>
-                                <th className="p-3">ID</th>
-                                <th className="p-3">Name</th>
-                                <th className="p-3">Email</th>
-                                <th className="p-3">Orders</th>
-                                <th className="p-3">Joined</th>
-                                <th className="p-3">Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {filteredUsers.map(user => (
-                                <tr key={user.id} className="border-b border-gray-700 hover:bg-gray-700/50 text-sm">
-                                    <td className="p-3 font-mono text-gray-400">#{user.id}</td>
-                                    <td className="p-3 font-medium">{user.first_name} {user.last_name || ''}</td>
-                                    <td className="p-3">{user.email || 'N/A'}</td>
-                                    <td className="p-3">
-                                            <span className="bg-gray-700 px-2 py-1 rounded-full text-xs">
-                                                {user.order_count}
-                                            </span>
-                                    </td>
-                                    <td className="p-3">{new Date(user.created_at).toLocaleDateString()}</td>
-                                    <td className="p-3 flex gap-3">
-                                        <Link href={`/admin/users/${user.id}`} className="text-indigo-400 hover:text-indigo-300 font-semibold">
-                                            View
-                                        </Link>
-                                        <button
-                                            onClick={() => handleArchive(user.id)}
-                                            className="text-red-500 hover:text-red-400 font-semibold"
-                                        >
-                                            Archive
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {filteredUsers.length === 0 && (
-                                <tr><td colSpan="6" className="p-4 text-center text-gray-500">No customers found.</td></tr>
-                            )}
-                            </tbody>
-                        </table>
-                    </div>
+                {/* Table */}
+                {isLoading ? (
+                    <div className="text-center py-12 text-gray-400">Loading customers...</div>
+                ) : (
+                    <UsersTable users={filteredUsers} onArchive={handleArchive} />
                 )}
             </div>
         </div>
