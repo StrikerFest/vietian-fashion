@@ -49,7 +49,7 @@ export default function ReturnHistory({ returns }) {
                     {/* Reason */}
                     <div className="mb-4 bg-gray-900/30 p-3 rounded text-sm">
                         <span className="text-gray-500 font-semibold mr-2">Reason:</span>
-                        <span className="text-gray-300 italic">"{req.reason}"</span>
+                        <span className="text-gray-300 italic">{`"${req.reason}}"`}</span>
                     </div>
 
                     {/* Items List */}
