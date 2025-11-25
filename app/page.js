@@ -12,8 +12,14 @@ export default function HomePage() {
     const [hasSearched, setHasSearched] = useState(false);
     const [quickViewProductId, setQuickViewProductId] = useState(null);
 
-    const handleSearch = async (query) => {
-        if (!query.trim()) return;
+    const handleSearch = async (queryPayload) => {
+        // Validate: If string (legacy) check empty, if object check properties
+        const isValid = typeof queryPayload === 'string'
+            ? queryPayload.trim().length > 0
+            : (queryPayload.generalPrompt || Object.keys(queryPayload.attributes || {}).length > 0);
+
+        if (!isValid) return;
+
         setIsLoading(true);
         setHasSearched(true);
         setSearchResults([]);
@@ -22,7 +28,8 @@ export default function HomePage() {
             const response = await fetch('/api/recommendations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query }),
+                // Payload is already structured correctly by HeroSection
+                body: JSON.stringify(typeof queryPayload === 'string' ? { query: queryPayload } : queryPayload),
             });
 
             if (!response.ok) throw new Error('Search failed');

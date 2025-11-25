@@ -18,7 +18,8 @@ const adminLinks = [
     { name: 'Returns', href: '/admin/returns' },
     { name: 'Suppliers', href: '/admin/suppliers' },
     { name: 'Purchase Orders', href: '/admin/purchase-orders' },
-    { name: 'Inventory Logs', href: '/admin/inventory' }, // --- NEW LINK ---
+    { name: 'Inventory Logs', href: '/admin/inventory' },
+    { name: 'Settings', href: '/admin/settings' }, // --- NEW LINK ---
 ];
 
 export default function AdminSidebar() {
