@@ -5,7 +5,7 @@ import { useState } from 'react';
 import ProductCard from '@/components/ProductCard';
 import QuickViewModal from '@/components/QuickViewModal';
 import HeroSection from '@/components/home/HeroSection';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
 
 export default function HomePage() {
     const [searchResults, setSearchResults] = useState([]);
@@ -13,9 +13,9 @@ export default function HomePage() {
     const [hasSearched, setHasSearched] = useState(false);
     const [quickViewProductId, setQuickViewProductId] = useState(null);
 
-    // --- NEW: State for semantic matches ---
-    const [matchedCollection, setMatchedCollection] = useState(null);
-    const [matchedAttribute, setMatchedAttribute] = useState(null);
+    // --- NEW: Arrays for matches ---
+    const [matchedCollections, setMatchedCollections] = useState([]);
+    const [matchedAttributes, setMatchedAttributes] = useState([]);
 
     const handleSearch = async (queryPayload) => {
         const isValid = typeof queryPayload === 'string'
@@ -27,9 +27,8 @@ export default function HomePage() {
         setIsLoading(true);
         setHasSearched(true);
         setSearchResults([]);
-        // Reset matches
-        setMatchedCollection(null);
-        setMatchedAttribute(null);
+        setMatchedCollections([]);
+        setMatchedAttributes([]);
 
         try {
             const response = await fetch('/api/recommendations', {
@@ -42,9 +41,8 @@ export default function HomePage() {
             const data = await response.json();
 
             setSearchResults(data.products || []);
-            // Set new matches
-            setMatchedCollection(data.collection || null);
-            setMatchedAttribute(data.attribute || null);
+            setMatchedCollections(data.collections || []);
+            setMatchedAttributes(data.attributes || []);
 
         } catch (error) {
             console.error("Search error:", error);
@@ -61,54 +59,61 @@ export default function HomePage() {
                 {hasSearched && (
                     <div className="max-w-7xl mx-auto">
 
-                        {/* --- NEW: Semantic Recommendation Cards --- */}
-                        {!isLoading && (matchedCollection || matchedAttribute) && (
-                            <div className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-                                {matchedCollection && (
-                                    <div className="bg-gradient-to-br from-gray-800 to-indigo-900/40 border border-indigo-500/30 p-6 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-lg">
-                                        <div>
-                                            <p className="text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-                                                <span>★</span> Collection Match
-                                            </p>
-                                            <h3 className="text-2xl font-bold text-white">{matchedCollection.name}</h3>
-                                            {matchedCollection.description && (
-                                                <p className="text-gray-400 text-sm mt-1 line-clamp-2">{matchedCollection.description}</p>
-                                            )}
-                                        </div>
-                                        <Link
-                                            href={`/collections/${matchedCollection.slug}`}
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-semibold transition-colors text-sm whitespace-nowrap shadow-md"
-                                        >
-                                            View Collection &rarr;
-                                        </Link>
-                                    </div>
-                                )}
+                        {/* --- Semantic Recommendations Grid --- */}
+                        {!isLoading && (matchedCollections.length > 0 || matchedAttributes.length > 0) && (
+                            <div className="mb-16">
+                                <h3 className="text-lg font-semibold text-gray-400 mb-4 uppercase tracking-wider">Smart Recommendations</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
 
-                                {matchedAttribute && (
-                                    <div className="bg-gradient-to-br from-gray-800 to-purple-900/40 border border-purple-500/30 p-6 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-lg">
-                                        <div>
-                                            <p className="text-purple-400 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-                                                <span>✦</span> Category Match
-                                            </p>
-                                            <h3 className="text-2xl font-bold text-white">{matchedAttribute.name}</h3>
-                                            <p className="text-gray-400 text-sm mt-1">Browse all {matchedAttribute.name} items</p>
+                                    {/* Render Collections */}
+                                    {matchedCollections.map(col => (
+                                        <div key={col.id} className="bg-gradient-to-br from-gray-800 to-indigo-900/30 border border-indigo-500/20 p-6 rounded-xl flex flex-col justify-between shadow-lg hover:border-indigo-500/50 transition-colors">
+                                            <div>
+                                                <p className="text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                    <span>★</span> Collection
+                                                </p>
+                                                <h3 className="text-xl font-bold text-white mb-2">{col.name}</h3>
+                                                {col.description && (
+                                                    <p className="text-gray-400 text-sm line-clamp-2 mb-4">{col.description}</p>
+                                                )}
+                                            </div>
+                                            <Link
+                                                href={`/collections/${col.slug}`}
+                                                className="text-indigo-300 text-sm font-bold hover:text-indigo-200 flex items-center gap-1"
+                                            >
+                                                View Collection &rarr;
+                                            </Link>
                                         </div>
-                                        <Link
-                                            href={`/categories/${matchedAttribute.slug}`}
-                                            className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg font-semibold transition-colors text-sm whitespace-nowrap shadow-md"
-                                        >
-                                            Explore &rarr;
-                                        </Link>
-                                    </div>
-                                )}
+                                    ))}
+
+                                    {/* Render Attributes */}
+                                    {matchedAttributes.map(attr => (
+                                        <div key={attr.id} className="bg-gradient-to-br from-gray-800 to-purple-900/30 border border-purple-500/20 p-6 rounded-xl flex flex-col justify-between shadow-lg hover:border-purple-500/50 transition-colors">
+                                            <div>
+                                                <p className="text-purple-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                    <span>✦</span> Category
+                                                </p>
+                                                <h3 className="text-xl font-bold text-white mb-2">{attr.name}</h3>
+                                                <p className="text-gray-400 text-sm mb-4">Browse matching {attr.name.toLowerCase()} items.</p>
+                                            </div>
+                                            <Link
+                                                href={`/categories/${attr.slug}`}
+                                                className="text-purple-300 text-sm font-bold hover:text-purple-200 flex items-center gap-1"
+                                            >
+                                                Explore Category &rarr;
+                                            </Link>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
-                        <h2 className="text-2xl font-bold mb-8 flex items-center gap-2">
+                        {/* --- Product Grid --- */}
+                        <h2 className="text-2xl font-bold mb-8 flex items-center gap-3">
                             {isLoading ? 'Searching...' : (
                                 <>
-                                    <span>Recommended Products</span>
-                                    <span className="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-1 rounded-full">
+                                    <span>Top Picks</span>
+                                    <span className="text-sm font-normal text-gray-500 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
                                         {searchResults.length} results
                                     </span>
                                 </>
@@ -118,7 +123,7 @@ export default function HomePage() {
                         {isLoading ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 animate-pulse">
                                 {[...Array(4)].map((_, i) => (
-                                    <div key={i} className="bg-gray-800 h-80 rounded-lg"></div>
+                                    <div key={i} className="bg-gray-800 h-96 rounded-lg"></div>
                                 ))}
                             </div>
                         ) : searchResults.length > 0 ? (
@@ -132,12 +137,12 @@ export default function HomePage() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-16 bg-gray-800/30 rounded-xl border border-gray-800">
-                                <p className="text-gray-400 text-lg">No individual products matched perfectly.</p>
-                                {(matchedCollection || matchedAttribute) ? (
-                                    <p className="text-gray-500 text-sm mt-2">But we found some matching categories above!</p>
+                            <div className="text-center py-20 bg-gray-800/30 rounded-xl border border-gray-800 border-dashed">
+                                <p className="text-gray-400 text-lg font-medium">No specific products found.</p>
+                                {(matchedCollections.length > 0 || matchedAttributes.length > 0) ? (
+                                    <p className="text-gray-500 text-sm mt-2">Try exploring the recommended collections above!</p>
                                 ) : (
-                                    <p className="text-gray-500 text-sm mt-2">{`Try using different terms or broader categories.`}</p>
+                                    <p className="text-gray-500 text-sm mt-2">{`Try adjusting your search terms (e.g., "Summer dress").`}</p>
                                 )}
                             </div>
                         )}
