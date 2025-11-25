@@ -9,37 +9,39 @@ import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
     const { cartItems } = useCart();
-    const [categories, setCategories] = useState([]);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // --- NEW ---
+    const [navItems, setNavItems] = useState([]); // Renamed from categories to navItems
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const { session, supabase } = useAuth();
     const router = useRouter();
 
-    // ... (fetchCategories useEffect remains the same) ...
     useEffect(() => {
-        const fetchCategories = async () => {
+        const fetchNavItems = async () => {
             try {
-                const response = await fetch('/api/categories');
+                // --- CHANGED: Fetch only 'catalog' items visible to public ---
+                const response = await fetch('/api/categories?type=catalog&mode=public');
                 const data = await response.json();
-                // ... (logic to build category hierarchy)
-                const categoryMap = {};
-                const topLevelCategories = [];
-                data.forEach(category => {
-                    category.children = [];
-                    categoryMap[category.id] = category;
-                    if (category.parent_id) {
-                        if (categoryMap[category.parent_id]) {
-                            categoryMap[category.parent_id].children.push(category);
+
+                // Build hierarchy (Parents -> Children)
+                const itemMap = {};
+                const topLevelItems = [];
+
+                data.forEach(item => {
+                    item.children = [];
+                    itemMap[item.id] = item;
+                    if (item.parent_id) {
+                        if (itemMap[item.parent_id]) {
+                            itemMap[item.parent_id].children.push(item);
                         }
                     } else {
-                        topLevelCategories.push(category);
+                        topLevelItems.push(item);
                     }
                 });
-                setCategories(topLevelCategories);
+                setNavItems(topLevelItems);
             } catch (error) {
-                console.error("Failed to fetch categories:", error);
+                console.error("Failed to fetch nav items:", error);
             }
         };
-        fetchCategories();
+        fetchNavItems();
     }, []);
 
     const handleLogout = async () => {
@@ -54,7 +56,6 @@ export default function Navbar() {
                 <div className="flex justify-between items-center">
                     {/* Logo & Mobile Toggle */}
                     <div className="flex items-center gap-4">
-                        {/* Mobile Menu Button */}
                         <button
                             className="md:hidden text-gray-300 hover:text-white focus:outline-none"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -75,15 +76,15 @@ export default function Navbar() {
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-6">
-                        {categories.map(category => (
-                            <div key={category.id} className="relative group">
-                                <Link href={`/categories/${category.slug}`} className="hover:text-indigo-400 py-2 font-medium text-sm">
-                                    {category.name}
+                        {navItems.map(item => (
+                            <div key={item.id} className="relative group">
+                                <Link href={`/categories/${item.slug}`} className="hover:text-indigo-400 py-2 font-medium text-sm">
+                                    {item.name}
                                 </Link>
-                                {category.children.length > 0 && (
+                                {item.children.length > 0 && (
                                     <div className="absolute left-0 mt-2 w-48 bg-gray-700 rounded-md shadow-xl py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 invisible group-hover:visible z-50">
-                                        {category.children.map(child => (
-                                            <Link key={child.id} href={`/categories/${category.slug}/${child.slug}`} className="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white">
+                                        {item.children.map(child => (
+                                            <Link key={child.id} href={`/categories/${item.slug}/${child.slug}`} className="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white">
                                                 {child.name}
                                             </Link>
                                         ))}
@@ -94,9 +95,8 @@ export default function Navbar() {
                         <Link href="/products" className="hover:text-indigo-400 font-medium text-sm">All Products</Link>
                     </div>
 
-                    {/* Desktop Right Icons */}
+                    {/* Right Icons (Cart/Auth) - Unchanged */}
                     <div className="hidden md:flex items-center space-x-4">
-                        {/* Cart */}
                         <Link href="/cart" className="relative p-2 hover:bg-gray-700 rounded-full transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -108,7 +108,6 @@ export default function Navbar() {
                             )}
                         </Link>
 
-                        {/* Auth */}
                         {session ? (
                             <div className="flex items-center gap-4">
                                 <Link href="/account" className="text-sm hover:text-indigo-400 font-medium">My Account</Link>
@@ -121,7 +120,7 @@ export default function Navbar() {
                         )}
                     </div>
 
-                    {/* Mobile Cart Icon (Always visible) */}
+                    {/* Mobile Cart Icon - Unchanged */}
                     <div className="md:hidden">
                         <Link href="/cart" className="relative p-2">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -137,24 +136,23 @@ export default function Navbar() {
                 </div>
             </div>
 
-            {/* Mobile Menu Dropdown */}
+            {/* Mobile Menu - Updated with navItems */}
             {isMobileMenuOpen && (
                 <div className="md:hidden mt-4 border-t border-gray-700 pt-4 space-y-4">
-                    {/* Categories */}
                     <div className="space-y-2">
-                        {categories.map(category => (
-                            <div key={category.id}>
+                        {navItems.map(item => (
+                            <div key={item.id}>
                                 <Link
-                                    href={`/categories/${category.slug}`}
+                                    href={`/categories/${item.slug}`}
                                     className="block px-2 py-1 text-gray-200 font-medium"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
-                                    {category.name}
+                                    {item.name}
                                 </Link>
-                                {category.children.map(child => (
+                                {item.children.map(child => (
                                     <Link
                                         key={child.id}
-                                        href={`/categories/${category.slug}/${child.slug}`}
+                                        href={`/categories/${item.slug}/${child.slug}`}
                                         className="block px-6 py-1 text-sm text-gray-400"
                                         onClick={() => setIsMobileMenuOpen(false)}
                                     >

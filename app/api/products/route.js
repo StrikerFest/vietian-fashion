@@ -10,13 +10,9 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
 
-    // Filter Params
     const search = searchParams.get('search') || '';
-    const categoryId = searchParams.get('category');
-    const collectionId = searchParams.get('collection');
 
     try {
-        // Start building query
         let query = supabase
             .from('products')
             .select(`
@@ -25,40 +21,49 @@ export async function GET(request) {
                     *,
                     inventory_levels (*)
                 ),
-                categories (*),
                 collections (*),
-                tags (*) 
-            `, { count: 'exact' }) // Request total count
+                
+                -- REFACTOR: Fetch Unified Categories (Catalog + Attributes)
+                product_categories (
+                    categories (
+                        id,
+                        name,
+                        slug,
+                        type,
+                        parent_id,
+                        display_style,
+                        value
+                    )
+                )
+            `, { count: 'exact' })
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
-        // Apply Search
         if (search) {
-            // Simple ILIKE search on name.
-            // For more advanced search, we'd need a text index or Supabase text search syntax.
             query = query.ilike('name', `%${search}%`);
-        }
-
-        // Apply Category Filter (Requires junction table lookup logic, simplified here for direct filters if schema supported it,
-        // but since it's Many-to-Many, we might need specific RPC or post-filtering if strict server-side is needed.
-        // For basic pagination, we stick to the main table.
-        // *Note: Advanced M-to-M filtering in Supabase basic client often requires !inner joins.*
-        if (categoryId) {
-            query = query.eq('product_categories.category_id', categoryId);
-            // Note: This requires modifying the select to include !inner on product_categories if we want to filter by it.
-            // For now, we will rely on the basic list and client filtering for complex taxonomy unless explicitly requested.
         }
 
         const { data, error, count } = await query;
 
-        if (error) {
-            console.error('Error fetching products:', error);
-            return NextResponse.json({ error: error.message }, { status: 500 });
-        }
+        if (error) throw error;
+
+        // Data Transformation: Flatten the nested structure
+        const formattedData = data.map(product => {
+            const flatCategories = product.product_categories?.map(pc => pc.categories) || [];
+
+            return {
+                ...product,
+                // Separate into logical groups for frontend usage
+                catalog_categories: flatCategories.filter(c => c.type === 'catalog'),
+                attributes: flatCategories.filter(c => c.type === 'attribute'),
+                // Remove the raw join array
+                product_categories: undefined
+            };
+        });
 
         return NextResponse.json({
-            data,
+            data: formattedData,
             meta: {
                 page,
                 limit,
@@ -66,12 +71,13 @@ export async function GET(request) {
                 totalPages: Math.ceil((count || 0) / limit)
             }
         });
+
     } catch (error) {
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        console.error('Error fetching products:', error);
+        return NextResponse.json({ error: 'Failed to fetch products.', details: error.message }, { status: 500 });
     }
 }
 
-// POST remains largely unchanged but included for file completeness in context
 export async function POST(request) {
     const {
         name,
@@ -80,18 +86,20 @@ export async function POST(request) {
         seo_title,
         seo_description,
         variants,
-        tags = [],
-        category_id,
+        // Inputs now come as IDs
+        attribute_ids = [],
+        category_id, // Main catalog category ID
         collection_ids = []
     } = await request.json();
 
     if (!name || !variants || variants.length === 0) {
-        return NextResponse.json({ error: 'Missing required fields (name, variants).' }, { status: 400 });
+        return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
 
     let newProductId = null;
 
     try {
+        // 1. Create Product
         const { data: productData, error: productError } = await supabase
             .from('products')
             .insert([{
@@ -103,10 +111,11 @@ export async function POST(request) {
             }])
             .select()
             .single();
-        if (productError) throw productError;
 
+        if (productError) throw productError;
         newProductId = productData.id;
 
+        // 2. Create Variants & Inventory
         const variantsToInsert = variants.map(v => ({
             sku: v.sku,
             price: v.price,
@@ -123,47 +132,49 @@ export async function POST(request) {
 
         const inventoryToInsert = insertedVariants.map((variant, index) => {
             const inputVariant = variants[index];
-            const initialStock = inputVariant.on_hand ?? inputVariant.quantity ?? 0;
-            return { variant_id: variant.id, on_hand: initialStock };
+            return {
+                variant_id: variant.id,
+                on_hand: inputVariant.on_hand ?? 0
+            };
         });
+        await supabase.from('inventory_levels').insert(inventoryToInsert);
 
-        const { error: inventoryError } = await supabase.from('inventory_levels').insert(inventoryToInsert);
-        if (inventoryError) throw inventoryError;
-
-        if (category_id) {
-            await supabase.from('product_categories').insert({ product_id: newProductId, category_id: category_id });
-        }
-
+        // 3. Link Collections
         if (collection_ids.length > 0) {
-            const collectionLinks = collection_ids.map(collectionId => ({
+            const collectionLinks = collection_ids.map(id => ({
                 product_id: newProductId,
-                collection_id: collectionId,
+                collection_id: id,
             }));
             await supabase.from('product_collections').insert(collectionLinks);
         }
 
-        if (tags.length > 0) {
-            const tagObjects = await Promise.all(
-                tags.map(async (tagName) => {
-                    let { data: existingTag } = await supabase.from('tags').select('id').eq('name', tagName).single();
-                    if (!existingTag) {
-                        let { data: newTag } = await supabase.from('tags').insert({ name: tagName }).select('id').single();
-                        return { tag_id: newTag.id };
-                    }
-                    return { tag_id: existingTag.id };
-                })
-            );
-            const productTagLinks = tagObjects.map(tagObj => ({ product_id: newProductId, tag_id: tagObj.tag_id }));
-            await supabase.from('product_tags').insert(productTagLinks);
+        // 4. Link Categories (Catalog + Attributes)
+        const categoryLinks = [];
+
+        // Main Catalog Category
+        if (category_id) {
+            categoryLinks.push({ product_id: newProductId, category_id: category_id });
+        }
+
+        // Attribute Categories
+        if (attribute_ids.length > 0) {
+            attribute_ids.forEach(attrId => {
+                // Prevent duplicate linking
+                if (parseInt(attrId) !== parseInt(category_id)) {
+                    categoryLinks.push({ product_id: newProductId, category_id: attrId });
+                }
+            });
+        }
+
+        if (categoryLinks.length > 0) {
+            await supabase.from('product_categories').insert(categoryLinks);
         }
 
         return NextResponse.json(productData);
 
     } catch (error) {
-        console.error('Full error during product creation:', error);
-        if (newProductId) {
-            await supabase.from('products').delete().eq('id', newProductId);
-        }
+        console.error('Error creating product:', error);
+        if (newProductId) await supabase.from('products').delete().eq('id', newProductId);
         return NextResponse.json({ error: 'Failed to create product.', details: error.message }, { status: 500 });
     }
 }

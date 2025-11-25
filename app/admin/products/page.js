@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import ProductFilters from '@/components/admin/ProductFilters';
 import ProductForm from '@/components/admin/ProductForm';
 import ProductImportExport from '@/components/admin/ProductImportExport';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
+import PaginationControls from '@/components/ui/PaginationControls';
 
 export default function AdminProductsPage() {
     // --- Data State ---
@@ -14,7 +14,7 @@ export default function AdminProductsPage() {
     const [collections, setCollections] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // --- NEW: Pagination State ---
+    // --- Pagination State ---
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(20);
     const [totalItems, setTotalItems] = useState(0);
@@ -27,11 +27,9 @@ export default function AdminProductsPage() {
 
     // --- Filter & Sort State ---
     const [searchQuery, setSearchQuery] = useState('');
-    // Note: To support server-side filtering, these would need to be passed to the API.
-    // For Phase 1, complex filtering (category/tag) remains client-side on the *fetched page* // or simplified. Here we implement search query passed to server.
     const [filterCategory, setFilterCategory] = useState('');
     const [filterCollection, setFilterCollection] = useState('');
-    const [filterTag, setFilterTag] = useState('');
+    const [filterAttribute, setFilterAttribute] = useState(''); // Renamed from filterTag
     const [filterStock, setFilterStock] = useState('all');
     const [sortOption, setSortOption] = useState('newest');
 
@@ -39,16 +37,15 @@ export default function AdminProductsPage() {
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            // --- NEW: Pass params to API ---
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: limit.toString(),
-                search: searchQuery, // Pass search to server
+                search: searchQuery,
             });
 
             const [productsRes, categoriesRes, collectionsRes] = await Promise.all([
                 fetch(`/api/products?${params.toString()}`),
-                fetch('/api/categories'),
+                fetch('/api/categories'), // Fetches ALL categories (Catalog + Attributes)
                 fetch('/api/collections')
             ]);
 
@@ -58,7 +55,6 @@ export default function AdminProductsPage() {
 
             const result = await productsRes.json();
 
-            // Handle updated API structure
             if (result.data) {
                 setProducts(result.data);
                 setTotalItems(result.meta.total);
@@ -74,9 +70,9 @@ export default function AdminProductsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, searchQuery]); // Refetch when page/limit/search changes
+    }, [page, limit, searchQuery]);
 
-    // Debounce search to prevent too many API calls
+    // Debounce search
     useEffect(() => {
         const timeout = setTimeout(() => {
             fetchData();
@@ -84,30 +80,35 @@ export default function AdminProductsPage() {
         return () => clearTimeout(timeout);
     }, [fetchData]);
 
-    // --- Computed Values (Client-side refinement on the current page) ---
-    const allUniqueTags = useMemo(() => {
-        const tagsSet = new Set();
+    // --- Computed: Unique Attributes (formerly Tags) ---
+    const allAttributes = useMemo(() => {
+        const attrSet = new Set();
         products.forEach(p => {
-            if (p.tags && Array.isArray(p.tags)) {
-                p.tags.forEach(t => tagsSet.add(t.name));
+            // New API returns 'attributes' array (filtered from product_categories)
+            if (p.attributes && Array.isArray(p.attributes)) {
+                p.attributes.forEach(a => attrSet.add(a.name));
             }
         });
-        return Array.from(tagsSet).sort();
+        return Array.from(attrSet).sort();
     }, [products]);
 
+    // --- Filter Logic (Client-side for current page) ---
     const filteredAndSortedProducts = useMemo(() => {
         let result = [...products];
 
-        // Client-side filters apply only to the current page of data fetched
+        // 1. Catalog Category Filter (Navigation)
         if (filterCategory) {
-            result = result.filter(p => p.categories?.some(c => c.id.toString() === filterCategory));
+            result = result.filter(p => p.catalog_categories?.some(c => c.id.toString() === filterCategory));
         }
+        // 2. Collection Filter
         if (filterCollection) {
             result = result.filter(p => p.collections?.some(c => c.id.toString() === filterCollection));
         }
-        if (filterTag) {
-            result = result.filter(p => p.tags?.some(t => t.name === filterTag));
+        // 3. Attribute Filter (formerly Tag)
+        if (filterAttribute) {
+            result = result.filter(p => p.attributes?.some(a => a.name === filterAttribute));
         }
+        // 4. Stock Filter
         if (filterStock !== 'all') {
             result = result.filter(p => {
                 const totalStock = p.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0) || 0;
@@ -118,7 +119,7 @@ export default function AdminProductsPage() {
             });
         }
 
-        // Client-side sort (Note: API sorts by created_at desc by default)
+        // 5. Sorting
         result.sort((a, b) => {
             switch (sortOption) {
                 case 'name_asc': return a.name.localeCompare(b.name);
@@ -137,7 +138,7 @@ export default function AdminProductsPage() {
         });
 
         return result;
-    }, [products, filterCategory, filterCollection, filterTag, filterStock, sortOption]);
+    }, [products, filterCategory, filterCollection, filterAttribute, filterStock, sortOption]);
 
     const allVisibleProductsSelected = filteredAndSortedProducts.length > 0 &&
         filteredAndSortedProducts.every(p => selectedProductIds.includes(p.id));
@@ -185,7 +186,6 @@ export default function AdminProductsPage() {
         fetchData();
     };
 
-    // --- NEW: Pagination Handlers ---
     const handlePageChange = (newPage) => setPage(newPage);
     const handleLimitChange = (newLimit) => {
         setLimit(newLimit);
@@ -224,15 +224,15 @@ export default function AdminProductsPage() {
                         setFilterCategory={setFilterCategory}
                         filterCollection={filterCollection}
                         setFilterCollection={setFilterCollection}
-                        filterTag={filterTag}
-                        setFilterTag={setFilterTag}
+                        filterTag={filterAttribute}
+                        setFilterTag={setFilterAttribute}
                         filterStock={filterStock}
                         setFilterStock={setFilterStock}
                         sortOption={sortOption}
                         setSortOption={setSortOption}
                         categories={categories}
                         collections={collections}
-                        allTags={allUniqueTags}
+                        allTags={allAttributes} // Pass unified attributes
                     />
 
                     <ProductImportExport
@@ -284,17 +284,26 @@ export default function AdminProductsPage() {
                                                 </td>
                                                 <td className="p-3 font-medium">
                                                     <span className="text-white text-base">{product.name}</span>
+                                                    {/* Display Attributes as Badges */}
                                                     <div className="flex flex-wrap gap-1 mt-1">
-                                                        {product.tags?.slice(0, 3).map(t => (
-                                                            <span key={t.id} className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-300">{t.name}</span>
+                                                        {product.attributes?.slice(0, 4).map(attr => (
+                                                            <span key={attr.id} className="text-[10px] bg-purple-900/50 text-purple-200 px-1.5 py-0.5 rounded border border-purple-800">
+                                                                {attr.name}
+                                                            </span>
                                                         ))}
+                                                        {product.attributes?.length > 4 && (
+                                                            <span className="text-[10px] text-gray-500">+{product.attributes.length - 4} more</span>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="p-3 text-gray-300">{product.product_variants?.length || 0}</td>
                                                 <td className="p-3 text-gray-300">
                                                     {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0)}
                                                 </td>
-                                                <td className="p-3 text-gray-300">{product.categories?.[0]?.name || '-'}</td>
+                                                {/* Display Catalog Category */}
+                                                <td className="p-3 text-gray-300">
+                                                    {product.catalog_categories?.[0]?.name || '-'}
+                                                </td>
                                                 <td className="p-3 text-right whitespace-nowrap">
                                                     <button
                                                         onClick={() => handleEdit(product)}
@@ -318,7 +327,6 @@ export default function AdminProductsPage() {
                                     )}
                                 </div>
 
-                                {/* --- NEW: Pagination --- */}
                                 <PaginationControls
                                     currentPage={page}
                                     totalPages={totalPages}

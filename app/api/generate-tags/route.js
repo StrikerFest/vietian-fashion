@@ -1,6 +1,7 @@
 // app/api/generate-tags/route.js
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { supabase } from '@/lib/supabaseClient'; // Import Supabase
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -24,43 +25,61 @@ export async function POST(request) {
             return NextResponse.json({ error: 'No image file provided.' }, { status: 400 });
         }
 
+        // 1. Fetch Dynamic Attributes from Database
+        // We only want root attributes (parents) that are active filters
+        const { data: attributes, error: dbError } = await supabase
+            .from('categories')
+            .select('name')
+            .eq('type', 'attribute')
+            .is('parent_id', null) // Only get root groups (e.g. Color, Material)
+            .eq('is_active', true);
+
+        if (dbError) throw dbError;
+
+        // Format attributes for the prompt (e.g., "- Color\n- Material")
+        const attributeList = attributes && attributes.length > 0
+            ? attributes.map(a => `- ${a.name}`).join('\n')
+            : '- Category\n- Color\n- Style'; // Fallback if DB is empty
+
         const buffer = Buffer.from(await imageFile.arrayBuffer());
         const mimeType = imageFile.type;
         const imagePart = await fileToGenerativePart(buffer, mimeType);
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // Updated prompt with comprehensive fashion attributes
-        const prompt = `Analyze this image of a clothing item alongside its name and description.
+        // 2. Construct Dynamic Prompt
+        const prompt = `Analyze this fashion item image, name, and description.
         Name: "${productName}"
         Description: "${productDescription}"
 
-        Identify key attributes for an e-commerce store. Extract tags for the following categories if applicable:
-        1. Category/Type (e.g., Maxi Dress, Bomber Jacket)
-        2. Color Nuance (e.g., Emerald Green, Pastel Pink, Navy)
-        3. Fit/Silhouette (e.g., Oversized, Slim-fit, A-line, Boxy)
-        4. Pattern Nuance (e.g., Houndstooth, Floral, Pinstripe)
-        5. Fabric/Texture (e.g., Ribbed Knit, Satin finish, Distressed Denim)
-        6. Construction Features (e.g., Pleated, Double-breasted, Raglan sleeves)
-        7. Embellishment (e.g., Sequins, Embroidery, Ruffles)
-        8. Style/Aesthetic (e.g., Y2K, Minimalist, Bohemian, Streetwear)
-        9. Occasion Suitability (e.g., Evening wear, Office-appropriate, Beach day)
-        10. Condition/Visual Wear (e.g., Vintage look, Acid wash)
-        11. Season (e.g., Autumn, Transitional)
-
-        Return these attributes as a clean JSON array of lowercase strings. 
-        Example: ["maxi dress", "emerald green", "satin finish", "pleated bodice", "evening wear", "autumn"].
-        Do not include the category names (like "Color Nuance") in the tags, just the values.
-        Do not include markdown formatting in your response.`;
+        Your task is to categorize this item according to the user's specific store attributes.
+        
+        Please extract values ONLY for the following Attribute Groups:
+        ${attributeList}
+        
+        Guidelines:
+        - Look for visual cues in the image and keywords in the text.
+        - Return ONLY a valid JSON object.
+        - The keys of the JSON object must match the Attribute Groups listed above EXACTLY.
+        - The values should be arrays of strings (e.g. ["Navy", "Blue"]).
+        - If a group is not applicable or cannot be determined, omit it from the JSON.
+        - Do not include markdown formatting or code blocks.
+        
+        Example Output Format:
+        {
+          "${attributes?.[0]?.name || 'Color'}": ["Value1", "Value2"],
+          "${attributes?.[1]?.name || 'Material'}": ["Value3"]
+        }`;
 
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;
         const text = response.text();
 
+        // Clean up result
         const cleanedText = text.replace(/```json|```/g, '').trim();
-        const tags = JSON.parse(cleanedText);
+        const structuredTags = JSON.parse(cleanedText);
 
-        return NextResponse.json({ tags });
+        return NextResponse.json({ data: structuredTags });
 
     } catch (error) {
         console.error('Error generating tags:', error);

@@ -4,11 +4,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
-import Link from 'next/link';
+import PaginationControls from '@/components/ui/PaginationControls';
 import QuickViewModal from '@/components/QuickViewModal';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
 
-// @unchanged (updateQueryString helper)
+// Helper to update URL
 function updateQueryString(router, pathname, currentParams, newParams) {
     const updatedParams = new URLSearchParams(currentParams.toString());
     Object.entries(newParams).forEach(([key, value]) => {
@@ -33,125 +32,135 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
     const [pageInfo, setPageInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // --- NEW: Pagination State ---
+    // Pagination
     const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
     const [limit, setLimit] = useState(parseInt(searchParams.get('limit') || '12'));
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
 
-    // @unchanged (Filter states)
+    // --- NEW: Dynamic Attribute Filters ---
+    const [attributeGroups, setAttributeGroups] = useState([]); // Metadata for sidebar (headers)
+    const [selectedFilters, setSelectedFilters] = useState({}); // { "color-slug": ["red-slug"], "size-slug": ["m-slug"] }
     const [sortBy, setSortBy] = useState(searchParams.get('sort') || '');
-    const [selectedSizes, setSelectedSizes] = useState(searchParams.getAll('size') || []);
-    const [selectedColors, setSelectedColors] = useState(searchParams.getAll('color') || []);
-    const [availableSizes, setAvailableSizes] = useState([]);
-    const [availableColors, setAvailableColors] = useState([]);
-
-    // --- Modal State ---
     const [quickViewProductId, setQuickViewProductId] = useState(null);
 
-    // Fetch products
+    // 1. Load Filter Definitions (Attributes) from DB
+    useEffect(() => {
+        const fetchAttributes = async () => {
+            try {
+                // Fetch categories that are attributes (filters)
+                // Note: You might want to cache this response or fetch it server-side in a real app
+                const res = await fetch('/api/categories?type=attribute&mode=public');
+                const data = await res.json();
+
+                // Organize into Parent -> Options
+                const groups = [];
+                const map = {};
+
+                // First pass: Create headers
+                data.forEach(item => {
+                    if (!item.parent_id) {
+                        map[item.id] = { ...item, options: [] };
+                        groups.push(map[item.id]);
+                    }
+                });
+
+                // Second pass: Assign options to headers
+                data.forEach(item => {
+                    if (item.parent_id && map[item.parent_id]) {
+                        map[item.parent_id].options.push(item);
+                    }
+                });
+
+                setAttributeGroups(groups);
+            } catch (err) {
+                console.error("Failed to load filters:", err);
+            }
+        };
+        fetchAttributes();
+    }, []);
+
+    // 2. Initialize selected filters from URL
+    useEffect(() => {
+        const currentFilters = {};
+        for (const [key, value] of searchParams.entries()) {
+            if (['page', 'limit', 'sort'].includes(key)) continue;
+            if (!currentFilters[key]) currentFilters[key] = [];
+            currentFilters[key].push(value);
+        }
+        setSelectedFilters(currentFilters);
+    }, [searchParams]);
+
+    // 3. Fetch Products
     const fetchProducts = useCallback(async () => {
         setIsLoading(true);
         try {
             const queryParams = new URLSearchParams({
                 sort: sortBy,
-                page: page.toString(), // --- NEW ---
-                limit: limit.toString() // --- NEW ---
+                page: page.toString(),
+                limit: limit.toString()
             });
 
-            selectedSizes.forEach(s => queryParams.append('size', s));
-            selectedColors.forEach(c => queryParams.append('color', c));
+            // Append selected filters to query
+            // Note: The API needs to be smart enough to handle generic keys like ?color=red
+            // or you might need to map these to a specific 'attribute' param in your API.
+            // For now, we pass them as-is, assuming your API ignores unknown params
+            // or you add specific logic in GET /api/products to loop through params.
+            Object.entries(selectedFilters).forEach(([key, values]) => {
+                values.forEach(v => queryParams.append(key, v));
+            });
 
-            // Combine with fetchUrl which might already have params
             const separator = fetchUrl.includes('?') ? '&' : '?';
             const response = await fetch(`${fetchUrl}${separator}${queryParams.toString()}`);
 
-            if (!response.ok) throw new Error(`${pageType} not found`);
+            if (!response.ok) throw new Error('Failed to load products');
 
             const data = await response.json();
 
-            // Handle both paginated and non-paginated responses for backward compatibility
-            const productList = data.data || data.products || [];
-            setProducts(productList);
+            // Support both data structures
+            setProducts(data.data || data.products || []);
             setPageInfo(data.category || data.collection || null);
 
-            // --- NEW: Set pagination meta ---
             if (data.meta) {
                 setTotalItems(data.meta.total);
                 setTotalPages(data.meta.totalPages);
-            } else {
-                // Fallback if API doesn't support pagination yet
-                setTotalItems(productList.length);
-                setTotalPages(1);
             }
-
-            // Extract available filters from *current* items (Simplification)
-            // Ideally this should come from a separate aggregate API to show ALL options
-            const sizes = new Set();
-            const colors = new Set();
-            productList.forEach(p => {
-                p.product_variants.forEach(v => {
-                    if (v.size) sizes.add(v.size);
-                    if (v.color) colors.add(v.color);
-                });
-            });
-            setAvailableSizes([...sizes].sort());
-            setAvailableColors([...colors].sort());
-
         } catch (error) {
-            console.error(`Failed to fetch ${pageType.toLowerCase()} products:`, error);
-            setPageInfo(null);
-            setProducts([]);
+            console.error("Product fetch error:", error);
         } finally {
             setIsLoading(false);
         }
-    }, [fetchUrl, pageType, sortBy, selectedSizes, selectedColors, page, limit]);
+    }, [fetchUrl, sortBy, page, limit, selectedFilters]);
 
-    // Initial fetch & Page params listener
     useEffect(() => {
         fetchProducts();
     }, [fetchProducts]);
 
-    // SEO update (unchanged)
-    useEffect(() => {
-        if (pageInfo) {
-            document.title = pageInfo.seo_title || `${pageInfo.name} | ${defaultTitle}`;
-            const metaDescriptionTag = document.querySelector('meta[name="description"]');
-            const descriptionContent = pageInfo.seo_description || pageInfo.description || `Browse ${pageInfo.name} products at ${defaultTitle}.`;
-            if (metaDescriptionTag) {
-                metaDescriptionTag.setAttribute('content', descriptionContent);
-            }
-        }
-        return () => {
-            document.title = defaultTitle;
-        };
-    }, [pageInfo, defaultTitle, defaultDescription]);
-
     // Handlers
-    const handleOpenQuickView = (productId) => setQuickViewProductId(productId);
-    const handleCloseQuickView = () => setQuickViewProductId(null);
+    const handleFilterChange = (groupSlug, optionSlug) => {
+        const currentOptions = selectedFilters[groupSlug] || [];
+        let newOptions;
+
+        if (currentOptions.includes(optionSlug)) {
+            newOptions = currentOptions.filter(o => o !== optionSlug);
+        } else {
+            newOptions = [...currentOptions, optionSlug];
+        }
+
+        const newFilters = { ...selectedFilters, [groupSlug]: newOptions };
+        setSelectedFilters(newFilters);
+        setPage(1);
+
+        // Update URL
+        updateQueryString(router, pathname, searchParams, { [groupSlug]: newOptions, page: 1 });
+    };
 
     const handleSortChange = (e) => {
         setSortBy(e.target.value);
-        setPage(1); // Reset page on filter change
+        setPage(1);
         updateQueryString(router, pathname, searchParams, { sort: e.target.value, page: 1 });
     };
 
-    const handleSizeChange = (size) => {
-        const newSizes = selectedSizes.includes(size) ? selectedSizes.filter(s => s !== size) : [...selectedSizes, size];
-        setSelectedSizes(newSizes);
-        setPage(1);
-        updateQueryString(router, pathname, searchParams, { size: newSizes, page: 1 });
-    };
-
-    const handleColorChange = (color) => {
-        const newColors = selectedColors.includes(color) ? selectedColors.filter(c => c !== color) : [...selectedColors, color];
-        setSelectedColors(newColors);
-        setPage(1);
-        updateQueryString(router, pathname, searchParams, { color: newColors, page: 1 });
-    };
-
-    // --- NEW: Pagination Handlers ---
     const handlePageChange = (newPage) => {
         setPage(newPage);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -164,10 +173,6 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
         updateQueryString(router, pathname, searchParams, { limit: newLimit, page: 1 });
     };
 
-    if (isLoading && !pageInfo && products.length === 0) {
-        return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Loading...</p></div>;
-    }
-
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-7xl mx-auto">
@@ -175,58 +180,80 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                 <p className="text-center text-gray-400 mb-8 max-w-2xl mx-auto">{pageInfo?.description}</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                    {/* Sidebar */}
-                    <aside className="md:col-span-1 bg-gray-800 p-6 rounded-lg self-start sticky top-24">
+                    {/* Sidebar Filters */}
+                    <aside className="md:col-span-1 bg-gray-800 p-6 rounded-lg self-start sticky top-24 border border-gray-700">
                         <h2 className="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Filters</h2>
+
                         <div className="mb-6">
-                            <label htmlFor="sort" className="block text-sm font-medium mb-2">Sort By</label>
-                            <select id="sort" value={sortBy} onChange={handleSortChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600">
+                            <label htmlFor="sort" className="block text-sm font-medium mb-2 text-gray-400">Sort By</label>
+                            <select id="sort" value={sortBy} onChange={handleSortChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
                                 <option value="">Default (Newest)</option>
                                 <option value="price-asc">Price: Low to High</option>
                                 <option value="price-desc">Price: High to Low</option>
                                 <option value="name-asc">Name: A to Z</option>
                             </select>
                         </div>
-                        <div className="mb-6">
-                            <h3 className="font-semibold mb-2">Size</h3>
-                            <div className="space-y-2 max-h-40 overflow-y-auto">
-                                {availableSizes.map(size => (
-                                    <label key={size} className="flex items-center space-x-2 cursor-pointer">
-                                        <input type="checkbox" checked={selectedSizes.includes(size)} onChange={() => handleSizeChange(size)} className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600"/>
-                                        <span>{size}</span>
-                                    </label>
-                                ))}
+
+                        {/* --- Dynamic Attribute Groups --- */}
+                        {attributeGroups.map(group => (
+                            <div key={group.id} className="mb-6">
+                                <h3 className="font-semibold mb-2 text-indigo-300 uppercase text-xs tracking-wider">
+                                    {group.name}
+                                </h3>
+                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                    {group.options.map(option => {
+                                        const isChecked = (selectedFilters[group.slug] || []).includes(option.slug);
+
+                                        // Render based on display_style
+                                        if (group.display_style === 'swatch') {
+                                            return (
+                                                <div key={option.id} className="inline-block mr-2 mb-1">
+                                                    <button
+                                                        onClick={() => handleFilterChange(group.slug, option.slug)}
+                                                        className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${isChecked ? 'border-white ring-2 ring-indigo-500' : 'border-gray-600'}`}
+                                                        style={{ backgroundColor: option.value || '#ccc' }}
+                                                        title={option.name}
+                                                    />
+                                                </div>
+                                            );
+                                        }
+
+                                        // Default Checkbox Style
+                                        return (
+                                            <label key={option.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-700/50 p-1 rounded transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => handleFilterChange(group.slug, option.slug)}
+                                                    className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                                <span className="text-sm text-gray-300">{option.name}</span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
-                        <div>
-                            <h3 className="font-semibold mb-2">Color</h3>
-                            <div className="space-y-2 max-h-40 overflow-y-auto">
-                                {availableColors.map(color => (
-                                    <label key={color} className="flex items-center space-x-2 cursor-pointer">
-                                        <input type="checkbox" checked={selectedColors.includes(color)} onChange={() => handleColorChange(color)} className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600"/>
-                                        <span>{color}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
+                        ))}
+
+                        {attributeGroups.length === 0 && (
+                            <p className="text-xs text-gray-500 italic">No filters available.</p>
+                        )}
                     </aside>
 
                     {/* Product Grid */}
                     <div className="md:col-span-3">
-                        {isLoading && products.length === 0 ? (
-                            <p className="text-center py-10">Updating products...</p>
+                        {isLoading ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 animate-pulse">
+                                {[...Array(6)].map((_, i) => <div key={i} className="bg-gray-800 h-96 rounded-lg"></div>)}
+                            </div>
                         ) : products.length > 0 ? (
                             <>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                                     {products.map(product => (
-                                        <ProductCard
-                                            key={product.id}
-                                            product={product}
-                                            onQuickViewClick={handleOpenQuickView}
-                                        />
+                                        <ProductCard key={product.id} product={product} onQuickViewClick={setQuickViewProductId} />
                                     ))}
                                 </div>
-                                {/* --- NEW: Pagination Controls --- */}
+
                                 <PaginationControls
                                     currentPage={page}
                                     totalPages={totalPages}
@@ -238,16 +265,16 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                                 />
                             </>
                         ) : (
-                            <p className="text-center text-gray-500 py-10">No products match your current filters.</p>
+                            <div className="text-center py-16 border-2 border-dashed border-gray-700 rounded-lg">
+                                <p className="text-gray-500 text-lg">No products match your filters.</p>
+                                <button onClick={() => { setSelectedFilters({}); setSortBy(''); updateQueryString(router, pathname, searchParams, {}); }} className="mt-4 text-indigo-400 hover:underline">Clear all filters</button>
+                            </div>
                         )}
                     </div>
                 </div>
             </div>
 
-            <QuickViewModal
-                productId={quickViewProductId}
-                onClose={handleCloseQuickView}
-            />
+            <QuickViewModal productId={quickViewProductId} onClose={() => setQuickViewProductId(null)} />
         </main>
     );
 }

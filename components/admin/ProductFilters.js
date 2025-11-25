@@ -16,8 +16,12 @@ export default function ProductFilters({
                                            setSortOption,
                                            categories,
                                            collections,
-                                           allTags
+                                           allTags // This now receives Attributes names
                                        }) {
+
+    // Filter Categories to only show Catalog types (Menus), excluding Attributes (Filters)
+    const catalogCategories = categories.filter(c => c.type === 'catalog');
+
     return (
         <div className="bg-gray-800 p-4 rounded-lg mb-6 border border-gray-700">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -33,25 +37,25 @@ export default function ProductFilters({
                     />
                 </div>
 
-                {/* 2. Category Filter */}
+                {/* 2. Category Filter (Catalog Only) */}
                 <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1">Category</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Catalog Category</label>
                     <select
                         value={filterCategory}
                         onChange={(e) => setFilterCategory(e.target.value)}
                         className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                         <option value="">All Categories</option>
-                        {categories.filter(c => !c.parent_id).map(parent => (
+                        {catalogCategories.filter(c => !c.parent_id).map(parent => (
                             <optgroup key={parent.id} label={parent.name}>
                                 <option value={parent.id}>{parent.name}</option>
-                                {categories.filter(c => c.parent_id === parent.id).map(child => (
+                                {catalogCategories.filter(c => c.parent_id === parent.id).map(child => (
                                     <option key={child.id} value={child.id}>&nbsp;&nbsp;{child.name}</option>
                                 ))}
                             </optgroup>
                         ))}
                         {/* Categories with no parent that aren't already handled */}
-                        {categories.filter(c => !c.parent_id && !categories.some(child => child.parent_id === c.id) ).map(c => (
+                        {catalogCategories.filter(c => !c.parent_id && !catalogCategories.some(child => child.parent_id === c.id) ).map(c => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                     </select>
@@ -72,15 +76,15 @@ export default function ProductFilters({
                     </select>
                 </div>
 
-                {/* 4. Tag Filter */}
+                {/* 4. Attribute Filter (formerly Tag) */}
                 <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1">Tag</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Attribute / Filter</label>
                     <select
                         value={filterTag}
                         onChange={(e) => setFilterTag(e.target.value)}
                         className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
-                        <option value="">All Tags</option>
+                        <option value="">All Attributes</option>
                         {allTags.map(tag => (
                             <option key={tag} value={tag}>{tag}</option>
                         ))}
