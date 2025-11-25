@@ -109,7 +109,7 @@ export default function RecommendationSettings() {
 
                 {availableAttributes.length === 0 && (
                     <div className="text-yellow-500 text-sm mt-2">
-                        No attributes found. Go to <strong>Categories</strong> and create new categories with type "Attribute".
+                        {`No attributes found. Go to `}<strong>Categories</strong>{` and create new categories with type "Attribute".`}
                     </div>
                 )}
             </div>

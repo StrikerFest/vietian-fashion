@@ -9,7 +9,7 @@ export async function POST(request) {
     try {
         const body = await request.json();
 
-        // Support both old (string) and new (object) formats
+        // 1. Parse User Input
         let userQuery = "";
         let attributes = {};
 
@@ -17,14 +17,23 @@ export async function POST(request) {
             userQuery = body.query;
         } else {
             userQuery = body.generalPrompt || "";
-            attributes = body.attributes || {}; // { Season: "Summer", Occasion: "Wedding" }
+            attributes = body.attributes || {};
         }
 
         if (!userQuery && Object.keys(attributes).length === 0) {
             return NextResponse.json({ error: 'Query is required.' }, { status: 400 });
         }
 
-        // Construct a rich prompt for Gemini
+        // Fetch "Map" of the Store
+        const [collectionsRes, attributesRes] = await Promise.all([
+            supabase.from('collections').select('id, name, slug, description').is('deleted_at', null),
+            supabase.from('categories').select('id, name, slug, parent:parent_id(name)').eq('type', 'attribute').eq('is_active', true).not('parent_id', 'is', null).is('deleted_at', null)
+        ]);
+
+        const validCollections = collectionsRes.data || [];
+        const validAttributes = attributesRes.data || [];
+
+        // AI Execution (Same prompt as before)
         let promptContext = `User Search: "${userQuery}".\n`;
         if (Object.keys(attributes).length > 0) {
             promptContext += "Specific Constraints:\n";
@@ -33,41 +42,51 @@ export async function POST(request) {
             }
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const collectionList = validCollections.map(c => `ID: ${c.id}, Name: "${c.name}"`).join('\n');
+        const attributeList = validAttributes.map(a => `ID: ${a.id}, Name: "${a.name}" (Group: ${a.parent?.name})`).join('\n');
 
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const systemInstruction = `
-            You are a fashion shopping assistant. 
-            Analyze the user's search context and constraints.
-            Extract key search tags that match the item type, style, season, color, material, and occasion.
-            
-            Important:
-            1.  Prioritize the specific constraints provided (e.g., if Season is Summer, include "Summer").
-            2.  Expand on the general prompt (e.g., "beach wedding" -> "formal", "beach", "linen", "summer").
-            3.  Return ONLY a clean JSON array of lowercase strings.
-            
-            Example Input: "Something for a party", Constraints: Season: Winter, Color: Red.
-            Example Output: ["party", "winter", "red", "dress", "evening", "warm"]
+            You are a smart fashion shopping assistant. 
+            Your Goal: Analyze user intent and return JSON.
+            Available Collections:
+            ${collectionList}
+            Available Attributes:
+            ${attributeList}
+            Instructions:
+            - "searchTags": Return 5-10 lowercase keywords.
+            - "matchedCollectionId": Integer ID or null.
+            - "matchedAttributeId": Integer ID or null.
+            JSON Format: { "searchTags": [], "matchedCollectionId": null, "matchedAttributeId": null }
         `;
 
         const result = await model.generateContent([systemInstruction, promptContext]);
         const response = await result.response;
-        const text = response.text();
+        const cleanedText = response.text().replace(/```json|```/g, '').trim();
+        let aiResponse = {};
+        try { aiResponse = JSON.parse(cleanedText); } catch (e) { aiResponse = { searchTags: [userQuery] }; }
 
-        const cleanedText = text.replace(/```json|```/g, '').trim();
-        const tags = JSON.parse(cleanedText);
+        const { searchTags, matchedCollectionId, matchedAttributeId } = aiResponse;
 
-        if (!tags || tags.length === 0) {
-            return NextResponse.json({ products: [] });
-        }
+        // --- CRITICAL FIX HERE: Chain .select() to fetch variants ---
+        const { data: products, error: productError } = await supabase
+            .rpc('search_products_by_tags', {
+                tag_names: searchTags || []
+            })
+            .select('*, product_variants(*, inventory_levels(*))'); // <--- This ensures cards show price/image
 
-        // Call the UPDATED RPC function
-        const { data: products, error } = await supabase.rpc('search_products_by_tags', {
-            tag_names: tags
+        if (productError) throw productError;
+
+        // Resolve Matches
+        let matchedCollection = matchedCollectionId ? validCollections.find(c => c.id === matchedCollectionId) : null;
+        let matchedAttribute = matchedAttributeId ? validAttributes.find(a => a.id === matchedAttributeId) : null;
+
+        return NextResponse.json({
+            products,
+            collection: matchedCollection,
+            attribute: matchedAttribute,
+            generatedTags: searchTags
         });
-
-        if (error) throw error;
-
-        return NextResponse.json({ products, generatedTags: tags });
 
     } catch (error) {
         console.error('Recommendation API error:', error);

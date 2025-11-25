@@ -16,9 +16,9 @@ export default function ProductForm({ initialData, categories = [], collections 
     const [currentImageUrl, setCurrentImageUrl] = useState('');
 
     // Taxonomy
-    const [selectedCatalogId, setSelectedCatalogId] = useState(''); // Main Menu Category
+    const [selectedCatalogId, setSelectedCatalogId] = useState('');
     const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
-    const [selectedAttributeIds, setSelectedAttributeIds] = useState(new Set()); // Set of IDs for Filters
+    const [selectedAttributeIds, setSelectedAttributeIds] = useState(new Set());
 
     // Variants & SEO
     const [variants, setVariants] = useState([{ ...emptyVariant }]);
@@ -29,7 +29,7 @@ export default function ProductForm({ initialData, categories = [], collections 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
-    // --- 1. Organize Attributes for the UI ---
+    // 1. Organize Attributes for the UI
     // We group "Attribute" categories by their parent (e.g. "Color" -> "Red", "Blue")
     const attributeGroups = useMemo(() => {
         const groups = {};
@@ -46,7 +46,7 @@ export default function ProductForm({ initialData, categories = [], collections 
         return Object.values(groups);
     }, [categories]);
 
-    // --- 2. Load Initial Data ---
+    // 2. Load Initial Data
     useEffect(() => {
         if (initialData) {
             setName(initialData.name);
@@ -63,7 +63,6 @@ export default function ProductForm({ initialData, categories = [], collections 
             setVariants(variantsWithInventory.length > 0 ? variantsWithInventory : [{ ...emptyVariant }]);
 
             // Load Selected Categories
-            // Separate the unified list back into Catalog vs Attributes
             if (initialData.catalog_categories?.[0]) {
                 setSelectedCatalogId(initialData.catalog_categories[0].id);
             }
@@ -79,7 +78,7 @@ export default function ProductForm({ initialData, categories = [], collections 
         }
     }, [initialData]);
 
-    // --- 3. Handlers ---
+    // 3. Handlers
     const handleAttributeToggle = (id) => {
         const next = new Set(selectedAttributeIds);
         if (next.has(id)) next.delete(id);
@@ -102,7 +101,7 @@ export default function ProductForm({ initialData, categories = [], collections 
     const addVariant = () => setVariants([...variants, { ...emptyVariant }]);
     const removeVariant = (index) => setVariants(variants.filter((_, i) => i !== index));
 
-    // --- 4. AI Auto-Categorization Handler ---
+    // 4. AI Auto-Categorization Handler
     const handleGenerateAttributes = async () => {
         if (!imageFile && !currentImageUrl) return alert('Please upload an image first.');
         setIsGeneratingAI(true);
@@ -115,7 +114,7 @@ export default function ProductForm({ initialData, categories = [], collections 
 
             // Call our updated API
             const res = await fetch('/api/generate-tags', { method: 'POST', body: formData });
-            const { data } = await res.json(); // Expects { "Color": ["Blue"], "Material": ["Cotton"] }
+            const { data } = await res.json();
 
             if (!data) throw new Error("No data returned");
 
@@ -129,7 +128,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                 if (group) {
                     values.forEach(val => {
                         // 2. Find the option in that group (e.g. "Blue")
-                        // Note: This is a fuzzy match. You might want to add logic to create if missing.
                         const option = group.options.find(opt => opt.name.toLowerCase().includes(val.toLowerCase()));
                         if (option) {
                             newSelectedIds.add(option.id);
@@ -150,7 +148,7 @@ export default function ProductForm({ initialData, categories = [], collections 
         }
     };
 
-    // --- 5. Upload Logic ---
+    // 5. Upload Logic
     const uploadImage = async (file) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -160,7 +158,7 @@ export default function ProductForm({ initialData, categories = [], collections 
         return data.publicUrl;
     };
 
-    // --- 6. Submit Logic ---
+    // 6. Submit Logic
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -295,7 +293,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                 </div>
 
                 {/* Variants */}
-                <div>
+                <div className="border-t border-gray-700 pt-6 mt-6">
                     <h3 className="text-lg font-semibold mb-2">Variants</h3>
                     {variants.map((variant, index) => (
                         <div key={index} className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-3 p-3 bg-gray-900 rounded-md border border-gray-700">
@@ -311,7 +309,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-end gap-4 pt-6 border-t border-gray-700">
+                <div className="flex justify-end gap-4 pt-6 border-t border-gray-700 mt-6">
                     <button type="button" onClick={onCancel} className="px-6 py-2 rounded bg-gray-600 hover:bg-gray-500 text-white font-bold">Cancel</button>
                     <button type="submit" disabled={isSubmitting} className="px-6 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-bold disabled:opacity-50">
                         {isSubmitting ? 'Saving...' : 'Save Product'}
