@@ -4,11 +4,11 @@
 import { useMemo } from 'react';
 
 export default function VariantSelector({ variants, selectedVariant, onSelect }) {
-    if (!variants || variants.length === 0) return null;
-
     // 1. Extract all available Attribute Groups (Keys) from the variants
-    // e.g. ["Color", "Size", "Material"]
+    // MOVED: Hook is now unconditional at the top level
     const availableGroups = useMemo(() => {
+        if (!variants || variants.length === 0) return [];
+
         const groups = new Set();
         variants.forEach(v => {
             if (v.attributes) {
@@ -18,10 +18,9 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
         return Array.from(groups).sort(); // Sort alphabetically or define custom order
     }, [variants]);
 
-    // 2. Helper to determine if an option is available based on current selections
-    // (Simple version: Just check if the option exists in any variant)
-    // A complex version would disable "Small" if "Blue" is selected but "Blue Small" is out of stock.
+    // 2. Helper to determine if an option is available
     const getOptionsForGroup = (groupName) => {
+        if (!variants) return [];
         const options = new Set();
         variants.forEach(v => {
             if (v.attributes && v.attributes[groupName]) {
@@ -32,9 +31,9 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
     };
 
     // 3. Handle Selection
-    // When a user clicks a button, we try to find the best matching variant
     const handleOptionClick = (groupName, value) => {
-        // Current selected attributes
+        if (!variants) return;
+
         const currentAttributes = selectedVariant?.attributes || {};
         const newAttributes = { ...currentAttributes, [groupName]: value };
 
@@ -46,12 +45,14 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
         if (exactMatch) {
             onSelect(exactMatch);
         } else {
-            // Fuzzy Match: If exact combo doesn't exist (e.g. Blue + Small is OOS),
-            // find *any* variant that has the new option value.
+            // Fuzzy Match
             const partialMatch = variants.find(v => v.attributes[groupName] === value);
             if (partialMatch) onSelect(partialMatch);
         }
     };
+
+    // MOVED: Early return is now AFTER all hooks are declared
+    if (!variants || variants.length === 0) return null;
 
     return (
         <div className="mb-8 space-y-6">
@@ -62,12 +63,7 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
                     </h3>
                     <div className="flex flex-wrap gap-3">
                         {getOptionsForGroup(groupName).map(optionValue => {
-                            // Is this option currently selected?
                             const isSelected = selectedVariant?.attributes?.[groupName] === optionValue;
-
-                            // Check stock status for this specific option in context of other selections
-                            // (Simplified: Just check if this option exists in a stock > 0 variant)
-                            // For a perfect UI, you'd verify if (SelectedOtherAttrs + ThisOption) exists.
 
                             return (
                                 <button
