@@ -71,7 +71,7 @@ export default function SearchPage() {
                 <div className="mb-8">
                     <Link href="/" className="text-sm text-gray-400 hover:text-white">&larr; Back Home</Link>
                     <h1 className="text-3xl font-bold mt-2">
-                        Results for <span className="text-indigo-400">"{queryText || 'Style Search'}"</span>
+                        Results for <span className="text-indigo-400">{`"${queryText || 'Style Search'}"`}</span>
                     </h1>
                 </div>
 
