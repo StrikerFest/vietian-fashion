@@ -69,6 +69,9 @@ export default function OrderHistory({ orders, isLoading }) {
                                                 {Object.entries(item.custom_options).map(([key, opt]) => (
                                                     <div key={key} className="text-gray-400">
                                                         <span className="text-indigo-300">{opt.label}:</span> {opt.value}
+                                                        {opt.priceModifier > 0 && (
+                                                            <span className="text-gray-500 ml-1">(+${Number(opt.priceModifier).toFixed(2)})</span>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>

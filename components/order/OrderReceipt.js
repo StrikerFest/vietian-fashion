@@ -36,12 +36,15 @@ export default function OrderReceipt({ order }) {
                                             {item.product_variants.color} {item.product_variants.size && `/ ${item.product_variants.size}`}
                                         </p>
 
-                                        {/* --- NEW: Display Custom Options --- */}
+                                        {/* --- UPDATED: Show Price Modifier --- */}
                                         {item.custom_options && Object.keys(item.custom_options).length > 0 && (
                                             <div className="mt-1 space-y-0.5">
                                                 {Object.entries(item.custom_options).map(([key, opt]) => (
                                                     <p key={key} className="text-xs text-gray-500">
-                                                        {opt.label}: <span className="text-gray-300">{opt.value}</span>
+                                                        <span className="font-semibold">{opt.label}:</span> <span className="text-gray-300">{opt.value}</span>
+                                                        {opt.priceModifier > 0 && (
+                                                            <span className="text-indigo-400 ml-1">(+${Number(opt.priceModifier).toFixed(2)})</span>
+                                                        )}
                                                     </p>
                                                 ))}
                                             </div>
@@ -57,7 +60,7 @@ export default function OrderReceipt({ order }) {
                     </div>
                 </div>
 
-                {/* Totals & Address Block */}
+                {/* Totals & Address Block (Unchanged) */}
                 <div className="grid grid-cols-1 md:grid-cols-2">
                     <div className="p-6 md:p-8 border-r border-gray-700">
                         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Shipping Details</h3>

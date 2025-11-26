@@ -1,7 +1,7 @@
+// app/api/admin/option-sets/[id]/route.js
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-// GET Single (for editing)
 export async function GET(request, context) {
     const params = await context.params;
     const { id } = params;
@@ -14,12 +14,10 @@ export async function GET(request, context) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Sort options
     data.product_options.sort((a, b) => a.position - b.position);
     return NextResponse.json(data);
 }
 
-// PUT Update
 export async function PUT(request, context) {
     const params = await context.params;
     const { id } = params;
@@ -34,8 +32,7 @@ export async function PUT(request, context) {
 
         if (setError) throw setError;
 
-        // 2. Sync Options (Delete all and recreate strategy is simplest for complex nested forms)
-        // Ideally, you'd diff them, but for MVP this ensures clean state.
+        // 2. Sync Options (Delete old, Insert new)
         await supabase.from('product_options').delete().eq('option_set_id', id);
 
         if (options && options.length > 0) {
@@ -45,7 +42,9 @@ export async function PUT(request, context) {
                 label: opt.label,
                 is_required: opt.is_required,
                 position: opt.position || index,
-                values: opt.values || []
+                values: opt.values || [],
+                // --- NEW: Save the base price modifier ---
+                price_modifier: opt.price_modifier || 0
             }));
 
             const { error: optError } = await supabase
@@ -61,7 +60,7 @@ export async function PUT(request, context) {
     }
 }
 
-// DELETE (Soft Delete)
+// DELETE remains unchanged (soft delete on parent set cascades or is handled)
 export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;

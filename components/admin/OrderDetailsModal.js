@@ -119,6 +119,9 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                                 {Object.entries(item.custom_options).map(([key, opt]) => (
                                                     <p key={key} className="text-xs text-indigo-300">
                                                         <span className="font-bold text-indigo-200">{opt.label}:</span> {opt.value}
+                                                        {opt.priceModifier > 0 && (
+                                                            <span className="text-green-400 ml-1 font-bold">[+${Number(opt.priceModifier).toFixed(2)}]</span>
+                                                        )}
                                                     </p>
                                                 ))}
                                             </div>
