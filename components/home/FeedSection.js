@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 
-// Pass onQuickView down to the row
+// Sub-component for individual rows to handle their own fetching
 function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -15,6 +15,7 @@ function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
             try {
                 const res = await fetch(fetchUrl);
                 const data = await res.json();
+                // Handle different API response structures (standard list vs { data: [] })
                 setProducts(Array.isArray(data) ? data : (data.data || data.products || []));
             } catch (e) {
                 console.error(e);
@@ -39,6 +40,7 @@ function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
             </div>
 
             <div className="relative">
+                {/* Horizontal Scroll Container */}
                 <div className="flex overflow-x-auto gap-6 px-4 pb-4 snap-x">
                     {isLoading ? (
                         [...Array(4)].map((_, i) => (
@@ -47,7 +49,6 @@ function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
                     ) : (
                         products.map(product => (
                             <div key={product.id} className="min-w-[260px] w-[260px] flex-shrink-0 snap-start">
-                                {/* Pass the handler here */}
                                 <ProductCard product={product} onQuickViewClick={onQuickView} />
                             </div>
                         ))
@@ -64,12 +65,12 @@ export default function FeedSection({ layoutOrder, onQuickView }) {
     return (
         <div className="space-y-4">
             {layoutOrder.map((row) => {
-                // Prop drilling: Pass onQuickView to each row type
-                const commonProps = { key: row.id, onQuickView };
+                const commonProps = { onQuickView };
 
                 if (row.type === 'collection_row' && row.target_id) {
                     return (
                         <ProductRow
+                            key={row.id}
                             {...commonProps}
                             title={row.title || 'Collection'}
                             fetchUrl={`/api/products?collection_id=${row.target_id}&limit=8&sort=position-desc`}
@@ -80,6 +81,7 @@ export default function FeedSection({ layoutOrder, onQuickView }) {
                 if (row.type === 'category_row' && row.target_id) {
                     return (
                         <ProductRow
+                            key={row.id}
                             {...commonProps}
                             title={row.title || 'Category'}
                             fetchUrl={`/api/products?category_id=${row.target_id}&limit=8&sort=position-desc`}
@@ -90,6 +92,7 @@ export default function FeedSection({ layoutOrder, onQuickView }) {
                 if (row.type === 'featured_grid') {
                     return (
                         <ProductRow
+                            key={row.id}
                             {...commonProps}
                             title={row.title || 'Featured'}
                             fetchUrl={`/api/products?limit=${row.limit || 8}&sort=position-desc`}
