@@ -3,10 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useCart } from '@/context/CartContext'; //
+import Image from 'next/image';
+import { useCart } from '@/context/CartContext';
 
 export default function QuickViewModal({ productId, onClose }) {
-    const { addToCart } = useCart(); //
+    const { addToCart } = useCart();
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedVariant, setSelectedVariant] = useState(null);
@@ -14,7 +15,6 @@ export default function QuickViewModal({ productId, onClose }) {
     // Fetch product data when the productId prop changes
     useEffect(() => {
         if (!productId) {
-            // Reset state if modal is closed (productId is null)
             setProduct(null);
             setIsLoading(true);
             return;
@@ -23,77 +23,69 @@ export default function QuickViewModal({ productId, onClose }) {
         const fetchProduct = async () => {
             setIsLoading(true);
             try {
-                // Use the existing API endpoint to get product details
-                const response = await fetch(`/api/products/${productId}`); ///route.js]
+                const response = await fetch(`/api/products/${productId}`);
                 if (!response.ok) throw new Error('Product not found');
                 const data = await response.json();
                 setProduct(data);
 
-                // Set the default selected variant
                 if (data.product_variants && data.product_variants.length > 0) {
                     setSelectedVariant(data.product_variants[0]);
                 }
             } catch (error) {
                 console.error("Failed to fetch product for quick view:", error);
                 setProduct(null);
-                onClose(); // Close modal if product fails to load
+                onClose();
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchProduct();
-    }, [productId, onClose]); // Rerun effect if productId changes
+    }, [productId, onClose]);
 
-    // Handle adding the selected variant to the cart
     const handleAddToCart = () => {
         if (product && selectedVariant) {
-            addToCart(product, selectedVariant); //
-            onClose(); // Close the modal after adding to cart
+            addToCart(product, selectedVariant);
+            onClose();
         }
     };
 
-    // Calculate stock for the selected variant
     const stockOnHand = selectedVariant?.inventory_levels?.[0]?.on_hand || 0;
     const isOutOfStock = stockOnHand <= 0;
 
-    // Don't render anything if no product ID is provided
     if (!productId) {
         return null;
     }
 
     return (
-        // Modal Overlay
         <div
             className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
-            onClick={onClose} // Close modal on backdrop click
+            onClick={onClose}
         >
-            {/* Modal Content */}
             <div
-                className="bg-gray-800 text-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
-                onClick={(e) => e.stopPropagation()} // Prevent content click from closing modal
+                className="bg-gray-800 text-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative"
+                onClick={(e) => e.stopPropagation()}
             >
-                {/* Close Button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl"
+                    className="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl z-10"
                     aria-label="Close"
                 >
                     &times;
                 </button>
 
                 {isLoading || !product ? (
-                    // Loading State
                     <div className="p-8 text-center">Loading product...</div>
                 ) : (
-                    // Content Loaded
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
                         {/* Image Column */}
-                        <div>
-                            <img
+                        <div className="relative h-64 md:h-auto w-full">
+                            <Image
                                 src={product.image_url || 'https://placehold.co/600x400/1F2937/FFFFFF?text=No+Image'}
                                 alt={product.name}
-                                className="w-full rounded-lg shadow-lg object-cover"
+                                fill
+                                className="rounded-lg shadow-lg object-cover"
+                                sizes="(max-width: 768px) 100vw, 50vw"
                             />
                         </div>
 
@@ -104,13 +96,11 @@ export default function QuickViewModal({ productId, onClose }) {
                                 ${selectedVariant?.price.toFixed(2)}
                             </p>
 
-                            {/* Short Description */}
                             <p className="text-gray-400 mb-6 text-sm">
                                 {product.description?.substring(0, 150) || 'No description available.'}
                                 {product.description?.length > 150 && '...'}
                             </p>
 
-                            {/* Variant Selection */}
                             <div className="mb-6">
                                 <h3 className="text-sm font-medium text-gray-300 mb-2">
                                     Select Variant: <span className="text-white font-semibold">{selectedVariant?.color} / {selectedVariant?.size}</span>
@@ -132,7 +122,6 @@ export default function QuickViewModal({ productId, onClose }) {
                                 </div>
                             </div>
 
-                            {/* Actions (at the bottom) */}
                             <div className="mt-auto space-y-4">
                                 <button
                                     onClick={handleAddToCart}

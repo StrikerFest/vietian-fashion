@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function CartItemList({ cartItems, updateQuantity, removeFromCart }) {
     // Helper to render options
@@ -28,11 +29,13 @@ export default function CartItemList({ cartItems, updateQuantity, removeFromCart
             {cartItems.map(item => (
                 <div key={item.uniqueId} className="flex items-center bg-gray-800 p-4 rounded-lg border border-gray-700 shadow-sm">
                     {/* Product Image */}
-                    <Link href={`/products/${item.productId}`} className="shrink-0">
-                        <img
+                    <Link href={`/products/${item.productId}`} className="shrink-0 relative w-20 h-20 mr-4">
+                        <Image
                             src={item.imageUrl}
                             alt={item.productName}
-                            className="w-20 h-20 rounded-md object-cover mr-4 cursor-pointer border border-gray-600"
+                            fill
+                            className="rounded-md object-cover cursor-pointer border border-gray-600"
+                            sizes="80px"
                         />
                     </Link>
 

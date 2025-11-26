@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function HeroCarousel({ banners }) {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -28,14 +29,17 @@ export default function HeroCarousel({ banners }) {
                         index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
                     }`}
                 >
-                    {/* Background Image */}
-                    <div
-                        className="absolute inset-0 bg-cover bg-center"
-                        style={{ backgroundImage: `url('${banner.image_url}')` }}
-                    >
-                        {/* Overlay */}
-                        <div className="absolute inset-0 bg-black/40"></div>
-                    </div>
+                    {/* Next.js Image Component */}
+                    <Image
+                        src={banner.image_url}
+                        alt={banner.title}
+                        fill
+                        priority={index === 0} // Prioritize loading the first image
+                        className="object-cover object-center"
+                    />
+
+                    {/* Overlay */}
+                    <div className="absolute inset-0 bg-black/40"></div>
 
                     {/* Content */}
                     <div className="relative z-20 h-full flex flex-col justify-center items-center text-center px-4">

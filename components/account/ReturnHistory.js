@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function ReturnHistory({ returns }) {
     const getStatusColor = (status) => {
@@ -49,7 +50,7 @@ export default function ReturnHistory({ returns }) {
                     {/* Reason */}
                     <div className="mb-4 bg-gray-900/30 p-3 rounded text-sm">
                         <span className="text-gray-500 font-semibold mr-2">Reason:</span>
-                        <span className="text-gray-300 italic">{`"${req.reason}}"`}</span>
+                        <span className="text-gray-300 italic">{`"${req.reason}"`}</span>
                     </div>
 
                     {/* Items List */}
@@ -60,9 +61,15 @@ export default function ReturnHistory({ returns }) {
 
                             return (
                                 <div key={item.id} className="flex items-center gap-4 bg-gray-900/50 p-3 rounded border border-gray-700/50">
-                                    <div className="w-12 h-12 bg-gray-800 rounded flex-shrink-0 overflow-hidden border border-gray-700">
+                                    <div className="w-12 h-12 bg-gray-800 rounded flex-shrink-0 overflow-hidden border border-gray-700 relative">
                                         {product?.image_url ? (
-                                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                                            <Image
+                                                src={product.image_url}
+                                                alt={product.name}
+                                                fill
+                                                className="object-cover"
+                                                sizes="48px"
+                                            />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-xs text-gray-600">IMG</div>
                                         )}

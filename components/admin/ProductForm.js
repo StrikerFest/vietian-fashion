@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
-const emptyVariant = { sku: '', price: '', on_hand: '', attribute_value_ids: {} }; // Map of GroupID -> OptionID
+const emptyVariant = { sku: '', price: '', on_hand: '', attribute_value_ids: {} };
 
 export default function ProductForm({ initialData, categories = [], collections = [], onSuccess, onCancel }) {
     const supabase = createClientComponentClient();
 
-    // ... [Basic Fields State - Same as before] ...
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [imageFile, setImageFile] = useState(null);
@@ -21,12 +21,10 @@ export default function ProductForm({ initialData, categories = [], collections 
     const [seoTitle, setSeoTitle] = useState('');
     const [seoDescription, setSeoDescription] = useState('');
 
-    // Variants State
-    const [variantConfig, setVariantConfig] = useState([]); // Active Group IDs
+    const [variantConfig, setVariantConfig] = useState([]);
     const [variants, setVariants] = useState([{ ...emptyVariant }]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Organize Attributes
     const attributeGroups = useMemo(() => {
         const groups = {};
         categories.filter(c => c.type === 'attribute' && !c.parent_id).forEach(root => {
@@ -40,10 +38,8 @@ export default function ProductForm({ initialData, categories = [], collections 
         return Object.values(groups);
     }, [categories]);
 
-    // Load Data
     useEffect(() => {
         if (initialData) {
-            // ... [Basic Fields Loading - Same as before] ...
             setName(initialData.name);
             setDescription(initialData.description || '');
             setCurrentImageUrl(initialData.image_url || '');
@@ -54,14 +50,11 @@ export default function ProductForm({ initialData, categories = [], collections 
             if (initialData.attributes) setSelectedAttributeIds(new Set(initialData.attributes.map(a => a.id)));
             if (initialData.collections) setSelectedCollectionIds(initialData.collections.map(c => c.id));
 
-            // Load Variants
             if (initialData.product_variants?.length > 0) {
                 const loadedVariants = initialData.product_variants.map(v => {
-                    // Convert array of IDs back to Map for the UI inputs
                     const attrMap = {};
                     if (v.attribute_value_ids) {
                         v.attribute_value_ids.forEach(optId => {
-                            // Find which group this option belongs to
                             const group = attributeGroups.find(g => g.options.some(o => o.id === optId));
                             if (group) attrMap[group.id] = optId;
                         });
@@ -75,7 +68,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                 });
                 setVariants(loadedVariants);
 
-                // Detect Config from first variant
                 const detectedConfig = new Set();
                 const firstVar = loadedVariants[0];
                 Object.keys(firstVar.attribute_value_ids).forEach(groupId => {
@@ -86,7 +78,6 @@ export default function ProductForm({ initialData, categories = [], collections 
         }
     }, [initialData, attributeGroups]);
 
-    // ... [Handlers for Taxonomy - Same as before] ...
     const handleAttributeToggle = (id) => { const next = new Set(selectedAttributeIds); if (next.has(id)) next.delete(id); else next.add(id); setSelectedAttributeIds(next); };
     const handleCollectionToggle = (id) => { setSelectedCollectionIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]); };
     const handleVariantConfigToggle = (groupId) => { setVariantConfig(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]); };
@@ -94,7 +85,6 @@ export default function ProductForm({ initialData, categories = [], collections 
     const addVariant = () => setVariants([...variants, { ...emptyVariant }]);
     const removeVariant = (index) => setVariants(variants.filter((_, i) => i !== index));
 
-    // New Handler for Attribute IDs
     const handleVariantAttributeChange = (index, groupId, optionId) => {
         const updated = [...variants];
         updated[index].attribute_value_ids = {
@@ -122,14 +112,10 @@ export default function ProductForm({ initialData, categories = [], collections 
             if (imageFile) finalImageUrl = await uploadImage(imageFile);
 
             const processedVariants = variants.map(v => {
-                // Flatten map values to array for API: [10, 20]
                 const attrIds = Object.values(v.attribute_value_ids).filter(id => id);
-
-                // Legacy fallback logic
                 let legacyColor = null;
                 let legacySize = null;
 
-                // Try to map selected IDs back to names for legacy columns
                 Object.entries(v.attribute_value_ids).forEach(([groupId, optId]) => {
                     const group = attributeGroups.find(g => g.id === parseInt(groupId));
                     const option = group?.options.find(o => o.id === optId);
@@ -179,10 +165,8 @@ export default function ProductForm({ initialData, categories = [], collections 
         }
     };
 
-    // ... [Render Logic mostly same, just updated the table loop] ...
     return (
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-            {/* ... Basic Info & Taxonomy Inputs (Hidden for brevity, same as before) ... */}
             <h2 className="text-xl font-bold mb-6">{initialData ? 'Edit Product' : 'New Product'}</h2>
             <form onSubmit={handleSubmit} className="space-y-8">
 
@@ -193,11 +177,24 @@ export default function ProductForm({ initialData, categories = [], collections 
                         <div><label className="block text-sm text-gray-400 mb-1">Description</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white" rows="4" /></div>
                     </div>
                     <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
-                        <label className="block text-sm text-gray-400 mb-2">Product Image</label><input type="file" onChange={e => setImageFile(e.target.files[0])} className="w-full text-sm" />{currentImageUrl && <img src={currentImageUrl} alt="Preview" className="mt-2 h-32 object-cover rounded" />}
+                        <label className="block text-sm text-gray-400 mb-2">Product Image</label>
+                        <input type="file" onChange={e => setImageFile(e.target.files[0])} className="w-full text-sm" />
+                        {/* Using Next.js Image for preview */}
+                        {currentImageUrl && (
+                            <div className="mt-2 relative h-32 w-full">
+                                <Image
+                                    src={currentImageUrl}
+                                    alt="Preview"
+                                    fill
+                                    className="object-cover rounded"
+                                    sizes="(max-width: 768px) 100vw, 300px"
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Taxonomy Grids (Same as before) */}
+                {/* Taxonomy Grids */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-gray-700 pt-6">
                     <div>
                         <h3 className="font-semibold mb-2 text-blue-400">Navigation</h3>
@@ -234,7 +231,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                             <div key={index} className="flex flex-wrap gap-3 items-end bg-gray-900 p-3 rounded border border-gray-700">
                                 <div className="w-32"><label className="text-xs text-gray-500">SKU</label><input type="text" value={variant.sku} onChange={e => handleVariantChange(index, 'sku', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required /></div>
 
-                                {/* Dynamic Dropdowns */}
                                 {variantConfig.map(groupId => {
                                     const group = attributeGroups.find(g => g.id === groupId);
                                     return (

@@ -1,5 +1,6 @@
 // components/home/Sidebar.js
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Sidebar({ config }) {
     if (!config || !config.enabled) return null;
@@ -16,13 +17,15 @@ export default function Sidebar({ config }) {
                         <div key={widget.id} className="rounded-xl overflow-hidden shadow-lg border border-gray-700 group relative">
                             <Link href={widget.link || '#'}>
                                 <div className="relative h-64 w-full">
-                                    <img
+                                    <Image
                                         src={widget.image_url || 'https://placehold.co/300x400?text=Banner'}
-                                        alt={widget.title}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        alt={widget.title || 'Sidebar Banner'}
+                                        fill
+                                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                        sizes="(max-width: 1024px) 100vw, 300px"
                                     />
                                     {(widget.title) && (
-                                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-3 backdrop-blur-sm">
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-3 backdrop-blur-sm z-10">
                                             <p className="text-white font-bold text-center">{widget.title}</p>
                                         </div>
                                     )}
