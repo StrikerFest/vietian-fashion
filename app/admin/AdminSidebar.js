@@ -8,6 +8,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 const adminLinks = [
     { name: 'Dashboard', href: '/admin' },
     { name: 'Products', href: '/admin/products' },
+    { name: 'Product Options', href: '/admin/options' }, // --- NEW LINK ---
     { name: 'Orders', href: '/admin/orders' },
     { name: 'Customers', href: '/admin/users' },
     { name: 'Categories', href: '/admin/categories' },
@@ -19,7 +20,7 @@ const adminLinks = [
     { name: 'Suppliers', href: '/admin/suppliers' },
     { name: 'Purchase Orders', href: '/admin/purchase-orders' },
     { name: 'Inventory Logs', href: '/admin/inventory' },
-    { name: 'Settings', href: '/admin/settings' }, // --- NEW LINK ---
+    { name: 'Settings', href: '/admin/settings' },
 ];
 
 export default function AdminSidebar() {
@@ -34,29 +35,24 @@ export default function AdminSidebar() {
 
     return (
         <div className="w-64 h-screen bg-gray-800 text-white flex flex-col fixed top-0 left-0">
-            {/* Logo/Header */}
             <div className="p-4 border-b border-gray-700">
                 <Link href="/admin" className="text-xl font-bold">
                     AI Store Admin
                 </Link>
             </div>
 
-            {/* Navigation Links */}
-            <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
+            <nav className="flex-grow p-4 space-y-1 overflow-y-auto">
                 {adminLinks.map((link) => {
-                    // Check if active (exact match or sub-route)
                     const isActive = pathname === link.href || (link.href !== '/admin' && pathname.startsWith(link.href));
                     return (
                         <Link
                             key={link.name}
                             href={link.href}
                             className={`
-                                block w-full text-left py-2 px-3 rounded-md text-sm font-medium
-                                ${
-                                isActive
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                            }
+                                block w-full text-left py-2 px-3 rounded-md text-sm font-medium transition-colors
+                                ${isActive
+                                ? 'bg-indigo-600 text-white'
+                                : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
                             `}
                         >
                             {link.name}
@@ -65,12 +61,11 @@ export default function AdminSidebar() {
                 })}
             </nav>
 
-            {/* User/Logout Section */}
             <div className="p-4 border-t border-gray-700">
                 {session ? (
                     <div className="space-y-2">
                         <p className="text-sm text-gray-400 truncate" title={session.user.email}>
-                            Signed in as: {session.user.email}
+                            {session.user.email}
                         </p>
                         <button
                             onClick={handleLogout}

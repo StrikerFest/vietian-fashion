@@ -2,10 +2,9 @@
 'use client';
 
 import { createContext, useContext, useState, useMemo, useEffect } from 'react';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 const CartContext = createContext();
-
 const CART_STORAGE_KEY = 'vietian_fashion_cart';
 const DISCOUNT_STORAGE_KEY = 'vietian_fashion_discount';
 
@@ -14,91 +13,89 @@ export function CartProvider({ children }) {
     const [appliedDiscount, setAppliedDiscount] = useState(null);
     const [discountCodeInput, setDiscountCodeInput] = useState('');
     const [isLoaded, setIsLoaded] = useState(false);
-
-    // --- NEW: Get the toast function ---
     const { addToast } = useToast();
 
-    // Load from LocalStorage
+    // --- Load from LocalStorage ---
     useEffect(() => {
         try {
             const savedCart = localStorage.getItem(CART_STORAGE_KEY);
-            if (savedCart) {
-                setCartItems(JSON.parse(savedCart));
-            }
+            if (savedCart) setCartItems(JSON.parse(savedCart));
 
             const savedDiscount = localStorage.getItem(DISCOUNT_STORAGE_KEY);
-            if (savedDiscount) {
-                setAppliedDiscount(JSON.parse(savedDiscount));
-            }
+            if (savedDiscount) setAppliedDiscount(JSON.parse(savedDiscount));
         } catch (error) {
-            console.error("Failed to load cart from localStorage", error);o
-            localStorage.removeItem(CART_STORAGE_KEY);
-            localStorage.removeItem(DISCOUNT_STORAGE_KEY);
+            console.error("Failed to load cart", error);
         } finally {
             setIsLoaded(true);
         }
     }, []);
 
-    // Save Cart to LocalStorage
+    // --- Save to LocalStorage ---
     useEffect(() => {
         if (!isLoaded) return;
-        try {
-            localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
-        } catch (error) {
-            console.error("Failed to save cart to localStorage", error);
-        }
-    }, [cartItems, isLoaded]);
-
-    // Save Discount to LocalStorage
-    useEffect(() => {
-        if (!isLoaded) return;
-        try {
-            if (appliedDiscount) {
-                localStorage.setItem(DISCOUNT_STORAGE_KEY, JSON.stringify(appliedDiscount));
-            } else {
-                localStorage.removeItem(DISCOUNT_STORAGE_KEY);
-            }
-        } catch (error) {
-            console.error("Failed to save discount to localStorage", error);
-        }
-    }, [appliedDiscount, isLoaded]);
-
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+        if (appliedDiscount) localStorage.setItem(DISCOUNT_STORAGE_KEY, JSON.stringify(appliedDiscount));
+        else localStorage.removeItem(DISCOUNT_STORAGE_KEY);
+    }, [cartItems, appliedDiscount, isLoaded]);
 
     // --- Actions ---
 
-    const addToCart = (product, variant) => {
+    // Helper to generate unique ID based on variant AND custom options
+    const generateCartItemId = (variantId, options) => {
+        if (!options || Object.keys(options).length === 0) return variantId;
+        // Simple hash of options string
+        const optionString = JSON.stringify(options);
+        return `${variantId}-${btoa(optionString).substring(0, 10)}`;
+    };
+
+    const addToCart = (product, variant, customOptions = {}) => {
+        // 1. Calculate total price modifier from options
+        let optionsTotal = 0;
+        if (customOptions) {
+            Object.values(customOptions).forEach(opt => {
+                optionsTotal += (opt.priceModifier || 0);
+            });
+        }
+
+        const finalPrice = variant.price + optionsTotal;
+        const uniqueId = generateCartItemId(variant.id, customOptions);
+
         setCartItems(prevItems => {
-            const existingItem = prevItems.find(item => item.id === variant.id);
+            // Check if THIS specific configuration exists
+            const existingItem = prevItems.find(item => item.uniqueId === uniqueId);
+
             if (existingItem) {
                 return prevItems.map(item =>
-                    item.id === variant.id ? { ...item, quantity: item.quantity + 1 } : item
+                    item.uniqueId === uniqueId ? { ...item, quantity: item.quantity + 1 } : item
                 );
             }
             return [...prevItems, {
                 ...variant,
+                id: variant.id, // DB Variant ID (for stock check)
+                uniqueId: uniqueId, // Cart specific ID (for keying)
                 productId: product.id,
                 productName: product.name,
                 imageUrl: product.image_url || 'https://placehold.co/100x100/1F2937/FFFFFF?text=Item',
-                quantity: 1
+                quantity: 1,
+                selectedOptions: customOptions, // Store user choices
+                price: finalPrice // Store final calculated price
             }];
         });
 
-        // --- MODIFIED: Use Toast instead of Alert ---
         addToast(`${product.name} added to cart`, 'success');
     };
 
-    const removeFromCart = (variantId) => {
-        setCartItems(prevItems => prevItems.filter(item => item.id !== variantId));
-        // Optional: addToast('Item removed', 'info');
+    const removeFromCart = (uniqueId) => {
+        setCartItems(prevItems => prevItems.filter(item => item.uniqueId !== uniqueId));
     };
 
-    const updateQuantity = (variantId, newQuantity) => {
+    const updateQuantity = (uniqueId, newQuantity) => {
         if (newQuantity < 1) {
-            removeFromCart(variantId);
+            removeFromCart(uniqueId);
         } else {
             setCartItems(prevItems =>
                 prevItems.map(item =>
-                    item.id === variantId ? { ...item, quantity: newQuantity } : item
+                    item.uniqueId === uniqueId ? { ...item, quantity: newQuantity } : item
                 )
             );
         }
@@ -110,32 +107,23 @@ export function CartProvider({ children }) {
         setDiscountCodeInput('');
     };
 
+    // ... [Discount logic remains unchanged] ...
     const applyDiscountCode = async (code) => {
         if (!code) return { success: false, message: 'Please enter a code.' };
-
         try {
             const response = await fetch('/api/validate-discount', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code: code.trim().toUpperCase() }),
             });
-
             const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to validate code.');
-            }
-
+            if (!response.ok) throw new Error(data.error || 'Failed to validate code.');
             setAppliedDiscount(data.discount);
             setDiscountCodeInput(data.discount.code);
-
-            // --- MODIFIED: Toast + Return ---
             addToast(`Discount ${data.discount.code} applied!`, 'success');
             return { success: true, message: 'Discount applied!' };
-
         } catch (error) {
             setAppliedDiscount(null);
-            // We don't toast error here because the UI usually displays it below the input
             return { success: false, message: error.message || 'Invalid discount code.' };
         }
     };
@@ -143,21 +131,16 @@ export function CartProvider({ children }) {
     const removeDiscountCode = () => {
         setAppliedDiscount(null);
         setDiscountCodeInput('');
-
-        // --- MODIFIED: Use Toast ---
         addToast('Discount removed', 'info');
     };
 
-    // --- Calculations ---
-
+    // ... [Totals calculation logic remains unchanged] ...
     const subtotal = useMemo(() => {
         return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
     }, [cartItems]);
 
     const discountAmount = useMemo(() => {
-        if (!appliedDiscount || subtotal === 0) {
-            return 0;
-        }
+        if (!appliedDiscount || subtotal === 0) return 0;
         if (appliedDiscount.type === 'percentage') {
             const discountValue = Math.min(Math.max(appliedDiscount.value, 0), 100);
             return (subtotal * discountValue) / 100;
@@ -167,29 +150,14 @@ export function CartProvider({ children }) {
         return 0;
     }, [appliedDiscount, subtotal]);
 
-    const total = useMemo(() => {
-        const calculatedTotal = subtotal - discountAmount;
-        return Math.max(0, calculatedTotal);
-    }, [subtotal, discountAmount]);
-
-    const value = {
-        cartItems,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        subtotal,
-        appliedDiscount,
-        discountCodeInput,
-        setDiscountCodeInput,
-        applyDiscountCode,
-        removeDiscountCode,
-        discountAmount,
-        total,
-    };
+    const total = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
 
     return (
-        <CartContext.Provider value={value}>
+        <CartContext.Provider value={{
+            cartItems, addToCart, removeFromCart, updateQuantity, clearCart,
+            subtotal, appliedDiscount, discountCodeInput, setDiscountCodeInput,
+            applyDiscountCode, removeDiscountCode, discountAmount, total
+        }}>
             {children}
         </CartContext.Provider>
     );

@@ -16,7 +16,7 @@ export async function GET(request) {
             .select(`
                 id, created_at, total_amount, status,
                 order_items (
-                    quantity, price_at_purchase,
+                    quantity, price_at_purchase, custom_options,
                     product_variants (
                         id, sku, color, size,
                         products ( name ),

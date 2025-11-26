@@ -4,7 +4,6 @@
 import Link from 'next/link';
 
 export default function OrderReceipt({ order }) {
-    // ... [Existing calculations for discountAmount] ...
     const appliedDiscount = order.order_discounts?.[0]?.discounts;
     const shippingAddress = order.addresses;
     let discountAmount = 0;
@@ -13,23 +12,8 @@ export default function OrderReceipt({ order }) {
         else if (appliedDiscount.type === 'fixed') discountAmount = Math.min(appliedDiscount.value, order.subtotal);
     }
 
-    // Helper to format variant string
-    const formatVariant = (variant) => {
-        if (!variant) return '';
-        if (variant.attributes && Object.keys(variant.attributes).length > 0) {
-            return Object.entries(variant.attributes)
-                .map(([key, val]) => `${val}`) // Just show value "Red / Large" or "Red (Color)"
-                .join(' / ');
-        }
-        // Fallback
-        if (variant.size || variant.color) {
-            return [variant.color, variant.size].filter(Boolean).join(' / ');
-        }
-        return 'Standard';
-    };
     return (
         <div className="max-w-4xl mx-auto">
-            {/* ... [Header Section Unchanged] ... */}
             <div className="text-center mb-10">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-900/30 text-green-400 mb-4 border border-green-800">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -43,14 +27,25 @@ export default function OrderReceipt({ order }) {
                     <h2 className="text-xl font-bold text-white mb-4">Order Summary</h2>
                     <div className="space-y-4">
                         {order.order_items.map((item, index) => (
-                            <div key={index} className="flex justify-between items-center">
+                            <div key={index} className="flex justify-between items-start">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-gray-700 rounded-md flex items-center justify-center text-xs text-gray-400">IMG</div>
+                                    <div className="w-12 h-12 bg-gray-700 rounded-md flex items-center justify-center text-xs text-gray-400 shrink-0">IMG</div>
                                     <div>
                                         <p className="font-medium text-white">{item.product_variants.products.name}</p>
                                         <p className="text-sm text-gray-400">
-                                            {formatVariant(item.product_variants)}
+                                            {item.product_variants.color} {item.product_variants.size && `/ ${item.product_variants.size}`}
                                         </p>
+
+                                        {/* --- NEW: Display Custom Options --- */}
+                                        {item.custom_options && Object.keys(item.custom_options).length > 0 && (
+                                            <div className="mt-1 space-y-0.5">
+                                                {Object.entries(item.custom_options).map(([key, opt]) => (
+                                                    <p key={key} className="text-xs text-gray-500">
+                                                        {opt.label}: <span className="text-gray-300">{opt.value}</span>
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="text-right">
@@ -61,7 +56,8 @@ export default function OrderReceipt({ order }) {
                         ))}
                     </div>
                 </div>
-                {/* ... [Totals and Address Sections Unchanged] ... */}
+
+                {/* Totals & Address Block */}
                 <div className="grid grid-cols-1 md:grid-cols-2">
                     <div className="p-6 md:p-8 border-r border-gray-700">
                         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Shipping Details</h3>
@@ -89,6 +85,7 @@ export default function OrderReceipt({ order }) {
                     </div>
                 </div>
             </div>
+
             <div className="mt-8 text-center">
                 <Link href="/products" className="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline">&larr; Continue Shopping</Link>
             </div>

@@ -19,7 +19,7 @@ export async function GET(request) {
                 addresses ( * ),
                 order_discounts ( discounts ( code, type, value ) ),
                 order_items (
-                    id, quantity, price_at_purchase,
+                    id, quantity, price_at_purchase, custom_options,
                     product_variants (
                         id, sku, size, color,
                         products ( name ),
@@ -39,13 +39,13 @@ export async function GET(request) {
         const { data, error, count } = await query;
         if (error) throw error;
 
-        // Transform nested attributes into a flat object for the frontend
+        // Transform nested attributes (Keep existing logic, options are already in custom_options)
         const formattedOrders = data.map(order => ({
             ...order,
             order_items: order.order_items.map(item => {
                 const attributes = {};
 
-                // 1. Map legacy columns (Backwards compatibility)
+                // 1. Map legacy columns
                 if (item.product_variants?.size) attributes['Size'] = item.product_variants.size;
                 if (item.product_variants?.color) attributes['Color'] = item.product_variants.color;
 
@@ -60,7 +60,7 @@ export async function GET(request) {
                     ...item,
                     product_variants: {
                         ...item.product_variants,
-                        attributes // Inject the clean object
+                        attributes
                     }
                 };
             })

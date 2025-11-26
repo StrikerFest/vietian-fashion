@@ -49,25 +49,39 @@ export default function OrderHistory({ orders, isLoading }) {
                             </div>
 
                             {/* Brief Item Summary */}
-                            <div className="space-y-2 mb-4 bg-gray-800/50 p-3 rounded text-sm border border-gray-700/50">
-                                {order.order_items.slice(0, 2).map((item, idx) => (
-                                    <div key={idx} className="flex justify-between text-gray-300">
-                                        <span>
-                                            {item.product_variants?.products?.name || 'Unknown Product'}
-                                            <span className="text-gray-500 ml-2 text-xs">
-                                                {formatVariantDetails(item.product_variants)}
+                            <div className="space-y-3 mb-4 bg-gray-800/50 p-3 rounded text-sm border border-gray-700/50">
+                                {order.order_items.slice(0, 3).map((item, idx) => (
+                                    <div key={idx} className="flex flex-col border-b border-gray-700/50 last:border-0 pb-2 last:pb-0 mb-2 last:mb-0">
+                                        <div className="flex justify-between text-gray-300">
+                                            <span className="font-medium">
+                                                {item.product_variants?.products?.name || 'Unknown Product'}
                                             </span>
-                                        </span>
-                                        <span className="text-gray-500">x{item.quantity}</span>
+                                            <span className="text-gray-500">x{item.quantity}</span>
+                                        </div>
+
+                                        <div className="text-xs text-gray-500 mt-0.5">
+                                            {formatVariantDetails(item.product_variants)}
+                                        </div>
+
+                                        {/* --- NEW: Display Custom Options in History --- */}
+                                        {item.custom_options && Object.keys(item.custom_options).length > 0 && (
+                                            <div className="mt-1 pl-2 border-l-2 border-indigo-500/30 text-xs">
+                                                {Object.entries(item.custom_options).map(([key, opt]) => (
+                                                    <div key={key} className="text-gray-400">
+                                                        <span className="text-indigo-300">{opt.label}:</span> {opt.value}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
-                                {order.order_items.length > 2 && (
-                                    <p className="text-xs text-indigo-400 font-medium pt-1">+{order.order_items.length - 2} more items...</p>
+                                {order.order_items.length > 3 && (
+                                    <p className="text-xs text-indigo-400 font-medium pt-1 text-center">+{order.order_items.length - 3} more items...</p>
                                 )}
                             </div>
 
                             <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
-                                <Link href={`/order-confirmation/${order.id}`} className="text-sm text-gray-400 hover:text-white transition-colors">View Invoice</Link>
+                                <Link href={`/order-confirmation/${order.id}`} className="text-sm text-gray-400 hover:text-white transition-colors">View Full Invoice</Link>
                                 <p className="font-bold text-lg text-white">${order.total_amount.toFixed(2)}</p>
                             </div>
                         </div>

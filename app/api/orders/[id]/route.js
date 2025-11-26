@@ -16,7 +16,7 @@ export async function GET(request, context) {
                 order_discounts ( discounts ( code, type, value ) ),
                 addresses ( * ),
                 order_items (
-                    id, quantity, price_at_purchase,
+                    id, quantity, price_at_purchase, custom_options,
                     product_variants (
                         id, sku, size, color,
                         products ( name ),
@@ -33,7 +33,7 @@ export async function GET(request, context) {
 
         if (error) throw error;
 
-        // Transform
+        // Transform (Consistent with List View)
         const formattedOrder = {
             ...order,
             order_items: order.order_items.map(item => {
@@ -63,8 +63,9 @@ export async function GET(request, context) {
     }
 }
 
-// PUT remains unchanged (cancellation logic relies on variant_id which is stable)
+// PUT remains unchanged...
 export async function PUT(request, context) {
+    // ... (Same as before)
     const params = await context.params;
     const { id } = params;
     const body = await request.json();

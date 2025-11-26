@@ -8,6 +8,7 @@ import { useCart } from '@/context/CartContext';
 import ProductGallery from '@/components/product/ProductGallery';
 import VariantSelector from '@/components/product/VariantSelector';
 import ProductReviews from '@/components/product/ProductReviews';
+import ProductOptions from '@/components/product/ProductOptions'; // --- NEW IMPORT ---
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -17,6 +18,10 @@ export default function ProductDetailPage() {
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedVariant, setSelectedVariant] = useState(null);
+
+    // --- NEW: Custom Options State ---
+    const [customOptions, setCustomOptions] = useState({});
+    const [areOptionsValid, setAreOptionsValid] = useState(true);
 
     // Fetch Product
     useEffect(() => {
@@ -52,7 +57,13 @@ export default function ProductDetailPage() {
 
     const handleAddToCart = () => {
         if (product && selectedVariant) {
-            addToCart(product, selectedVariant);
+            // --- NEW: Validate Options before adding ---
+            if (!areOptionsValid) {
+                alert("Please fill in all required options.");
+                return;
+            }
+            // --- NEW: Pass customOptions to cart ---
+            addToCart(product, selectedVariant, customOptions);
         }
     };
 
@@ -66,6 +77,10 @@ export default function ProductDetailPage() {
 
     const stockOnHand = selectedVariant?.inventory_levels?.[0]?.on_hand || 0;
     const isOutOfStock = stockOnHand <= 0;
+
+    // --- NEW: Calculate Final Price with Option Modifiers ---
+    const optionsPrice = Object.values(customOptions).reduce((sum, opt) => sum + (opt.priceModifier || 0), 0);
+    const finalPrice = (selectedVariant?.price || 0) + optionsPrice;
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -90,7 +105,8 @@ export default function ProductDetailPage() {
 
                         <div className="mb-6 flex items-baseline gap-4">
                             <p className="text-3xl font-bold text-indigo-400">
-                                ${selectedVariant?.price.toFixed(2)}
+                                {/* --- UPDATED: Display calculated final price --- */}
+                                ${finalPrice.toFixed(2)}
                             </p>
                             {isOutOfStock && (
                                 <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs font-bold uppercase rounded border border-red-900/50">
@@ -108,6 +124,16 @@ export default function ProductDetailPage() {
                             selectedVariant={selectedVariant}
                             onSelect={setSelectedVariant}
                         />
+
+                        {/* --- NEW: Render Product Options --- */}
+                        {selectedVariant && (
+                            <ProductOptions
+                                productId={product.id}
+                                productPrice={selectedVariant.price}
+                                onChange={setCustomOptions}
+                                setIsValid={setAreOptionsValid}
+                            />
+                        )}
 
                         <div className="mt-auto pt-6 border-t border-gray-700">
                             <button
