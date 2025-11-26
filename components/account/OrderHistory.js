@@ -2,9 +2,23 @@
 'use client';
 
 import Link from 'next/link';
-import OrderStatusBadge from '@/components/OrderStatusBadge'; // Reusing the shared component
+import OrderStatusBadge from '@/components/OrderStatusBadge';
 
 export default function OrderHistory({ orders, isLoading }) {
+    // Helper to format variant string safely
+    const formatVariantDetails = (variant) => {
+        if (!variant) return '';
+        if (variant.attributes && Object.keys(variant.attributes).length > 0) {
+            return Object.entries(variant.attributes)
+                .map(([key, val]) => `${key}: ${val}`)
+                .join(' • ');
+        }
+        if (variant.size || variant.color) {
+            return `${variant.color || ''} ${variant.size || ''}`.trim();
+        }
+        return '';
+    };
+
     return (
         <div className="bg-gray-800 p-6 rounded-lg h-fit border border-gray-700 shadow-md">
             <h2 className="text-2xl font-bold mb-6 text-white">My Order History</h2>
@@ -16,12 +30,7 @@ export default function OrderHistory({ orders, isLoading }) {
             ) : orders.length === 0 ? (
                 <div className="text-center text-gray-400 py-12 border-2 border-dashed border-gray-700 rounded-lg">
                     <p className="mb-4">You have not placed any orders yet.</p>
-                    <Link
-                        href="/products"
-                        className="inline-block bg-gray-700 hover:bg-indigo-600 text-white px-4 py-2 rounded-md transition-colors text-sm font-semibold"
-                    >
-                        Start Shopping
-                    </Link>
+                    <Link href="/products" className="inline-block bg-gray-700 hover:bg-indigo-600 text-white px-4 py-2 rounded-md transition-colors text-sm font-semibold">Start Shopping</Link>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -43,24 +52,22 @@ export default function OrderHistory({ orders, isLoading }) {
                             <div className="space-y-2 mb-4 bg-gray-800/50 p-3 rounded text-sm border border-gray-700/50">
                                 {order.order_items.slice(0, 2).map((item, idx) => (
                                     <div key={idx} className="flex justify-between text-gray-300">
-                                        <span>{item.product_variants?.products?.name || 'Unknown Product'}</span>
+                                        <span>
+                                            {item.product_variants?.products?.name || 'Unknown Product'}
+                                            <span className="text-gray-500 ml-2 text-xs">
+                                                {formatVariantDetails(item.product_variants)}
+                                            </span>
+                                        </span>
                                         <span className="text-gray-500">x{item.quantity}</span>
                                     </div>
                                 ))}
                                 {order.order_items.length > 2 && (
-                                    <p className="text-xs text-indigo-400 font-medium pt-1">
-                                        +{order.order_items.length - 2} more items...
-                                    </p>
+                                    <p className="text-xs text-indigo-400 font-medium pt-1">+{order.order_items.length - 2} more items...</p>
                                 )}
                             </div>
 
                             <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
-                                <Link
-                                    href={`/order-confirmation/${order.id}`}
-                                    className="text-sm text-gray-400 hover:text-white transition-colors"
-                                >
-                                    View Invoice
-                                </Link>
+                                <Link href={`/order-confirmation/${order.id}`} className="text-sm text-gray-400 hover:text-white transition-colors">View Invoice</Link>
                                 <p className="font-bold text-lg text-white">${order.total_amount.toFixed(2)}</p>
                             </div>
                         </div>

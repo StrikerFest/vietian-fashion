@@ -106,17 +106,11 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
     return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div
-                className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Header */}
+            <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700" onClick={(e) => e.stopPropagation()}>
+                {/* ... Header ... */}
                 <div className="p-6 border-b border-gray-700 flex justify-between items-center sticky top-0 bg-gray-800 z-10">
                     <h2 className="text-2xl font-bold">Order #{order.id}</h2>
-                    <div className="flex items-center gap-4">
-                        <OrderStatusBadge status={order.status} />
-                        <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
-                    </div>
+                    <div className="flex items-center gap-4"><OrderStatusBadge status={order.status} /><button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button></div>
                 </div>
 
                 <div className="p-6 space-y-6">
@@ -128,7 +122,15 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                 <div key={item.product_variants.id} className="flex justify-between items-center text-sm p-3 bg-gray-900/50 rounded border border-gray-700">
                                     <div>
                                         <p className="font-medium text-white">{item.product_variants.products.name}</p>
-                                        <p className="text-gray-400">{item.product_variants.sku} - {item.product_variants.color} / {item.product_variants.size}</p>
+                                        <p className="text-gray-400">
+                                            {item.product_variants.sku}
+                                            {/* Display Attributes */}
+                                            <span className="ml-2 text-gray-500">
+                                                {item.product_variants.color && `${item.product_variants.color}`}
+                                                {item.product_variants.size && ` / ${item.product_variants.size}`}
+                                                {/* If you join attributes here in the future, map them here */}
+                                            </span>
+                                        </p>
                                     </div>
                                     <p className="text-gray-300">{item.quantity} x ${item.price_at_purchase.toFixed(2)}</p>
                                 </div>

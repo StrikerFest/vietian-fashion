@@ -21,10 +21,15 @@ export async function GET(request) {
                 *,
                 product_variants (
                     *,
-                    inventory_levels (*)
+                    inventory_levels (*),
+                    variant_attributes (
+                        attribute_value:categories (
+                            name, parent:parent_id ( name )
+                        )
+                    )
                 )
             `)
-            .is('deleted_at', null) // --- NEW: Exclude archived products ---
+            .is('deleted_at', null)
             .order('name', { ascending: true });
 
         if (idArray && idArray.length > 0) {
@@ -42,10 +47,28 @@ export async function GET(request) {
         const flattenedData = [];
         for (const product of products) {
             if (!product.product_variants || product.product_variants.length === 0) {
+                // Export product without variants
+                flattenedData.push({
+                    'product_name': product.name,
+                    'description': product.description || '',
+                    'seo_title': product.seo_title || '',
+                    'seo_description': product.seo_description || '',
+                    'sku': '', 'price': '', 'size': '', 'color': '', 'on_hand': '', 'dynamic_attributes': ''
+                });
                 continue;
             }
 
             for (const variant of product.product_variants) {
+                // Build Dynamic Attribute String (Format: "Material: Cotton; Style: Casual")
+                const attrStrings = [];
+                if (variant.variant_attributes) {
+                    variant.variant_attributes.forEach(va => {
+                        if (va.attribute_value?.parent?.name) {
+                            attrStrings.push(`${va.attribute_value.parent.name}: ${va.attribute_value.name}`);
+                        }
+                    });
+                }
+
                 flattenedData.push({
                     'product_name': product.name,
                     'description': product.description || '',
@@ -53,9 +76,10 @@ export async function GET(request) {
                     'seo_description': product.seo_description || '',
                     'sku': variant.sku,
                     'price': variant.price,
-                    'size': variant.size,
-                    'color': variant.color,
+                    'size': variant.size || '',   // Legacy column
+                    'color': variant.color || '', // Legacy column
                     'on_hand': variant.inventory_levels?.[0]?.on_hand ?? 0,
+                    'dynamic_attributes': attrStrings.join('; ') // New column
                 });
             }
         }

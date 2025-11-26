@@ -5,56 +5,55 @@ import { cookies } from 'next/headers';
 
 export async function GET(request) {
     const cookieStore = cookies();
-    // 1. Create a Supabase client for route handlers
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
-        // 2. Get the current user's session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        if (sessionError) {
-            throw sessionError;
-        }
-
-        // 3. If no session, return unauthorized
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const userId = session.user.id;
-
-        // 4. Fetch orders belonging *only* to the authenticated user
         const { data, error } = await supabase
             .from('orders')
             .select(`
-                id,
-                created_at,
-                total_amount,
-                status,
+                id, created_at, total_amount, status,
                 order_items (
-                    quantity,
-                    price_at_purchase,
+                    quantity, price_at_purchase,
                     product_variants (
-                        id,
-                        sku,
-                        color,
-                        size,
-                        products ( name )
+                        id, sku, color, size,
+                        products ( name ),
+                        variant_attributes (
+                            attribute_value:categories ( name, parent:parent_id ( name ) )
+                        )
                     )
                 )
             `)
-            .eq('user_id', userId) // The crucial filter
-            .order('created_at', { ascending: false }); // Show newest orders first
+            .eq('user_id', session.user.id)
+            .order('created_at', { ascending: false });
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
-        // 5. Return the user's orders
-        return NextResponse.json(data);
+        // Transform
+        const formatted = data.map(order => ({
+            ...order,
+            order_items: order.order_items.map(item => {
+                const attributes = {};
+                if (item.product_variants?.size) attributes['Size'] = item.product_variants.size;
+                if (item.product_variants?.color) attributes['Color'] = item.product_variants.color;
 
+                item.product_variants?.variant_attributes?.forEach(va => {
+                    if (va.attribute_value?.parent?.name) {
+                        attributes[va.attribute_value.parent.name] = va.attribute_value.name;
+                    }
+                });
+
+                return {
+                    ...item,
+                    product_variants: { ...item.product_variants, attributes }
+                };
+            })
+        }));
+
+        return NextResponse.json(formatted);
     } catch (error) {
-        console.error('Error fetching user orders:', error);
-        return NextResponse.json({ error: 'Failed to fetch orders.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
