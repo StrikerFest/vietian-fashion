@@ -7,17 +7,50 @@ export async function GET(request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
+
     const search = searchParams.get('search') || '';
+    const sort = searchParams.get('sort') || 'created_at-desc';
+
+    const collectionId = searchParams.get('collection_id');
+    const categoryId = searchParams.get('category_id');
 
     try {
         let query = supabase
             .from('products')
-            .select(`*, product_variants (*, inventory_levels (*)), collections (*), product_categories (categories (id, name, slug, type))`, { count: 'exact' })
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false })
-            .range(offset, offset + limit - 1);
+            .select(`
+                *, 
+                product_variants (*, inventory_levels (*)), 
+                collections (*), 
+                product_categories (categories (id, name, slug, type))
+            `, { count: 'exact' })
+            .is('deleted_at', null);
 
+        // Search
         if (search) query = query.ilike('name', `%${search}%`);
+
+        // Collection Widget Filter
+        if (collectionId) {
+            const { data: linked } = await supabase.from('product_collections').select('product_id').eq('collection_id', collectionId);
+            query = query.in('id', linked?.map(p => p.product_id) || []);
+        }
+
+        // Category Widget Filter
+        if (categoryId) {
+            const { data: linked } = await supabase.from('product_categories').select('product_id').eq('category_id', categoryId);
+            query = query.in('id', linked?.map(p => p.product_id) || []);
+        }
+
+        // Sort
+        switch (sort) {
+            case 'position-desc': query = query.order('position', { ascending: false }); break;
+            case 'name-asc': query = query.order('name', { ascending: true }); break;
+            case 'name-desc': query = query.order('name', { ascending: false }); break;
+            case 'created_at-asc': query = query.order('created_at', { ascending: true }); break;
+            default: query = query.order('created_at', { ascending: false });
+        }
+
+        // Pagination
+        query = query.range(offset, offset + limit - 1);
 
         const { data, error, count } = await query;
         if (error) throw error;
@@ -29,59 +62,57 @@ export async function GET(request) {
             product_categories: undefined
         }));
 
-        return NextResponse.json({ data: formattedData, meta: { page, limit, total: count, totalPages: Math.ceil((count || 0) / limit) } });
+        // Price Sort
+        if (sort === 'price-asc' || sort === 'price-desc') {
+            formattedData.sort((a, b) => {
+                const pA = a.product_variants?.[0]?.price || 0;
+                const pB = b.product_variants?.[0]?.price || 0;
+                return sort === 'price-asc' ? pA - pB : pB - pA;
+            });
+        }
+
+        return NextResponse.json({
+            data: formattedData,
+            meta: { page, limit, total: count, totalPages: Math.ceil((count || 0) / limit) }
+        });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
+// POST remains as updated in previous steps (with position support)
 export async function POST(request) {
     const {
         name, description, image_url, seo_title, seo_description, variants,
-        attribute_ids = [], category_id, collection_ids = []
+        attribute_ids = [], category_id, collection_ids = [], position = 0
     } = await request.json();
 
-    if (!name || !variants || variants.length === 0) {
-        return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
-    }
+    if (!name || !variants || variants.length === 0) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
-    let newProductId = null;
-
+    let newId = null;
     try {
-        // 1. Product
-        const { data: productData, error: productError } = await supabase
-            .from('products')
-            .insert([{ name, description, image_url: image_url || null, seo_title: seo_title || null, seo_description: seo_description || null }])
-            .select().single();
+        const { data: product, error: pErr } = await supabase.from('products')
+            .insert([{ name, description, image_url, seo_title, seo_description, position }]).select().single();
+        if (pErr) throw pErr;
+        newId = product.id;
 
-        if (productError) throw productError;
-        newProductId = productData.id;
+        const vars = variants.map(v => ({ sku: v.sku, price: v.price, size: v.size, color: v.color, product_id: newId }));
+        const { data: insertedVars, error: vErr } = await supabase.from('product_variants').insert(vars).select();
+        if (vErr) throw vErr;
 
-        // 2. Variants & Inventory
-        const variantsToInsert = variants.map(v => ({ sku: v.sku, price: v.price, size: v.size, color: v.color, product_id: newProductId }));
-        const { data: insertedVariants, error: variantError } = await supabase.from('product_variants').insert(variantsToInsert).select();
-        if (variantError) throw variantError;
+        const inv = insertedVars.map((v, i) => ({ variant_id: v.id, on_hand: variants[i].on_hand ?? 0 }));
+        await supabase.from('inventory_levels').insert(inv);
 
-        const inventoryToInsert = insertedVariants.map((variant, index) => ({
-            variant_id: variant.id,
-            on_hand: variants[index].on_hand ?? 0
-        }));
-        await supabase.from('inventory_levels').insert(inventoryToInsert);
+        if (collection_ids.length) await supabase.from('product_collections').insert(collection_ids.map(cid => ({ product_id: newId, collection_id: cid })));
 
-        // 3. Relationships
-        if (collection_ids.length > 0) {
-            await supabase.from('product_collections').insert(collection_ids.map(id => ({ product_id: newProductId, collection_id: id })));
-        }
+        const cats = [];
+        if (category_id) cats.push({ product_id: newId, category_id });
+        attribute_ids.forEach(aid => { if (parseInt(aid) !== parseInt(category_id)) cats.push({ product_id: newId, category_id: aid }); });
+        if (cats.length) await supabase.from('product_categories').insert(cats);
 
-        const categoryLinks = [];
-        if (category_id) categoryLinks.push({ product_id: newProductId, category_id: category_id });
-        attribute_ids.forEach(aid => { if (parseInt(aid) !== parseInt(category_id)) categoryLinks.push({ product_id: newProductId, category_id: aid }); });
-        if (categoryLinks.length > 0) await supabase.from('product_categories').insert(categoryLinks);
-
-        return NextResponse.json(productData);
-
+        return NextResponse.json(product);
     } catch (error) {
-        if (newProductId) await supabase.from('products').delete().eq('id', newProductId);
+        if (newId) await supabase.from('products').delete().eq('id', newId);
         return NextResponse.json({ error: 'Failed to create product.', details: error.message }, { status: 500 });
     }
 }

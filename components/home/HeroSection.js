@@ -2,19 +2,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // --- NEW ---
 
-export default function HeroSection({ onSearch, isLoading }) {
-    // Modal State
+export default function HeroSection() { // Removed props since it handles its own nav
+    const router = useRouter(); // --- NEW ---
     const [isModalOpen, setIsModalOpen] = useState(false);
-
-    // Form Data
     const [generalPrompt, setGeneralPrompt] = useState('');
-    const [attributeValues, setAttributeValues] = useState({}); // Stores inputs for dynamic fields
+    const [attributeValues, setAttributeValues] = useState({});
+    const [searchConfig, setSearchConfig] = useState([]);
 
-    // Config
-    const [searchConfig, setSearchConfig] = useState([]); // ['Season', 'Occasion']
-
-    // Load Settings
     useEffect(() => {
         const fetchSettings = async () => {
             try {
@@ -38,104 +34,89 @@ export default function HeroSection({ onSearch, isLoading }) {
         e.preventDefault();
         setIsModalOpen(false);
 
-        // Pass structured data to parent
-        onSearch({
-            generalPrompt,
-            attributes: attributeValues
-        });
+        // --- NEW: Redirect Logic ---
+        // We encode the complex object into a single query string or minimal params
+        // For simplicity, we'll put the text in 'q' and attributes in 'attrs' (JSON string)
+        const params = new URLSearchParams();
+        if (generalPrompt) params.set('q', generalPrompt);
+
+        // Filter empty attributes
+        const validAttributes = Object.fromEntries(
+            Object.entries(attributeValues).filter(([_, v]) => v.trim() !== '')
+        );
+
+        if (Object.keys(validAttributes).length > 0) {
+            params.set('attrs', JSON.stringify(validAttributes));
+        }
+
+        if (params.toString()) {
+            router.push(`/search?${params.toString()}`);
+        }
     };
 
     return (
-        <div className="relative bg-gray-800 overflow-hidden border-b border-gray-700">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-4xl bg-indigo-500/10 blur-3xl rounded-full pointer-events-none"></div>
-
-            <div className="relative max-w-4xl mx-auto py-24 px-4 text-center">
-                <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-6 tracking-tight">
-                    Your Style, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">AI Curated.</span>
+        <div className="relative bg-gray-800 border-b border-gray-700">
+            {/* Condensed Padding since we have a carousel above now */}
+            <div className="relative max-w-4xl mx-auto py-12 px-4 text-center">
+                <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-4">
+                    What are you looking for?
                 </h1>
-                <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-                    {`Describe the outfit you're looking for, and let our AI find the perfect match.`}
-                </p>
 
                 {/* Trigger Button */}
                 <div className="max-w-xl mx-auto relative">
                     <div
                         onClick={() => setIsModalOpen(true)}
-                        className="w-full bg-gray-900/80 backdrop-blur border border-gray-600 text-gray-400 rounded-full py-4 pl-6 pr-32 shadow-lg cursor-text text-left hover:border-indigo-500 transition-colors"
+                        className="w-full bg-gray-900 border border-gray-600 text-gray-400 rounded-full py-3 pl-6 pr-32 shadow-inner cursor-text text-left hover:border-indigo-500 transition-colors"
                     >
-                        {generalPrompt || "e.g., 'A breathable linen shirt for a beach wedding'"}
+                        {generalPrompt || "Describe your ideal outfit..."}
                     </div>
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="absolute right-2 top-2 bottom-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 rounded-full shadow-md transition-colors"
+                        className="absolute right-1.5 top-1.5 bottom-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 rounded-full transition-colors"
                     >
                         Search
                     </button>
                 </div>
             </div>
 
-            {/* --- SEARCH MODAL --- */}
+            {/* --- SEARCH MODAL (Unchanged structure, just submits differently) --- */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
                     <div className="bg-gray-800 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-700 overflow-hidden animate-fade-in-up">
-
-                        {/* Modal Header */}
                         <div className="p-6 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
                             <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                 <span>✨</span> AI Style Finder
                             </h2>
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="text-gray-400 hover:text-white transition-colors text-2xl leading-none"
-                            >
-                                &times;
-                            </button>
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
                         </div>
-
-                        {/* Modal Body */}
                         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-
-                            {/* General Prompt */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-300 mb-2">
-                                    Describe what you are looking for
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-300 mb-2">Describe it</label>
                                 <textarea
                                     value={generalPrompt}
                                     onChange={(e) => setGeneralPrompt(e.target.value)}
-                                    placeholder="e.g. I need a complete outfit for a summer garden party. Something floral but elegant."
-                                    className="w-full bg-gray-900 border border-gray-600 rounded-xl p-4 text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none h-32"
+                                    placeholder="e.g. A summer outfit for a beach wedding..."
+                                    className="w-full bg-gray-900 border border-gray-600 rounded-xl p-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none h-32 resize-none"
                                 ></textarea>
                             </div>
-
-                            {/* Dynamic Attributes */}
                             {searchConfig.length > 0 && (
                                 <div className="grid grid-cols-2 gap-4">
                                     {searchConfig.map((attr) => (
                                         <div key={attr}>
-                                            <label className="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wider">
-                                                {attr}
-                                            </label>
+                                            <label className="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wider">{attr}</label>
                                             <input
                                                 type="text"
                                                 value={attributeValues[attr] || ''}
                                                 onChange={(e) => handleAttributeChange(attr, e.target.value)}
-                                                placeholder={`Any ${attr}...`}
-                                                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-indigo-500"
                                             />
                                         </div>
                                     ))}
                                 </div>
                             )}
-
-                            {/* Footer Actions */}
                             <div className="pt-2">
-                                <button
-                                    type="submit"
-                                    disabled={isLoading}
-                                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl shadow-lg transform transition hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
-                                >
-                                    {isLoading ? 'Finding Best Matches...' : 'Find My Outfit'}
+                                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg">
+                                    Find Matches
                                 </button>
                             </div>
                         </form>

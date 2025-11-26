@@ -36,12 +36,16 @@ export async function PUT(request, context) {
 
     const {
         name, description, seo_title, seo_description, variants,
-        attribute_ids = [], category_id, collection_ids = []
+        attribute_ids = [], category_id, collection_ids = [],
+        position
     } = await request.json();
 
     try {
         // 1. Update Product
-        await supabase.from('products').update({ name, description, seo_title, seo_description }).eq('id', numericProductId);
+        const updateData = { name, description, seo_title, seo_description };
+        if (position !== undefined) updateData.position = parseInt(position);
+
+        await supabase.from('products').update(updateData).eq('id', numericProductId);
 
         // 2. Upsert Variants
         const variantsToUpsert = variants.map(v => ({ sku: v.sku, price: v.price, size: v.size, color: v.color, product_id: numericProductId }));

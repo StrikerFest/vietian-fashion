@@ -11,54 +11,87 @@ export async function GET(request, context) {
         return NextResponse.json({ error: 'Category slug is required.' }, { status: 400 });
     }
 
+    // The last slug segment is the actual category to fetch
     const categorySlug = slug[slug.length - 1];
+
+    // Extract Params
     const sortBy = searchParams.get('sort');
-    const sizes = searchParams.getAll('size').filter(size => size);
-    const colors = searchParams.getAll('color').filter(color => color);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '12');
+
+    const reservedParams = ['sort', 'page', 'limit', 'slug'];
+    const attributeFilters = {};
+    searchParams.forEach((value, key) => {
+        if (!reservedParams.includes(key)) {
+            if (!attributeFilters[key]) attributeFilters[key] = [];
+            attributeFilters[key].push(value);
+        }
+    });
 
     try {
+        // 1. Get Category
         const { data: category, error: categoryError } = await supabase
             .from('categories')
             .select('id, name, description, seo_title, seo_description')
             .eq('slug', categorySlug)
-            .is('deleted_at', null) // Ensure category itself is active
+            .is('deleted_at', null)
             .single();
 
         if (categoryError || !category) {
             return NextResponse.json({ error: 'Category not found.' }, { status: 404 });
         }
-        const categoryId = category.id;
 
-        const { data: productLinks, error: linkError } = await supabase
+        // 2. Base Query: Get Products in this Category
+        const { data: links } = await supabase
             .from('product_categories')
             .select('product_id')
-            .eq('category_id', categoryId);
+            .eq('category_id', category.id);
 
-        if (linkError) throw linkError;
-        if (!productLinks || productLinks.length === 0) {
-            return NextResponse.json({ category, products: [] });
+        let productIds = links?.map(l => l.product_id) || [];
+
+        if (productIds.length === 0) {
+            return NextResponse.json({ category, data: [], meta: { total: 0 } });
         }
-        const productIdsInCategory = productLinks.map(link => link.product_id);
 
+        // 3. Apply Dynamic Attribute Filters
+        if (Object.keys(attributeFilters).length > 0) {
+            for (const [key, values] of Object.entries(attributeFilters)) {
+                if (key === 'size' || key === 'color') {
+                    const { data: variantMatches } = await supabase
+                        .from('product_variants')
+                        .select('product_id')
+                        .in(key, values);
+                    const validIds = new Set(variantMatches?.map(v => v.product_id));
+                    productIds = productIds.filter(id => validIds.has(id));
+                } else {
+                    const { data: attrMatches } = await supabase
+                        .from('product_categories')
+                        .select('product_id, categories!inner(slug)')
+                        .in('categories.slug', values);
+                    const validIds = new Set(attrMatches?.map(a => a.product_id));
+                    productIds = productIds.filter(id => validIds.has(id));
+                }
+            }
+        }
+
+        if (productIds.length === 0) {
+            return NextResponse.json({ category, data: [], meta: { total: 0 } });
+        }
+
+        // 4. Fetch Products
         let productQuery = supabase
             .from('products')
             .select(`
-                id, name, description,
+                id, name, description, position, created_at, image_url,
                 product_variants (
                     id, sku, price, size, color,
                     inventory_levels ( on_hand, committed )
                 )
-            `)
-            .in('id', productIdsInCategory)
-            .is('deleted_at', null); // --- NEW: Exclude archived products ---
+            `, { count: 'exact' })
+            .in('id', productIds)
+            .is('deleted_at', null);
 
-        if (sizes.length > 0) {
-            productQuery = productQuery.in('product_variants.size', sizes);
-        }
-        if (colors.length > 0) {
-            productQuery = productQuery.in('product_variants.color', colors);
-        }
-
+        // 5. Sorting
         if (sortBy) {
             const [field, direction] = sortBy.split('-');
             const ascending = direction === 'asc';
@@ -66,13 +99,18 @@ export async function GET(request, context) {
                 productQuery = productQuery.order('name', { ascending });
             }
         } else {
-            productQuery = productQuery.order('created_at', { ascending: false });
+            productQuery = productQuery.order('position', { ascending: false });
         }
 
-        const { data: products, error: productsError } = await productQuery;
+        // 6. Pagination
+        const start = (page - 1) * limit;
+        productQuery = productQuery.range(start, start + limit - 1);
+
+        const { data: products, error: productsError, count } = await productQuery;
 
         if (productsError) throw productsError;
 
+        // Price Sort
         let sortedProducts = products || [];
         if (sortBy?.startsWith('price')) {
             const ascending = sortBy.endsWith('asc');
@@ -83,10 +121,19 @@ export async function GET(request, context) {
             });
         }
 
-        return NextResponse.json({ category, products: sortedProducts });
+        return NextResponse.json({
+            category,
+            data: sortedProducts,
+            meta: {
+                page,
+                limit,
+                total: count || 0,
+                totalPages: Math.ceil((count || 0) / limit)
+            }
+        });
 
     } catch (error) {
-        console.error('Error fetching filtered products by category:', error);
-        return NextResponse.json({ error: 'Failed to fetch filtered products.', details: error.message }, { status: 500 });
+        console.error('Error fetching category products:', error);
+        return NextResponse.json({ error: 'Failed to fetch products.', details: error.message }, { status: 500 });
     }
 }
