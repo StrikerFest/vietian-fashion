@@ -108,7 +108,3 @@ User Search: "Linen dress for summer"
 AI Analysis: Matches keywords "Linen" (Attribute), "Summer" (Attribute or Collection), "Dress" (Catalog keyword).
 
 Result: Returns products intersecting these IDs.
-
-# Note
-
-- Check if the product variant connect to the variant_attributes and the product categories on the tag ( child of attribute ) being excess or redundant
