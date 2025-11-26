@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { updateInventory } from '@/utils/inventory';
+import { calculateItemPrice } from '@/utils/server-pricing'; // --- NEW IMPORT ---
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -19,6 +20,7 @@ export async function POST(request) {
     try {
         // --- Step 1: Server-side validation and stock check ---
         let subtotal = 0;
+        const verifiedItems = []; // Store items with verified prices for step 5
 
         // Variant IDs might be duplicated in cartItems if options differ, so we dedupe for the query
         const variantIds = [...new Set(cartItems.map(item => item.id))];
@@ -33,15 +35,26 @@ export async function POST(request) {
         const inventoryMap = new Map(inventoryLevels.map(i => [i.variant_id, i]));
 
         for (const item of cartItems) {
+            // A. Stock Check
             const inventory = inventoryMap.get(item.id);
             const availableStock = (inventory?.on_hand || 0) - (inventory?.committed || 0);
 
             if (!inventory || availableStock < item.quantity) {
                 return NextResponse.json({ error: `Not enough stock for ${item.productName}. Only ${availableStock} available.` }, { status: 400 });
             }
-            // Use the price from client which includes option modifiers
-            // Note: For high security, you should re-calculate option prices server-side here.
-            subtotal += item.price * item.quantity;
+
+            // B. Price Verification (CRITICAL SECURITY FIX)
+            // We ignore item.price from the client and recalculate it.
+            const verifiedUnitPrice = await calculateItemPrice(supabase, item.id, item.selectedOptions);
+
+            // Add to subtotal
+            subtotal += verifiedUnitPrice * item.quantity;
+
+            // Store for later use (so we don't calculate again)
+            verifiedItems.push({
+                ...item,
+                verifiedPrice: verifiedUnitPrice
+            });
         }
 
         // --- Step 2: Validate Discount (Unchanged) ---
@@ -88,12 +101,12 @@ export async function POST(request) {
         if (orderError) throw orderError;
 
         // --- Step 5: Create Order Items (UPDATED) ---
-        const orderItemsToInsert = cartItems.map(item => ({
+        // We now use the 'verifiedItems' array which contains the server-validated price
+        const orderItemsToInsert = verifiedItems.map(item => ({
             order_id: newOrder.id,
             variant_id: item.id,
             quantity: item.quantity,
-            price_at_purchase: item.price,
-            // --- NEW: Save Custom Options ---
+            price_at_purchase: item.verifiedPrice, // <--- SECURE PRICE
             custom_options: item.selectedOptions || {}
         }));
 
