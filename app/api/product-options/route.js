@@ -5,19 +5,19 @@ import { supabase } from '@/lib/supabaseClient';
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
-
-    // We no longer read 'price' from searchParams, preventing manipulation.
+    const variantId = searchParams.get('variantId'); // New parameter
 
     if (!productId) {
         return NextResponse.json({ error: 'Product ID required' }, { status: 400 });
     }
 
     try {
-        // 1. Call the Secure Database Function
-        // We pass the productId, and the DB calculates eligibility based on real data.
-        // We chain .select() to fetch the nested options efficiently.
+        // Call the updated RPC function with both IDs
         const { data: optionSets, error } = await supabase
-            .rpc('get_applicable_option_sets', { query_product_id: parseInt(productId) })
+            .rpc('get_applicable_option_sets', {
+                query_product_id: parseInt(productId),
+                query_variant_id: variantId ? parseInt(variantId) : null
+            })
             .select(`
                 *,
                 product_options (
@@ -27,7 +27,6 @@ export async function GET(request) {
 
         if (error) throw error;
 
-        // 2. Sort Nested Options (DB returns sets ordered, but we sort items in JS for simplicity)
         const result = optionSets.map(set => ({
             ...set,
             product_options: set.product_options

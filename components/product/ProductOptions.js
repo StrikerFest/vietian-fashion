@@ -1,8 +1,9 @@
+// components/product/ProductOptions.js
 'use client';
 
 import { useState, useEffect } from 'react';
 
-export default function ProductOptions({ productId, productPrice, onChange, setIsValid }) {
+export default function ProductOptions({ productId, variantId, onChange, setIsValid }) {
     const [optionSets, setOptionSets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selections, setSelections] = useState({}); // { optionId: "Value" }
@@ -10,8 +11,12 @@ export default function ProductOptions({ productId, productPrice, onChange, setI
     // Fetch Options
     useEffect(() => {
         const fetchOptions = async () => {
+            if (!productId || !variantId) return;
+
+            setLoading(true);
             try {
-                const res = await fetch(`/api/product-options?productId=${productId}&price=${productPrice}`);
+                // Pass variantId to API for secure price-based rule evaluation
+                const res = await fetch(`/api/product-options?productId=${productId}&variantId=${variantId}`);
                 const data = await res.json();
                 setOptionSets(data || []);
             } catch (e) {
@@ -20,12 +25,11 @@ export default function ProductOptions({ productId, productPrice, onChange, setI
                 setLoading(false);
             }
         };
-        if (productId) fetchOptions();
-    }, [productId, productPrice]);
+        fetchOptions();
+    }, [productId, variantId]);
 
-    // Validation & Propagation
+    // Validation & Price Calculation
     useEffect(() => {
-        // Check required fields
         let valid = true;
         const currentSelections = {}; // Flattened for cart
 
@@ -33,20 +37,22 @@ export default function ProductOptions({ productId, productPrice, onChange, setI
             set.product_options.forEach(opt => {
                 const val = selections[opt.id];
 
+                // 1. Validation Rule
                 if (opt.is_required && (!val || (Array.isArray(val) && val.length === 0))) {
                     valid = false;
                 }
 
-                // Format for Cart: Label: Value (+Price)
+                // 2. Cart Payload Construction
                 if (val) {
                     let displayValue = val;
-                    let priceMod = 0;
+                    // Start with the Base Price (New Feature)
+                    let priceMod = opt.price_modifier ? parseFloat(opt.price_modifier) : 0;
 
-                    // If it's a choice type, find the label and modifier
-                    if (['radio', 'checkbox_button'].includes(opt.type)) {
+                    // Add Choice Price (for Radio/Checkbox/Select)
+                    if (['radio', 'checkbox_button', 'select'].includes(opt.type)) {
                         const choice = opt.values.find(v => v.label === val);
-                        if (choice) {
-                            priceMod = choice.price_modifier || 0;
+                        if (choice && choice.price_modifier) {
+                            priceMod += parseFloat(choice.price_modifier);
                         }
                     }
 
@@ -81,13 +87,16 @@ export default function ProductOptions({ productId, productPrice, onChange, setI
                         <div key={opt.id}>
                             <label className="block text-sm font-medium text-white mb-2">
                                 {opt.label}
+                                {/* Show Base Price Modifier if exists */}
+                                {opt.price_modifier > 0 && <span className="text-indigo-400 ml-1">(+${opt.price_modifier})</span>}
                                 {opt.is_required && <span className="text-red-400 ml-1">*</span>}
                             </label>
 
-                            {/* RENDER TYPE: TEXT */}
+                            {/* --- TEXT INPUT --- */}
                             {opt.type === 'text' && (
                                 <input
                                     type="text"
+                                    maxLength={100} // Prevent huge payloads
                                     className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:ring-2 focus:ring-indigo-500"
                                     onChange={(e) => handleSelection(opt.id, e.target.value)}
                                     value={selections[opt.id] || ''}
@@ -95,9 +104,10 @@ export default function ProductOptions({ productId, productPrice, onChange, setI
                                 />
                             )}
 
-                            {/* RENDER TYPE: TEXTAREA */}
+                            {/* --- TEXTAREA --- */}
                             {opt.type === 'textarea' && (
                                 <textarea
+                                    maxLength={500}
                                     className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:ring-2 focus:ring-indigo-500"
                                     rows="3"
                                     onChange={(e) => handleSelection(opt.id, e.target.value)}
@@ -105,7 +115,23 @@ export default function ProductOptions({ productId, productPrice, onChange, setI
                                 />
                             )}
 
-                            {/* RENDER TYPE: RADIO / BUTTONS */}
+                            {/* --- DROPDOWN (SELECT) --- */}
+                            {opt.type === 'select' && (
+                                <select
+                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:ring-2 focus:ring-indigo-500"
+                                    onChange={(e) => handleSelection(opt.id, e.target.value)}
+                                    value={selections[opt.id] || ''}
+                                >
+                                    <option value="">-- Select --</option>
+                                    {opt.values.map((val, i) => (
+                                        <option key={i} value={val.label}>
+                                            {val.label} {val.price_modifier ? `(+$${val.price_modifier})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+
+                            {/* --- RADIO / BUTTONS --- */}
                             {(opt.type === 'radio' || opt.type === 'checkbox_button') && (
                                 <div className="flex flex-wrap gap-2">
                                     {opt.values.map((val, i) => {

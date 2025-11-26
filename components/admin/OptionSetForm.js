@@ -151,7 +151,7 @@ function AdvancedRuleBuilder({ groups, onChange, meta }) {
 
 // --- HELPER: Option Builder (Unchanged from previous, included for completeness) ---
 function OptionBuilder({ options, onChange }) {
-    const addOption = () => onChange([...options, { type: 'text', label: 'New Option', is_required: false, values: [] }]);
+    const addOption = () => onChange([...options, { type: 'text', label: 'New Option', is_required: false, values: [], price_modifier: 0 }]);
     const updateOption = (idx, field, val) => { const u = [...options]; u[idx][field] = val; onChange(u); };
     const removeOption = (idx) => onChange(options.filter((_, i) => i !== idx));
     const updateValues = (idx, vals) => updateOption(idx, 'values', vals);
@@ -161,33 +161,50 @@ function OptionBuilder({ options, onChange }) {
             {options.map((opt, idx) => (
                 <div key={idx} className="bg-gray-900/50 p-4 rounded border border-gray-600 relative group">
                     <button type="button" onClick={() => removeOption(idx)} className="absolute top-2 right-2 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div className="md:col-span-2">
                             <label className="block text-xs text-gray-400 mb-1">Label</label>
                             <input type="text" value={opt.label} onChange={(e) => updateOption(idx, 'label', e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white" />
                         </div>
+
                         <div>
                             <label className="block text-xs text-gray-400 mb-1">Type</label>
                             <select value={opt.type} onChange={(e) => updateOption(idx, 'type', e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white">
                                 <option value="text">Text Input</option>
                                 <option value="textarea">Text Area</option>
-                                <option value="checkbox_button">Checkbox List</option>
+                                <option value="select">Dropdown (Select)</option> {/* FIX 5 */}
                                 <option value="radio">Radio Buttons</option>
+                                <option value="checkbox_button">Checkbox List</option>
                             </select>
                         </div>
-                        <div className="flex items-center pt-5">
-                            <label className="flex items-center cursor-pointer">
-                                <input type="checkbox" checked={opt.is_required} onChange={(e) => updateOption(idx, 'is_required', e.target.checked)} className="h-4 w-4 bg-gray-800 border-gray-600 rounded text-indigo-500" />
-                                <span className="ml-2 text-sm text-gray-300">Required</span>
-                            </label>
+
+                        {/* FIX 3: Base Price Input */}
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">Base Price (+$)</label>
+                            <input
+                                type="number" min="0" step="0.01"
+                                value={opt.price_modifier || 0}
+                                onChange={(e) => updateOption(idx, 'price_modifier', parseFloat(e.target.value))}
+                                className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white"
+                            />
                         </div>
                     </div>
-                    {(opt.type === 'checkbox_button' || opt.type === 'radio') && (
+
+                    <div className="flex items-center mb-4">
+                        <label className="flex items-center cursor-pointer">
+                            <input type="checkbox" checked={opt.is_required} onChange={(e) => updateOption(idx, 'is_required', e.target.checked)} className="h-4 w-4 bg-gray-800 border-gray-600 rounded text-indigo-500" />
+                            <span className="ml-2 text-sm text-gray-300">Required Field</span>
+                        </label>
+                    </div>
+
+                    {/* Show choices builder for select, radio, checkbox */}
+                    {['select', 'radio', 'checkbox_button'].includes(opt.type) && (
                         <div className="bg-gray-800 p-3 rounded border border-gray-700">
                             <p className="text-xs font-bold text-gray-400 mb-2 uppercase">Choices</p>
                             {opt.values.map((val, vIdx) => (
                                 <div key={vIdx} className="flex gap-2 mb-2">
-                                    <input placeholder="Label" value={val.label} onChange={(e) => { const n = [...opt.values]; n[vIdx].label = e.target.value; updateValues(idx, n); }} className="w-1/2 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white" />
+                                    <input placeholder="Label" value={val.label} onChange={(e) => { const n = [...opt.values]; n[vIdx].label = e.target.value; updateValues(idx, n); }} className="flex-grow bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white" />
                                     <input type="number" placeholder="$ Mod" value={val.price_modifier} onChange={(e) => { const n = [...opt.values]; n[vIdx].price_modifier = parseFloat(e.target.value) || 0; updateValues(idx, n); }} className="w-24 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white" />
                                     <button type="button" onClick={() => updateValues(idx, opt.values.filter((_, i) => i !== vIdx))} className="text-red-500 px-2">×</button>
                                 </div>
@@ -201,7 +218,6 @@ function OptionBuilder({ options, onChange }) {
         </div>
     );
 }
-
 export default function OptionSetForm({ initialData, onSuccess, onCancel }) {
     const [formData, setFormData] = useState({
         title: '',

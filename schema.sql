@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS "public"."option_sets" (
 ALTER TABLE "public"."option_sets" OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint) RETURNS SETOF "public"."option_sets"
+CREATE OR REPLACE FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint, "query_variant_id" bigint DEFAULT NULL::bigint) RETURNS SETOF "public"."option_sets"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
@@ -177,24 +177,27 @@ DECLARE
     v_category_ids bigint[];
     v_collection_ids bigint[];
 BEGIN
-    -- 1. Fetch Product Metadata
-    SELECT 
-        COALESCE(MIN(pv.price), 0)
-    INTO v_price
-    FROM product_variants pv
-    WHERE pv.product_id = query_product_id;
+    -- 1. Determine Price
+    IF query_variant_id IS NOT NULL THEN
+        -- If a specific variant is selected, use its price
+        SELECT COALESCE(price, 0) INTO v_price
+        FROM product_variants
+        WHERE id = query_variant_id;
+    ELSE
+        -- Fallback: Use the lowest price found for this product
+        SELECT COALESCE(MIN(pv.price), 0) INTO v_price
+        FROM product_variants pv
+        WHERE pv.product_id = query_product_id;
+    END IF;
 
-    SELECT ARRAY_AGG(category_id)
-    INTO v_category_ids
-    FROM product_categories
-    WHERE product_id = query_product_id;
+    -- 2. Fetch Metadata (Categories & Collections)
+    SELECT ARRAY_AGG(category_id) INTO v_category_ids
+    FROM product_categories WHERE product_id = query_product_id;
 
-    SELECT ARRAY_AGG(collection_id)
-    INTO v_collection_ids
-    FROM product_collections
-    WHERE product_id = query_product_id;
+    SELECT ARRAY_AGG(collection_id) INTO v_collection_ids
+    FROM product_collections WHERE product_id = query_product_id;
 
-    -- 2. Filter Option Sets
+    -- 3. Filter Option Sets (Logic remains the same, but uses the calculated v_price)
     RETURN QUERY
     SELECT *
     FROM option_sets os
@@ -204,11 +207,9 @@ BEGIN
         jsonb_array_length(os.rules) = 0 
         OR
         EXISTS (
-            -- Iterate through Rule Groups (OR Logic between groups)
             SELECT 1
             FROM jsonb_array_elements(os.rules) as rule_group
             WHERE (
-                -- Iterate through Conditions in the Group (AND Logic: ALL must match)
                 NOT EXISTS (
                     SELECT 1
                     FROM jsonb_array_elements(rule_group->'conditions') as condition
@@ -237,7 +238,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint) OWNER TO "postgres";
+ALTER FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint, "query_variant_id" bigint) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_user_role"() RETURNS "text"
@@ -664,7 +665,8 @@ CREATE TABLE IF NOT EXISTS "public"."product_options" (
     "is_required" boolean DEFAULT false,
     "position" integer DEFAULT 0,
     "values" "jsonb" DEFAULT '[]'::"jsonb",
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "price_modifier" numeric DEFAULT 0
 );
 
 
@@ -1598,9 +1600,9 @@ GRANT ALL ON TABLE "public"."option_sets" TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint) TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint, "query_variant_id" bigint) TO "anon";
+GRANT ALL ON FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint, "query_variant_id" bigint) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_applicable_option_sets"("query_product_id" bigint, "query_variant_id" bigint) TO "service_role";
 
 
 

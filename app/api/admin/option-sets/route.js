@@ -1,15 +1,16 @@
+// app/api/admin/option-sets/route.js
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-// GET all option sets (including their options for preview)
 export async function GET() {
     try {
         const { data, error } = await supabase
             .from('option_sets')
+            // Make sure to select price_modifier from product_options
             .select(`
                 *,
                 product_options (
-                    id, type, label, position, values, is_required
+                    id, type, label, position, values, is_required, price_modifier
                 )
             `)
             .is('deleted_at', null)
@@ -17,7 +18,6 @@ export async function GET() {
 
         if (error) throw error;
 
-        // Sort nested options by position
         const formatted = data.map(set => ({
             ...set,
             product_options: set.product_options.sort((a, b) => a.position - b.position)
@@ -29,7 +29,6 @@ export async function GET() {
     }
 }
 
-// POST Create a new Option Set
 export async function POST(request) {
     const { title, priority, is_active, rules, options } = await request.json();
 
@@ -50,7 +49,7 @@ export async function POST(request) {
 
         if (setError) throw setError;
 
-        // 2. Create Options if provided
+        // 2. Create Options
         if (options && options.length > 0) {
             const optionsToInsert = options.map((opt, index) => ({
                 option_set_id: newSet.id,
@@ -58,7 +57,9 @@ export async function POST(request) {
                 label: opt.label,
                 is_required: opt.is_required || false,
                 position: opt.position || index,
-                values: opt.values || []
+                values: opt.values || [],
+                // --- NEW: Save the base price modifier ---
+                price_modifier: opt.price_modifier || 0
             }));
 
             const { error: optError } = await supabase
