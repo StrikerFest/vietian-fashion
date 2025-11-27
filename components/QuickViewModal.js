@@ -12,7 +12,6 @@ export default function QuickViewModal({ productId, onClose }) {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedVariant, setSelectedVariant] = useState(null);
 
-    // Fetch product data when the productId prop changes
     useEffect(() => {
         if (!productId) {
             setProduct(null);
@@ -53,9 +52,22 @@ export default function QuickViewModal({ productId, onClose }) {
     const stockOnHand = selectedVariant?.inventory_levels?.[0]?.on_hand || 0;
     const isOutOfStock = stockOnHand <= 0;
 
-    if (!productId) {
-        return null;
-    }
+    // --- NEW: Helper to generate a display name for the variant ---
+    const getVariantLabel = (variant) => {
+        if (!variant) return '';
+        // If we have dynamic attributes mapped, use them
+        if (variant.attributes && Object.keys(variant.attributes).length > 0) {
+            return Object.values(variant.attributes).join(' / ');
+        }
+        // Fallback legacy
+        if (variant.color || variant.size) {
+            return `${variant.color || ''} ${variant.size || ''}`.trim();
+        }
+        // Fallback SKU
+        return variant.sku;
+    };
+
+    if (!productId) return null;
 
     return (
         <div
@@ -103,7 +115,7 @@ export default function QuickViewModal({ productId, onClose }) {
 
                             <div className="mb-6">
                                 <h3 className="text-sm font-medium text-gray-300 mb-2">
-                                    Select Variant: <span className="text-white font-semibold">{selectedVariant?.color} / {selectedVariant?.size}</span>
+                                    Select Variant: <span className="text-white font-semibold">{getVariantLabel(selectedVariant)}</span>
                                 </h3>
                                 <div className="flex flex-wrap gap-2">
                                     {product.product_variants.map(variant => (
@@ -116,7 +128,7 @@ export default function QuickViewModal({ productId, onClose }) {
                                                 : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
                                             }`}
                                         >
-                                            {variant.color} / {variant.size}
+                                            {getVariantLabel(variant)}
                                         </button>
                                     ))}
                                 </div>

@@ -22,9 +22,10 @@ export async function GET(request) {
                 users ( email, first_name, last_name ),
                 product_variants (
                     sku,
-                    size,
-                    color,
-                    products ( name )
+                    products ( name ),
+                    variant_attributes (
+                        attribute_value:categories ( name )
+                    )
                 )
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
@@ -32,8 +33,30 @@ export async function GET(request) {
 
         if (error) throw error;
 
+        // Flatten the structure for the frontend
+        const formattedData = data.map(log => {
+            const variant = log.product_variants;
+            let variantDetails = '';
+
+            // Construct readable string from dynamic attributes
+            if (variant?.variant_attributes && variant.variant_attributes.length > 0) {
+                variantDetails = variant.variant_attributes
+                    .map(va => va.attribute_value?.name)
+                    .filter(Boolean)
+                    .join(' / ');
+            }
+
+            return {
+                ...log,
+                product_variants: {
+                    ...variant,
+                    formatted_details: variantDetails // New helper property
+                }
+            };
+        });
+
         return NextResponse.json({
-            data,
+            data: formattedData,
             meta: {
                 page,
                 limit,

@@ -20,10 +20,13 @@ export async function GET(request) {
                 order_items (
                     quantity, price_at_purchase,
                     product_variants (
-                        sku, size, color,
+                        sku, 
                         products ( name ),
                         variant_attributes (
-                            attribute_value:categories ( name, parent:parent_id ( name ) )
+                            attribute_value:categories ( 
+                                name, 
+                                parent:parent_id ( name ) 
+                            )
                         )
                     )
                 )
@@ -56,22 +59,27 @@ export async function GET(request) {
 
             if (order.order_items?.length > 0) {
                 for (const item of order.order_items) {
-                    // Build Variant String
-                    const parts = [];
-                    if (item.product_variants?.size) parts.push(`Size: ${item.product_variants.size}`);
-                    if (item.product_variants?.color) parts.push(`Color: ${item.product_variants.color}`);
+                    // --- THE FIX: Build Dynamic Variant String ---
+                    const variantParts = [];
+                    const v = item.product_variants;
 
-                    item.product_variants?.variant_attributes?.forEach(va => {
-                        if (va.attribute_value?.parent?.name) {
-                            parts.push(`${va.attribute_value.parent.name}: ${va.attribute_value.name}`);
-                        }
-                    });
+                    if (v?.variant_attributes && v.variant_attributes.length > 0) {
+                        v.variant_attributes.forEach(va => {
+                            if (va.attribute_value?.parent?.name) {
+                                // e.g. "Color: Red"
+                                variantParts.push(`${va.attribute_value.parent.name}: ${va.attribute_value.name}`);
+                            }
+                        });
+                    } else {
+                        // Very subtle fallback for pure SKU variants or data integrity issues
+                        variantParts.push('Standard');
+                    }
 
                     flattenedData.push({
                         ...baseData,
-                        'Product': item.product_variants?.products?.name || 'Unknown',
-                        'SKU': item.product_variants?.sku || 'N/A',
-                        'Variant': parts.join('; '),
+                        'Product': v?.products?.name || 'Unknown',
+                        'SKU': v?.sku || 'N/A',
+                        'Variant': variantParts.join('; '), // "Size: M; Color: Red"
                         'Qty': item.quantity,
                         'Unit Price': item.price_at_purchase
                     });

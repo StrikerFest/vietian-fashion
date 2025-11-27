@@ -28,76 +28,77 @@ export async function POST(request) {
         const rows = await parseCsv(file);
         if (!rows || rows.length === 0) return NextResponse.json({ error: 'CSV is empty.' }, { status: 400 });
 
-        // 1. Pre-fetch All Taxonomy to map Text -> IDs efficiently
-        // We need two maps: GroupName -> GroupID, and (GroupID + OptionName) -> OptionID
+        // 1. Pre-fetch Taxonomy
         const { data: allCategories } = await supabase
             .from('categories')
-            .select('id, name, parent_id, type')
+            .select('id, name, parent_id')
             .eq('type', 'attribute');
 
-        const attributeGroups = allCategories?.filter(c => !c.parent_id) || [];
-        const attributeOptions = allCategories?.filter(c => c.parent_id) || [];
+        // Create Lookup Maps (Case-insensitive)
+        const optionMap = new Map(); // "size:l" -> ID
 
-        // Helper to find ID
-        const findAttributeOptionId = (groupName, valueName) => {
-            const group = attributeGroups.find(g => g.name.toLowerCase() === groupName.toLowerCase());
-            if (!group) return null;
-            const option = attributeOptions.find(o => o.parent_id === group.id && o.name.toLowerCase() === valueName.toLowerCase());
-            return option ? option.id : null;
+        allCategories?.forEach(cat => {
+            if (cat.parent_id) {
+                const parent = allCategories.find(p => p.id === cat.parent_id);
+                if (parent) {
+                    const key = `${parent.name.toLowerCase()}:${cat.name.toLowerCase()}`;
+                    optionMap.set(key, cat.id);
+                }
+            }
+        });
+
+        const findAttributeId = (groupName, valueName) => {
+            const key = `${groupName.toLowerCase()}:${valueName.toLowerCase()}`;
+            return optionMap.get(key) || null;
         };
 
         // 2. Process Rows
         const productsMap = new Map();
 
         for (const row of rows) {
-            const { product_name, sku, price, on_hand, size, color, dynamic_attributes } = row;
-            if (!product_name || !sku || !price) continue;
+            const productName = row.product_name || row.Name;
+            const sku = row.sku || row.SKU;
+            const price = row.price || row.Price;
 
-            if (!productsMap.has(product_name)) {
-                productsMap.set(product_name, {
+            if (!productName || !sku || !price) continue;
+
+            if (!productsMap.has(productName)) {
+                productsMap.set(productName, {
                     productData: {
-                        name: product_name,
+                        name: productName,
                         description: row.description || null,
                         seo_title: row.seo_title || null,
                         seo_description: row.seo_description || null,
-                        // Default position 0, status active (implied)
                     },
                     variants: [],
                 });
             }
 
-            // Parse Attributes
+            // DYNAMIC ATTRIBUTE PARSING
+            // Matches "Size: L; Color: Red"
+            const attrString = row.attributes || row.dynamic_attributes || "";
             const attributeIdsToLink = [];
 
-            // A. Handle Explicit "dynamic_attributes" column (Format: "Material:Cotton;Fit:Slim")
-            if (dynamic_attributes) {
-                const pairs = dynamic_attributes.split(';');
+            if (attrString) {
+                const pairs = attrString.split(';');
                 pairs.forEach(pair => {
-                    const [group, val] = pair.split(':').map(s => s.trim());
-                    if (group && val) {
-                        const id = findAttributeOptionId(group, val);
-                        if (id) attributeIdsToLink.push(id);
+                    const parts = pair.split(':');
+                    if (parts.length === 2) {
+                        const group = parts[0].trim();
+                        const val = parts[1].trim();
+                        const id = findAttributeId(group, val);
+                        if (id) {
+                            attributeIdsToLink.push(id);
+                        }
                     }
                 });
             }
 
-            // B. Handle Legacy Columns (Size/Color) - Map them to new system too!
-            if (size) {
-                const id = findAttributeOptionId('Size', size);
-                if (id) attributeIdsToLink.push(id);
-            }
-            if (color) {
-                const id = findAttributeOptionId('Color', color);
-                if (id) attributeIdsToLink.push(id);
-            }
-
-            productsMap.get(product_name).variants.push({
+            productsMap.get(productName).variants.push({
                 sku,
                 price: parseFloat(price) || 0,
-                size: size || null,
-                color: color || null,
-                on_hand: parseInt(on_hand, 10) || 0,
-                attribute_ids: [...new Set(attributeIdsToLink)] // Dedupe
+                on_hand: parseInt(row.on_hand || 0, 10),
+                attribute_ids: [...new Set(attributeIdsToLink)]
             });
         }
 
@@ -118,15 +119,13 @@ export async function POST(request) {
 
             // Process Variants
             for (const v of variants) {
-                // Upsert Variant
+                // Upsert Variant (Dynamic only)
                 const { data: insertedVar, error: varError } = await supabase
                     .from('product_variants')
                     .upsert({
                         product_id: productId,
                         sku: v.sku,
-                        price: v.price,
-                        size: v.size,
-                        color: v.color
+                        price: v.price
                     }, { onConflict: 'sku' })
                     .select()
                     .single();
@@ -138,14 +137,9 @@ export async function POST(request) {
                 await supabase.from('inventory_levels')
                     .upsert({ variant_id: insertedVar.id, on_hand: v.on_hand }, { onConflict: 'variant_id' });
 
-                // Sync Attributes (Delete old links for this variant, insert new)
-                // Note: In a true bulk upsert, this might wipe existing attributes if not careful.
-                // Assuming CSV is source of truth.
+                // Sync Attributes
                 if (v.attribute_ids.length > 0) {
-                    // Clean existing
                     await supabase.from('variant_attributes').delete().eq('variant_id', insertedVar.id);
-
-                    // Insert new
                     const links = v.attribute_ids.map(aid => ({
                         variant_id: insertedVar.id,
                         attribute_value_id: aid

@@ -8,13 +8,12 @@ export async function GET(request) {
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
-        // 1. Auth Check
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // 2. Fetch User's Returns
+        // Fetch Returns with Dynamic Attributes
         const { data, error } = await supabase
             .from('return_requests')
             .select(`
@@ -28,9 +27,13 @@ export async function GET(request) {
                     quantity,
                     order_items (
                         product_variants (
-                            size,
-                            color,
-                            products ( name, image_url )
+                            sku,
+                            products ( name, image_url ),
+                            variant_attributes (
+                                attribute_value:categories (
+                                    name, parent:parent_id ( name )
+                                )
+                            )
                         )
                     )
                 )
@@ -40,7 +43,33 @@ export async function GET(request) {
 
         if (error) throw error;
 
-        return NextResponse.json(data || []);
+        // Flatten attributes for easier frontend consumption
+        const formatted = data.map(req => ({
+            ...req,
+            return_items: req.return_items.map(ri => {
+                const variant = ri.order_items?.product_variants;
+                const attributes = {};
+
+                variant?.variant_attributes?.forEach(va => {
+                    if (va.attribute_value?.parent?.name) {
+                        attributes[va.attribute_value.parent.name] = va.attribute_value.name;
+                    }
+                });
+
+                return {
+                    ...ri,
+                    order_items: {
+                        ...ri.order_items,
+                        product_variants: {
+                            ...variant,
+                            attributes // Inject mapped attributes
+                        }
+                    }
+                };
+            })
+        }));
+
+        return NextResponse.json(formatted || []);
 
     } catch (error) {
         console.error('Error fetching customer returns:', error);

@@ -5,7 +5,6 @@ import { useState } from 'react';
 
 export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }) {
     const [reason, setReason] = useState('');
-    // Map of order_item_id -> quantity to return
     const [selectedItems, setSelectedItems] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -18,11 +17,8 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
 
         setSelectedItems(prev => {
             const next = { ...prev };
-            if (qty === 0) {
-                delete next[itemId];
-            } else {
-                next[itemId] = Math.min(qty, maxQty);
-            }
+            if (qty === 0) delete next[itemId];
+            else next[itemId] = Math.min(qty, maxQty);
             return next;
         });
     };
@@ -30,13 +26,24 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
     const handleToggleItem = (itemId, maxQty) => {
         setSelectedItems(prev => {
             const next = { ...prev };
-            if (next[itemId]) {
-                delete next[itemId];
-            } else {
-                next[itemId] = maxQty; // Default to max quantity
-            }
+            if (next[itemId]) delete next[itemId];
+            else next[itemId] = maxQty;
             return next;
         });
+    };
+
+    // Helper to render label
+    const renderVariantLabel = (variant) => {
+        if (!variant) return '';
+        // Check for attributes map (populated by order page logic)
+        if (variant.attributes && Object.keys(variant.attributes).length > 0) {
+            return Object.values(variant.attributes).join(' / ');
+        }
+        // Fallback
+        if (variant.color || variant.size) {
+            return `${variant.color || ''} ${variant.size || ''}`.trim();
+        }
+        return variant.sku;
     };
 
     const handleSubmit = async (e) => {
@@ -115,7 +122,9 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
                                         />
                                         <div className="text-sm">
                                             <p className="font-medium text-white">{item.product_variants?.products?.name}</p>
-                                            <p className="text-gray-400 text-xs">{item.product_variants?.color} / {item.product_variants?.size}</p>
+                                            <p className="text-gray-400 text-xs">
+                                                {renderVariantLabel(item.product_variants)}
+                                            </p>
                                         </div>
                                     </div>
 

@@ -28,6 +28,19 @@ export default function InventoryAdjustForm({ products, onAdjust }) {
         }
     };
 
+    // Helper to generate a label for the dropdown
+    const getVariantLabel = (v) => {
+        let details = '';
+        if (v.attributes && Object.keys(v.attributes).length > 0) {
+            details = Object.values(v.attributes).join(' / ');
+        } else {
+            // Legacy fallback
+            details = `${v.color || ''} ${v.size || ''}`.trim();
+        }
+
+        return `${v.sku} - ${details} (Stock: ${v.inventory_levels?.[0]?.on_hand ?? 0})`;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!selectedVariantId || !adjustmentQty || !reason) return alert('Fill all fields.');
@@ -55,28 +68,33 @@ export default function InventoryAdjustForm({ products, onAdjust }) {
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium mb-1 text-gray-300">Product</label>
-                    <select value={selectedProductId} onChange={handleProductChange} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm">
+                    <select value={selectedProductId} onChange={handleProductChange} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm text-white">
                         <option value="">-- Select Product --</option>
                         {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                 </div>
                 <div>
                     <label className="block text-sm font-medium mb-1 text-gray-300">Variant</label>
-                    <select value={selectedVariantId} onChange={(e) => setSelectedVariantId(e.target.value)} disabled={!selectedProductId} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm disabled:opacity-50">
+                    <select
+                        value={selectedVariantId}
+                        onChange={(e) => setSelectedVariantId(e.target.value)}
+                        disabled={!selectedProductId}
+                        className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm text-white disabled:opacity-50"
+                    >
                         {variantsMap[selectedProductId]?.map(v => (
                             <option key={v.id} value={v.id}>
-                                {v.sku} - {v.color}/{v.size} (Stock: {v.inventory_levels?.[0]?.on_hand ?? 0})
+                                {getVariantLabel(v)}
                             </option>
                         ))}
                     </select>
                 </div>
                 <div>
                     <label className="block text-sm font-medium mb-1 text-gray-300">Quantity Change</label>
-                    <input type="number" placeholder="+5 or -2" value={adjustmentQty} onChange={(e) => setAdjustmentQty(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm" />
+                    <input type="number" placeholder="+5 or -2" value={adjustmentQty} onChange={(e) => setAdjustmentQty(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm text-white" />
                 </div>
                 <div>
                     <label className="block text-sm font-medium mb-1 text-gray-300">Reason</label>
-                    <input type="text" placeholder="e.g. Damaged" value={reason} onChange={(e) => setReason(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm" />
+                    <input type="text" placeholder="e.g. Damaged" value={reason} onChange={(e) => setReason(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm text-white" />
                 </div>
                 <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded disabled:bg-gray-600">
                     {isSubmitting ? 'Updating...' : 'Update Stock'}

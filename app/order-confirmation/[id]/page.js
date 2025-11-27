@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useParams } from 'next/navigation';
 import ReturnRequestModal from '@/components/account/ReturnRequestModal';
-import OrderReceipt from '@/components/order/OrderReceipt'; // --- NEW IMPORT ---
+import OrderReceipt from '@/components/order/OrderReceipt';
 
 export default function OrderConfirmationPage() {
     const params = useParams();
@@ -21,7 +21,7 @@ export default function OrderConfirmationPage() {
             const fetchOrderDetails = async () => {
                 setIsLoading(true);
                 try {
-                    // --- MODIFIED: Added 'custom_options' to selection ---
+                    // --- UPDATED QUERY: Include variant_attributes ---
                     const { data, error } = await supabase
                         .from('orders')
                         .select(`
@@ -38,8 +38,13 @@ export default function OrderConfirmationPage() {
                                 price_at_purchase,
                                 custom_options, 
                                 product_variants (
-                                    sku, color, size,
-                                    products ( name )
+                                    sku, price,
+                                    products ( name ),
+                                    variant_attributes (
+                                        attribute_value:categories (
+                                            name, parent:parent_id ( name )
+                                        )
+                                    )
                                 )
                             ),
                             order_discounts (
@@ -58,7 +63,30 @@ export default function OrderConfirmationPage() {
                         .single();
 
                     if (error) throw error;
-                    setOrder(data);
+
+                    // --- TRANSFORM: Map attributes for the UI ---
+                    const formattedOrder = {
+                        ...data,
+                        order_items: data.order_items.map(item => {
+                            const attributes = {};
+                            // Collect dynamic attributes
+                            item.product_variants?.variant_attributes?.forEach(va => {
+                                if (va.attribute_value?.parent?.name) {
+                                    attributes[va.attribute_value.parent.name] = va.attribute_value.name;
+                                }
+                            });
+
+                            return {
+                                ...item,
+                                product_variants: {
+                                    ...item.product_variants,
+                                    attributes // Pass this to OrderReceipt
+                                }
+                            };
+                        })
+                    };
+
+                    setOrder(formattedOrder);
                 } catch (error) {
                     console.error("Failed to fetch order details:", error);
                     setOrder(null);
@@ -95,10 +123,8 @@ export default function OrderConfirmationPage() {
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
-            {/* Render the Receipt Component which handles Custom Options display */}
             <OrderReceipt order={order} />
 
-            {/* Return Action Section */}
             {order.status === 'delivered' && (
                 <div className="max-w-4xl mx-auto mt-8 text-center pt-8 border-t border-gray-800">
                     <p className="text-gray-400 text-sm mb-4">

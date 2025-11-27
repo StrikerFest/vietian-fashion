@@ -13,14 +13,26 @@ export default function ReturnHistory({ returns }) {
         }
     };
 
+    const renderVariantDetails = (variant) => {
+        if (!variant) return null;
+
+        // 1. Dynamic Attributes
+        if (variant.attributes && Object.keys(variant.attributes).length > 0) {
+            return Object.values(variant.attributes).join(' / ');
+        }
+        // 2. Legacy Fallback
+        if (variant.color || variant.size) {
+            return `${variant.color || ''} ${variant.size || ''}`.trim();
+        }
+        // 3. SKU Fallback
+        return variant.sku;
+    };
+
     if (returns.length === 0) {
         return (
             <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700 border-dashed">
                 <p className="text-gray-400 mb-4">You have no return requests.</p>
-                <Link
-                    href="/account"
-                    className="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline"
-                >
+                <Link href="/account" className="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline">
                     Back to Account
                 </Link>
             </div>
@@ -31,7 +43,6 @@ export default function ReturnHistory({ returns }) {
         <div className="space-y-4">
             {returns.map((req) => (
                 <div key={req.id} className="bg-gray-800 rounded-lg p-5 border border-gray-700">
-                    {/* Header */}
                     <div className="flex flex-wrap justify-between items-start mb-4 gap-4 border-b border-gray-700 pb-4">
                         <div>
                             <div className="flex items-center gap-3 mb-1">
@@ -47,13 +58,11 @@ export default function ReturnHistory({ returns }) {
                         </div>
                     </div>
 
-                    {/* Reason */}
                     <div className="mb-4 bg-gray-900/30 p-3 rounded text-sm">
                         <span className="text-gray-500 font-semibold mr-2">Reason:</span>
                         <span className="text-gray-300 italic">{`"${req.reason}"`}</span>
                     </div>
 
-                    {/* Items List */}
                     <div className="space-y-2">
                         {req.return_items.map((item) => {
                             const product = item.order_items?.product_variants?.products;
@@ -77,7 +86,7 @@ export default function ReturnHistory({ returns }) {
                                     <div>
                                         <p className="font-medium text-gray-200 text-sm">{product?.name || 'Unknown Item'}</p>
                                         <p className="text-xs text-gray-500">
-                                            {variant?.color} / {variant?.size} • Qty: {item.quantity}
+                                            {renderVariantDetails(variant)} • Qty: {item.quantity}
                                         </p>
                                     </div>
                                 </div>

@@ -18,10 +18,12 @@ export async function GET(request) {
                 order_items (
                     quantity, price_at_purchase, custom_options,
                     product_variants (
-                        id, sku, color, size,
+                        id, sku,
                         products ( name ),
                         variant_attributes (
-                            attribute_value:categories ( name, parent:parent_id ( name ) )
+                            attribute_value:categories ( 
+                                name, parent:parent_id ( name ) 
+                            )
                         )
                     )
                 )
@@ -31,14 +33,13 @@ export async function GET(request) {
 
         if (error) throw error;
 
-        // Transform
+        // Transform for Frontend
         const formatted = data.map(order => ({
             ...order,
             order_items: order.order_items.map(item => {
                 const attributes = {};
-                if (item.product_variants?.size) attributes['Size'] = item.product_variants.size;
-                if (item.product_variants?.color) attributes['Color'] = item.product_variants.color;
 
+                // Dynamic mapping
                 item.product_variants?.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) {
                         attributes[va.attribute_value.parent.name] = va.attribute_value.name;
@@ -47,7 +48,10 @@ export async function GET(request) {
 
                 return {
                     ...item,
-                    product_variants: { ...item.product_variants, attributes }
+                    product_variants: {
+                        ...item.product_variants,
+                        attributes
+                    }
                 };
             })
         }));

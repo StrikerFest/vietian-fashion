@@ -21,7 +21,7 @@ export async function GET(request) {
                 order_items (
                     id, quantity, price_at_purchase, custom_options,
                     product_variants (
-                        id, sku, size, color,
+                        id, sku, 
                         products ( name ),
                         variant_attributes (
                             attribute_value:categories (
@@ -39,17 +39,13 @@ export async function GET(request) {
         const { data, error, count } = await query;
         if (error) throw error;
 
-        // Transform nested attributes (Keep existing logic, options are already in custom_options)
+        // Transform nested attributes for Admin Table
         const formattedOrders = data.map(order => ({
             ...order,
             order_items: order.order_items.map(item => {
                 const attributes = {};
 
-                // 1. Map legacy columns
-                if (item.product_variants?.size) attributes['Size'] = item.product_variants.size;
-                if (item.product_variants?.color) attributes['Color'] = item.product_variants.color;
-
-                // 2. Map dynamic attributes
+                // Map dynamic attributes
                 item.product_variants?.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) {
                         attributes[va.attribute_value.parent.name] = va.attribute_value.name;
@@ -60,7 +56,7 @@ export async function GET(request) {
                     ...item,
                     product_variants: {
                         ...item.product_variants,
-                        attributes
+                        attributes // Inject new map
                     }
                 };
             })

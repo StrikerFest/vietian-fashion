@@ -7,20 +7,17 @@ import { useRouter } from 'next/navigation';
 export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) {
     const router = useRouter();
 
-    // State
     const [supplierId, setSupplierId] = useState('');
     const [expectedDate, setExpectedDate] = useState('');
     const [items, setItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Selection State
     const [selectedProductId, setSelectedProductId] = useState('');
     const [selectedVariantId, setSelectedVariantId] = useState('');
     const [qty, setQty] = useState(1);
     const [cost, setCost] = useState(0);
     const [variantsMap, setVariantsMap] = useState({});
 
-    // Initialize variants map
     useEffect(() => {
         const vMap = {};
         (products || []).forEach(p => {
@@ -36,6 +33,17 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
         if (pid && variantsMap[pid]?.length > 0) {
             setSelectedVariantId(variantsMap[pid][0].id);
         }
+    };
+
+    // --- NEW: Dynamic Label Helper ---
+    const getVariantLabel = (v) => {
+        let details = '';
+        if (v.attributes && Object.keys(v.attributes).length > 0) {
+            details = Object.values(v.attributes).join(' / ');
+        } else if (v.color || v.size) {
+            details = `${v.color || ''} ${v.size || ''}`.trim();
+        }
+        return `${v.sku}${details ? ` - ${details}` : ''}`;
     };
 
     const addItem = () => {
@@ -55,7 +63,8 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
             cost_price: parseFloat(cost),
             productName: product.name,
             sku: variant.sku,
-            details: `${variant.color} / ${variant.size}`
+            // Use the helper to generate string details for the list view
+            details: getVariantLabel(variant).replace(variant.sku, '').replace(' - ', '')
         }]);
         setQty(1);
         setCost(0);
@@ -77,13 +86,12 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
 
     return (
         <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Header Info */}
             <div className="bg-gray-800 p-6 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-6 border border-gray-700">
                 <div>
-                    <label className="block text-sm font-medium mb-1">Supplier</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Supplier</label>
                     <select
                         value={supplierId} onChange={(e) => setSupplierId(e.target.value)}
-                        className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500"
+                        className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 text-white"
                         required
                     >
                         <option value="">-- Select Supplier --</option>
@@ -91,26 +99,24 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1">Expected Date</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Expected Date</label>
                     <input
                         type="date"
                         value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)}
-                        className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-gray-300 focus:ring-2 focus:ring-indigo-500"
+                        className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-white focus:ring-2 focus:ring-indigo-500"
                     />
                 </div>
             </div>
 
-            {/* Item Builder */}
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <h2 className="text-xl font-semibold mb-4">Order Items</h2>
+                <h2 className="text-xl font-semibold mb-4 text-white">Order Items</h2>
 
-                {/* Add Row */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-6 bg-gray-900/50 p-4 rounded-md">
                     <div className="md:col-span-4">
                         <label className="block text-xs font-medium mb-1 text-gray-400">Product</label>
                         <select
                             value={selectedProductId} onChange={handleProductChange}
-                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm"
+                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm text-white"
                         >
                             <option value="">-- Select --</option>
                             {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -120,11 +126,13 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                         <label className="block text-xs font-medium mb-1 text-gray-400">Variant</label>
                         <select
                             value={selectedVariantId} onChange={(e) => setSelectedVariantId(e.target.value)}
-                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm disabled:opacity-50"
+                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm disabled:opacity-50 text-white"
                             disabled={!selectedProductId}
                         >
                             {variantsMap[selectedProductId]?.map(v => (
-                                <option key={v.id} value={v.id}>{v.sku} - {v.color}/{v.size}</option>
+                                <option key={v.id} value={v.id}>
+                                    {getVariantLabel(v)}
+                                </option>
                             ))}
                         </select>
                     </div>
@@ -132,14 +140,14 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                         <label className="block text-xs font-medium mb-1 text-gray-400">Qty</label>
                         <input
                             type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
-                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm"
+                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm text-white"
                         />
                     </div>
                     <div className="md:col-span-2">
                         <label className="block text-xs font-medium mb-1 text-gray-400">Cost</label>
                         <input
                             type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)}
-                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm"
+                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm text-white"
                         />
                     </div>
                     <div className="md:col-span-1">
@@ -149,8 +157,7 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                     </div>
                 </div>
 
-                {/* Table */}
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-left text-sm text-gray-300">
                     <thead className="bg-gray-900 text-gray-400">
                     <tr>
                         <th className="p-2">Product</th>
@@ -164,7 +171,7 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                     <tbody className="divide-y divide-gray-700">
                     {items.map((item, idx) => (
                         <tr key={idx}>
-                            <td className="p-2">{item.productName}</td>
+                            <td className="p-2 text-white">{item.productName}</td>
                             <td className="p-2">{item.sku} <span className="text-gray-500">({item.details})</span></td>
                             <td className="p-2">{item.quantity}</td>
                             <td className="p-2">${item.cost_price.toFixed(2)}</td>

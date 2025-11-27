@@ -66,22 +66,16 @@ export async function PUT(request, context) {
         if (position !== undefined) updateData.position = parseInt(position);
         await supabase.from('products').update(updateData).eq('id', numericProductId);
 
-        // 2. Sync Variants (Complex)
-        // For simplicity in this MVP refactor, we fetch existing, update matches, insert new.
-        // A simpler strategy is often: Upsert variants, then sync attributes.
-
+        // 2. Sync Variants
         for (const v of variants) {
-            // Upsert Variant
+            // Upsert Variant (Removed: size, color)
             const { data: upsertedVar, error: vErr } = await supabase.from('product_variants')
                 .upsert({
                     id: v.id, // Include ID if updating
                     product_id: numericProductId,
                     sku: v.sku,
-                    price: v.price,
-                    size: v.size || null,
-                    color: v.color || null
-                }, { onConflict: 'id' }) // If no ID, it generates new? No, SKU is usually unique.
-                // Better to use SKU conflict if ID is missing, but ID is safer for edits.
+                    price: v.price
+                }, { onConflict: 'id' })
                 .select()
                 .single();
 
@@ -123,7 +117,6 @@ export async function PUT(request, context) {
     }
 }
 
-// DELETE remains unchanged
 export async function DELETE(request, context) {
     const { id } = await context.params;
     await supabase.from('products').update({ deleted_at: new Date().toISOString() }).eq('id', parseInt(id));

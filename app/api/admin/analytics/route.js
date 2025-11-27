@@ -1,6 +1,5 @@
 // app/api/admin/analytics/route.js
 import { NextResponse } from 'next/server';
-// --- FIX: Use Auth Helper to validate session ---
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
@@ -9,7 +8,6 @@ export async function GET() {
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
-        // --- FIX: Explicit Session Check ---
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -66,27 +64,43 @@ export async function GET() {
             .sort((a, b) => b.sold - a.sold)
             .slice(0, 5);
 
-        // 4. Low Stock Alerts
+        // 4. Low Stock Alerts (FIXED: Removed size/color columns)
         const { data: lowStockData } = await supabase
             .from('inventory_levels')
             .select(`
                 on_hand,
                 product_variants (
                     sku,
-                    size,
-                    color,
-                    products ( id, name )
+                    products ( id, name ),
+                    variant_attributes (
+                        attribute_value:categories ( name )
+                    )
                 )
             `)
             .lt('on_hand', 10)
             .limit(5);
 
-        const lowStockItems = lowStockData.map(item => ({
-            id: item.product_variants.products.id,
-            name: item.product_variants.products.name,
-            variant: `${item.product_variants.sku} (${item.product_variants.color}/${item.product_variants.size})`,
-            stock: item.on_hand
-        }));
+        const lowStockItems = lowStockData.map(item => {
+            const v = item.product_variants;
+
+            // Construct label purely from dynamic attributes
+            let variantLabel = '';
+            if (v.variant_attributes && v.variant_attributes.length > 0) {
+                variantLabel = v.variant_attributes
+                    .map(va => va.attribute_value?.name)
+                    .filter(Boolean)
+                    .join(' / ');
+            } else {
+                variantLabel = v.sku;
+            }
+
+            return {
+                id: v.products.id,
+                name: v.products.name,
+                variant: variantLabel || 'Standard',
+                stock: item.on_hand
+            };
+        });
 
         return NextResponse.json({
             totalOrders: totalOrders ?? 0,

@@ -9,6 +9,26 @@ export default function ReturnDetailsModal({ request, onClose, onUpdate }) {
 
     if (!request) return null;
 
+    // Helper to render variants
+    const renderVariantInfo = (variant) => {
+        if (!variant) return 'Unknown';
+
+        let details = [];
+        if (variant.attributes && Object.keys(variant.attributes).length > 0) {
+            details = Object.values(variant.attributes);
+        } else if (variant.size || variant.color) {
+            if (variant.color) details.push(variant.color);
+            if (variant.size) details.push(variant.size);
+        }
+
+        return (
+            <span>
+                <span className="font-mono text-gray-400 mr-2">{variant.sku}</span>
+                {details.length > 0 && <span className="text-gray-300">{details.join(' / ')}</span>}
+            </span>
+        );
+    };
+
     const handleAction = async (status) => {
         const confirmMsg = status === 'approved'
             ? 'Approve return? This will restock items.'
@@ -25,10 +45,10 @@ export default function ReturnDetailsModal({ request, onClose, onUpdate }) {
             });
 
             if (!response.ok) throw new Error('Action failed');
-            const { data, message } = await response.json();
+            const { message } = await response.json();
 
             alert(message);
-            onUpdate(); // Trigger refresh in parent
+            onUpdate();
             onClose();
         } catch (e) {
             alert(e.message);
@@ -65,8 +85,11 @@ export default function ReturnDetailsModal({ request, onClose, onUpdate }) {
                             {request.return_items.map(item => (
                                 <div key={item.id} className="flex justify-between items-center p-3 bg-gray-900/50 rounded border border-gray-700 text-sm">
                                     <div>
-                                        <p className="font-medium text-white">{item.order_items?.product_variants?.products?.name}</p>
-                                        <p className="text-gray-400">{item.order_items?.product_variants?.sku}</p>
+                                        <p className="font-medium text-white mb-1">{item.order_items?.product_variants?.products?.name}</p>
+                                        {/* Dynamic Attribute Display */}
+                                        <p className="text-xs">
+                                            {renderVariantInfo(item.order_items?.product_variants)}
+                                        </p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-white">Qty: {item.quantity}</p>

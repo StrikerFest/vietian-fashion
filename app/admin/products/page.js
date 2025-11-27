@@ -80,13 +80,22 @@ export default function AdminProductsPage() {
         return () => clearTimeout(timeout);
     }, [fetchData]);
 
-    // --- Computed: Unique Attributes (formerly Tags) ---
+    // --- Computed: Comprehensive Attributes List (Global Tags + Variant Specs) ---
     const allAttributes = useMemo(() => {
         const attrSet = new Set();
         products.forEach(p => {
-            // New API returns 'attributes' array (filtered from product_categories)
+            // 1. Global Attributes (Tags linked to Product)
             if (p.attributes && Array.isArray(p.attributes)) {
                 p.attributes.forEach(a => attrSet.add(a.name));
+            }
+            // 2. Variant Attributes (Specs linked to Variants)
+            if (p.product_variants) {
+                p.product_variants.forEach(v => {
+                    if (v.attributes) {
+                        // v.attributes is { "Color": "Red", "Size": "L" }
+                        Object.values(v.attributes).forEach(val => attrSet.add(val));
+                    }
+                });
             }
         });
         return Array.from(attrSet).sort();
@@ -104,9 +113,19 @@ export default function AdminProductsPage() {
         if (filterCollection) {
             result = result.filter(p => p.collections?.some(c => c.id.toString() === filterCollection));
         }
-        // 3. Attribute Filter (formerly Tag)
+        // 3. Attribute Filter (Enhanced to check Variants)
         if (filterAttribute) {
-            result = result.filter(p => p.attributes?.some(a => a.name === filterAttribute));
+            result = result.filter(p => {
+                // Check Product Tags
+                const hasGlobal = p.attributes?.some(a => a.name === filterAttribute);
+
+                // Check Variant Attributes
+                const hasVariant = p.product_variants?.some(v =>
+                    v.attributes && Object.values(v.attributes).includes(filterAttribute)
+                );
+
+                return hasGlobal || hasVariant;
+            });
         }
         // 4. Stock Filter
         if (filterStock !== 'all') {
@@ -232,7 +251,7 @@ export default function AdminProductsPage() {
                         setSortOption={setSortOption}
                         categories={categories}
                         collections={collections}
-                        allTags={allAttributes} // Pass unified attributes
+                        allTags={allAttributes} // Now includes dynamic variants
                     />
 
                     <ProductImportExport

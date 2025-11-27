@@ -25,6 +25,7 @@ export default function ProductForm({ initialData, categories = [], collections 
     const [variants, setVariants] = useState([{ ...emptyVariant }]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Dynamic Grouping of Attributes
     const attributeGroups = useMemo(() => {
         const groups = {};
         categories.filter(c => c.type === 'attribute' && !c.parent_id).forEach(root => {
@@ -59,7 +60,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                             if (group) attrMap[group.id] = optId;
                         });
                     }
-
                     return {
                         ...v,
                         on_hand: v.inventory_levels?.[0]?.on_hand ?? 0,
@@ -68,16 +68,19 @@ export default function ProductForm({ initialData, categories = [], collections 
                 });
                 setVariants(loadedVariants);
 
+                // Detect active columns
                 const detectedConfig = new Set();
-                const firstVar = loadedVariants[0];
-                Object.keys(firstVar.attribute_value_ids).forEach(groupId => {
-                    detectedConfig.add(parseInt(groupId));
-                });
+                if (loadedVariants[0]) {
+                    Object.keys(loadedVariants[0].attribute_value_ids).forEach(groupId => {
+                        detectedConfig.add(parseInt(groupId));
+                    });
+                }
                 setVariantConfig(Array.from(detectedConfig));
             }
         }
     }, [initialData, attributeGroups]);
 
+    // Handlers
     const handleAttributeToggle = (id) => { const next = new Set(selectedAttributeIds); if (next.has(id)) next.delete(id); else next.add(id); setSelectedAttributeIds(next); };
     const handleCollectionToggle = (id) => { setSelectedCollectionIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]); };
     const handleVariantConfigToggle = (groupId) => { setVariantConfig(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]); };
@@ -113,23 +116,11 @@ export default function ProductForm({ initialData, categories = [], collections 
 
             const processedVariants = variants.map(v => {
                 const attrIds = Object.values(v.attribute_value_ids).filter(id => id);
-                let legacyColor = null;
-                let legacySize = null;
-
-                Object.entries(v.attribute_value_ids).forEach(([groupId, optId]) => {
-                    const group = attributeGroups.find(g => g.id === parseInt(groupId));
-                    const option = group?.options.find(o => o.id === optId);
-                    if (group?.name === 'Color') legacyColor = option?.name;
-                    if (group?.name === 'Size') legacySize = option?.name;
-                });
-
                 return {
                     ...v,
                     price: parseFloat(v.price),
                     on_hand: parseInt(v.on_hand),
-                    attribute_value_ids: attrIds,
-                    size: legacySize || v.size,
-                    color: legacyColor || v.color
+                    attribute_value_ids: attrIds
                 };
             });
 
@@ -169,7 +160,6 @@ export default function ProductForm({ initialData, categories = [], collections 
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <h2 className="text-xl font-bold mb-6">{initialData ? 'Edit Product' : 'New Product'}</h2>
             <form onSubmit={handleSubmit} className="space-y-8">
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                         <div><label className="block text-sm text-gray-400 mb-1">Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white" required /></div>
@@ -179,22 +169,14 @@ export default function ProductForm({ initialData, categories = [], collections 
                     <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
                         <label className="block text-sm text-gray-400 mb-2">Product Image</label>
                         <input type="file" onChange={e => setImageFile(e.target.files[0])} className="w-full text-sm" />
-                        {/* Using Next.js Image for preview */}
                         {currentImageUrl && (
                             <div className="mt-2 relative h-32 w-full">
-                                <Image
-                                    src={currentImageUrl}
-                                    alt="Preview"
-                                    fill
-                                    className="object-cover rounded"
-                                    sizes="(max-width: 768px) 100vw, 300px"
-                                />
+                                <Image src={currentImageUrl} alt="Preview" fill className="object-cover rounded" />
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Taxonomy Grids */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-gray-700 pt-6">
                     <div>
                         <h3 className="font-semibold mb-2 text-blue-400">Navigation</h3>
@@ -207,12 +189,11 @@ export default function ProductForm({ initialData, categories = [], collections 
                         <div className="max-h-40 overflow-y-auto bg-gray-700 p-2 rounded border border-gray-600">{collections.map(c => <label key={c.id} className="flex gap-2 p-1"><input type="checkbox" checked={selectedCollectionIds.includes(c.id)} onChange={() => handleCollectionToggle(c.id)} /><span className="text-sm">{c.name}</span></label>)}</div>
                     </div>
                     <div>
-                        <h3 className="font-semibold mb-2 text-purple-400">Search Tags</h3>
+                        <h3 className="font-semibold mb-2 text-purple-400">Global Attributes</h3>
                         <div className="max-h-40 overflow-y-auto bg-gray-700 p-2 rounded border border-gray-600">{attributeGroups.map(g => <div key={g.id}><p className="text-xs text-gray-500 font-bold">{g.name}</p>{g.options.map(o => <label key={o.id} className="flex gap-2 pl-2"><input type="checkbox" checked={selectedAttributeIds.has(o.id)} onChange={() => handleAttributeToggle(o.id)} /><span className="text-sm">{o.name}</span></label>)}</div>)}</div>
                     </div>
                 </div>
 
-                {/* Variant Config */}
                 <div className="border-t border-gray-700 pt-6 mt-6">
                     <div className="bg-indigo-900/20 p-4 rounded border border-indigo-500/30 mb-6">
                         <p className="text-sm text-indigo-300 mb-2 font-bold">Variant Definitions</p>
@@ -230,7 +211,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                         {variants.map((variant, index) => (
                             <div key={index} className="flex flex-wrap gap-3 items-end bg-gray-900 p-3 rounded border border-gray-700">
                                 <div className="w-32"><label className="text-xs text-gray-500">SKU</label><input type="text" value={variant.sku} onChange={e => handleVariantChange(index, 'sku', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required /></div>
-
                                 {variantConfig.map(groupId => {
                                     const group = attributeGroups.find(g => g.id === groupId);
                                     return (
@@ -248,7 +228,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                                         </div>
                                     );
                                 })}
-
                                 <div className="w-24"><label className="text-xs text-gray-500">Price</label><input type="number" value={variant.price} onChange={e => handleVariantChange(index, 'price', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required /></div>
                                 <div className="w-20"><label className="text-xs text-gray-500">Stock</label><input type="number" value={variant.on_hand} onChange={e => handleVariantChange(index, 'on_hand', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required /></div>
                                 <button type="button" onClick={() => removeVariant(index)} disabled={variants.length <= 1} className="bg-red-600 text-white rounded px-2 h-9 self-end mb-0.5">×</button>

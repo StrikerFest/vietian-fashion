@@ -5,18 +5,24 @@ import Link from 'next/link';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 
 export default function OrderHistory({ orders, isLoading }) {
+
     // Helper to format variant string safely
     const formatVariantDetails = (variant) => {
         if (!variant) return '';
+
+        // Dynamic Attributes
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             return Object.entries(variant.attributes)
                 .map(([key, val]) => `${key}: ${val}`)
                 .join(' • ');
         }
+
+        // Legacy Fallback
         if (variant.size || variant.color) {
             return `${variant.color || ''} ${variant.size || ''}`.trim();
         }
-        return '';
+
+        return variant.sku || '';
     };
 
     return (
@@ -63,7 +69,7 @@ export default function OrderHistory({ orders, isLoading }) {
                                             {formatVariantDetails(item.product_variants)}
                                         </div>
 
-                                        {/* --- NEW: Display Custom Options in History --- */}
+                                        {/* Display Custom Options (Engraving etc) */}
                                         {item.custom_options && Object.keys(item.custom_options).length > 0 && (
                                             <div className="mt-1 pl-2 border-l-2 border-indigo-500/30 text-xs">
                                                 {Object.entries(item.custom_options).map(([key, opt]) => (

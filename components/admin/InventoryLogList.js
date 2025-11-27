@@ -29,7 +29,14 @@ export default function InventoryLogList({ logs }) {
                         </td>
                         <td className="p-3">
                             <p className="font-medium text-white">{log.product_variants?.products?.name}</p>
-                            <p className="text-xs text-gray-500">{log.product_variants?.sku}</p>
+                            <p className="text-xs text-gray-500">
+                                {log.product_variants?.sku}
+                                {log.product_variants?.formatted_details && (
+                                    <span className="text-gray-400 ml-1">
+                                        ({log.product_variants.formatted_details})
+                                    </span>
+                                )}
+                            </p>
                         </td>
                         <td className={`p-3 text-right font-bold ${log.quantity_change > 0 ? 'text-green-400' : 'text-red-400'}`}>
                             {log.quantity_change > 0 ? '+' : ''}{log.quantity_change}

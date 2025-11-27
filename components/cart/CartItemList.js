@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 export default function CartItemList({ cartItems, updateQuantity, removeFromCart }) {
-    // Helper to render options
+    // Helper to render options (Engraving, etc.)
     const renderCustomOptions = (options) => {
         if (!options || Object.keys(options).length === 0) return null;
 
@@ -47,23 +47,25 @@ export default function CartItemList({ cartItems, updateQuantity, removeFromCart
                             </h2>
                         </Link>
 
-                        {/* Variant Attributes (Size/Color) */}
+                        {/* Variant Attributes (Dynamic) */}
                         <div className="text-sm text-gray-400 mt-1 flex flex-wrap gap-2">
+                            {/* 1. Dynamic Attributes */}
                             {item.attributes && Object.entries(item.attributes).map(([key, val]) => (
                                 <span key={key} className="bg-gray-700 px-2 py-0.5 rounded text-xs border border-gray-600">
                                     <span className="text-gray-500 mr-1">{key}:</span>{val}
                                 </span>
                             ))}
-                            {/* Fallback for legacy items */}
+
+                            {/* 2. Legacy Fallback (for items added before migration) */}
                             {(!item.attributes && (item.size || item.color)) && (
                                 <>
-                                    {item.size && <span className="bg-gray-700 px-2 py-0.5 rounded text-xs">{item.size}</span>}
-                                    {item.color && <span className="bg-gray-700 px-2 py-0.5 rounded text-xs">{item.color}</span>}
+                                    {item.size && <span className="bg-gray-700 px-2 py-0.5 rounded text-xs border border-gray-600">Size: {item.size}</span>}
+                                    {item.color && <span className="bg-gray-700 px-2 py-0.5 rounded text-xs border border-gray-600">Color: {item.color}</span>}
                                 </>
                             )}
                         </div>
 
-                        {/* --- NEW: Custom Options Display --- */}
+                        {/* Custom Options */}
                         {renderCustomOptions(item.selectedOptions)}
 
                         <p className="text-indigo-400 font-semibold mt-1">${item.price.toFixed(2)}</p>
@@ -71,11 +73,11 @@ export default function CartItemList({ cartItems, updateQuantity, removeFromCart
 
                     {/* Quantity & Remove */}
                     <div className="flex items-center gap-3 bg-gray-900/50 p-1 rounded-lg border border-gray-700">
-                        <button onClick={() => updateQuantity(item.uniqueId, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded text-white">-</button>
-                        <span className="w-6 text-center font-mono text-sm">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.uniqueId, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded text-white">+</button>
+                        <button onClick={() => updateQuantity(item.uniqueId, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors">-</button>
+                        <span className="w-6 text-center font-mono text-sm text-white">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.uniqueId, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors">+</button>
                     </div>
-                    <button onClick={() => removeFromCart(item.uniqueId)} className="ml-6 text-gray-500 hover:text-red-500 p-2">
+                    <button onClick={() => removeFromCart(item.uniqueId)} className="ml-6 text-gray-500 hover:text-red-500 p-2 transition-colors" title="Remove">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                 </div>

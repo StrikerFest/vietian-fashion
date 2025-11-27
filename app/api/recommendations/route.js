@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '@/lib/supabaseClient';
+import { generateEmbedding } from '@/utils/ai-server'; // New import
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -24,29 +25,58 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Query is required.' }, { status: 400 });
         }
 
-        // 2. Fetch Limits & Store Map (Parallel)
-        const [settingsRes, collectionsRes, attributesRes] = await Promise.all([
-            supabase.from('settings').select('value').eq('key', 'ai_search_limits').single(),
-            supabase.from('collections').select('id, name').is('deleted_at', null),
-            supabase.from('categories').select('id, name, parent:parent_id(name)').eq('type', 'attribute').eq('is_active', true).not('parent_id', 'is', null).is('deleted_at', null)
-        ]);
-
-        // Apply Defaults if settings missing
-        const limits = settingsRes.data?.value || { products: 8, collections: 1, attributes: 1 };
-        const validCollections = collectionsRes.data || [];
-        const validAttributes = attributesRes.data || [];
-
-        // 3. Construct Prompt
-        let promptContext = `User Search: "${userQuery}".\n`;
+        // Combine explicit attributes into the query for vector search context
+        // e.g. Query: "Wedding dress", Attributes: { Color: "Red" } -> "Wedding dress Color: Red"
+        let searchContext = userQuery;
         if (Object.keys(attributes).length > 0) {
-            promptContext += "Specific Constraints:\n";
-            for (const [key, value] of Object.entries(attributes)) {
-                if (value) promptContext += `- ${key}: ${value}\n`;
-            }
+            const attrString = Object.entries(attributes)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(', ');
+            searchContext += ` (${attrString})`;
         }
 
-        const collectionList = validCollections.map(c => `ID: ${c.id}, Name: "${c.name}"`).join('\n');
-        const attributeList = validAttributes.map(a => `ID: ${a.id}, Name: "${a.name}" (Group: ${a.parent?.name})`).join('\n');
+        // 2. Generate Embedding for the Query (RAG Step 1)
+        const embedding = await generateEmbedding(searchContext);
+
+        // 3. Semantic Search (RAG Step 2)
+        // Fetch Limits from settings first
+        const { data: settingsData } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'ai_search_limits')
+            .single();
+
+        const limits = settingsData?.value || { products: 8, collections: 2, attributes: 2 };
+
+        // We fetch slightly more candidates (top 20) to let the LLM have options to choose from
+        const candidatePoolSize = 20;
+
+        // Parallel Vector Search
+        const [collectionCandidates, categoryCandidates] = await Promise.all([
+            supabase.rpc('match_collections', {
+                query_embedding: embedding,
+                match_threshold: 0.3, // Filter out complete noise
+                match_count: candidatePoolSize
+            }),
+            supabase.rpc('match_categories', {
+                query_embedding: embedding,
+                match_threshold: 0.3,
+                match_count: candidatePoolSize
+            })
+        ]);
+
+        const validCollections = collectionCandidates.data || [];
+        const validAttributes = categoryCandidates.data || [];
+
+        // 4. Construct Prompt with Filtered Context (RAG Step 3)
+        // Now we only send ~40 tokens instead of the entire database
+        const collectionList = validCollections
+            .map(c => `ID: ${c.id}, Name: "${c.name}"`)
+            .join('\n');
+
+        const attributeList = validAttributes
+            .map(a => `ID: ${a.id}, Name: "${a.name}" (Group: ${a.parent_name || 'Root'})`)
+            .join('\n');
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
@@ -54,37 +84,35 @@ export async function POST(request) {
             You are a smart fashion shopping assistant. 
             
             Your Goal: 
-            1. Analyze the user's search intent.
-            2. Generate generic search tags.
-            3. Identify the TOP ${limits.collections} most relevant Collection IDs.
-            4. Identify the TOP ${limits.attributes} most relevant Attribute IDs.
+            1. Analyze the user's search intent: "${userQuery}"
+            2. Generate 5-10 generic search tags (keywords) for database text matching.
+            3. Select the best matching IDs from the provided candidate lists below.
 
-            Available Collections:
-            ${collectionList}
+            Candidate Collections (Top matches from vector search):
+            ${collectionList || "None found."}
 
-            Available Attributes:
-            ${attributeList}
+            Candidate Attributes (Top matches from vector search):
+            ${attributeList || "None found."}
             
             Instructions:
-            - "searchTags": Return 5-10 lowercase keywords.
-            - "collectionIds": Return an array of the top ${limits.collections} relevant Collection IDs (integers). Empty array if none.
-            - "attributeIds": Return an array of the top ${limits.attributes} relevant Attribute IDs (integers). Empty array if none.
+            - "searchTags": Return lowercase keywords describing the item (style, material, occasion).
+            - "collectionIds": Select ONLY the IDs from the list above that truly match.
+            - "attributeIds": Select ONLY the IDs from the list above that truly match.
             
             Return ONLY valid JSON:
             {
               "searchTags": ["tag1", "tag2"],
-              "collectionIds": [1, 2],
+              "collectionIds": [1],
               "attributeIds": [10, 12]
             }
         `;
 
-        // 4. Execute AI
-        const result = await model.generateContent([systemInstruction, promptContext]);
+        // 5. Execute AI
+        const result = await model.generateContent(systemInstruction);
         const response = await result.response;
         const text = response.text();
 
-        // --- FIX: Robust JSON Extraction ---
-        // Find the first '{' and the last '}' to ignore conversational fluff
+        // Robust JSON Extraction
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         const cleanedText = jsonMatch ? jsonMatch[0] : text;
 
@@ -92,26 +120,17 @@ export async function POST(request) {
 
         try {
             const parsed = JSON.parse(cleanedText);
-
-            // Validate Structure (Prevent crashes if AI returns null or wrong types)
-            if (parsed.searchTags && Array.isArray(parsed.searchTags)) {
-                aiResponse.searchTags = parsed.searchTags;
-            }
-            if (parsed.collectionIds && Array.isArray(parsed.collectionIds)) {
-                aiResponse.collectionIds = parsed.collectionIds;
-            }
-            if (parsed.attributeIds && Array.isArray(parsed.attributeIds)) {
-                aiResponse.attributeIds = parsed.attributeIds;
-            }
+            if (parsed.searchTags) aiResponse.searchTags = parsed.searchTags;
+            if (parsed.collectionIds) aiResponse.collectionIds = parsed.collectionIds;
+            if (parsed.attributeIds) aiResponse.attributeIds = parsed.attributeIds;
         } catch (e) {
-            console.error("AI Parse Error (Falling back to keyword):", e);
-            // Fallback is already set to basic keyword search
+            console.error("AI Parse Error:", e);
         }
 
         const { searchTags, collectionIds, attributeIds } = aiResponse;
 
-        // 5. Fetch Result Data
-        // A. Products
+        // 6. Fetch Final Result Data
+        // A. Products (Still using text tags for now, hybrid search is best)
         const { data: products, error: productError } = await supabase
             .rpc('search_products_by_tags', { tag_names: searchTags || [] })
             .select('*, product_variants(*, inventory_levels(*))')
@@ -119,7 +138,7 @@ export async function POST(request) {
 
         if (productError) throw productError;
 
-        // B. Fetch Matched Collections
+        // B. Fetch Matched Collections (Full Data)
         let matchedCollections = [];
         if (collectionIds && collectionIds.length > 0) {
             const { data } = await supabase
@@ -130,7 +149,7 @@ export async function POST(request) {
             matchedCollections = data || [];
         }
 
-        // C. Fetch Matched Attributes
+        // C. Fetch Matched Attributes (Full Data)
         let matchedAttributes = [];
         if (attributeIds && attributeIds.length > 0) {
             const { data } = await supabase

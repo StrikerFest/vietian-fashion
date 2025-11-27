@@ -7,10 +7,36 @@ export default function OrderReceipt({ order }) {
     const appliedDiscount = order.order_discounts?.[0]?.discounts;
     const shippingAddress = order.addresses;
     let discountAmount = 0;
+
     if (appliedDiscount && order.subtotal) {
         if (appliedDiscount.type === 'percentage') discountAmount = (order.subtotal * Math.min(Math.max(appliedDiscount.value, 0), 100)) / 100;
         else if (appliedDiscount.type === 'fixed') discountAmount = Math.min(appliedDiscount.value, order.subtotal);
     }
+
+    // Helper to render attributes
+    const renderAttributes = (variant) => {
+        if (!variant) return null;
+
+        // Use the new dynamic attributes map
+        if (variant.attributes && Object.keys(variant.attributes).length > 0) {
+            return (
+                <span className="text-sm text-gray-400">
+                    {Object.entries(variant.attributes).map(([k, v]) => `${v}`).join(' / ')}
+                </span>
+            );
+        }
+
+        // Fallback for legacy data
+        if (variant.color || variant.size) {
+            return (
+                <span className="text-sm text-gray-400">
+                    {variant.color} {variant.size && `/ ${variant.size}`}
+                </span>
+            );
+        }
+
+        return <span className="text-sm text-gray-500">{variant.sku}</span>;
+    };
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -31,12 +57,11 @@ export default function OrderReceipt({ order }) {
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-gray-700 rounded-md flex items-center justify-center text-xs text-gray-400 shrink-0">IMG</div>
                                     <div>
-                                        <p className="font-medium text-white">{item.product_variants.products.name}</p>
-                                        <p className="text-sm text-gray-400">
-                                            {item.product_variants.color} {item.product_variants.size && `/ ${item.product_variants.size}`}
-                                        </p>
+                                        <p className="font-medium text-white">{item.product_variants?.products?.name || 'Item'}</p>
+                                        {/* UPDATED ATTRIBUTE DISPLAY */}
+                                        {renderAttributes(item.product_variants)}
 
-                                        {/* --- UPDATED: Show Price Modifier --- */}
+                                        {/* Custom Options (Engraving, etc) */}
                                         {item.custom_options && Object.keys(item.custom_options).length > 0 && (
                                             <div className="mt-1 space-y-0.5">
                                                 {Object.entries(item.custom_options).map(([key, opt]) => (
@@ -60,7 +85,7 @@ export default function OrderReceipt({ order }) {
                     </div>
                 </div>
 
-                {/* Totals & Address Block (Unchanged) */}
+                {/* Totals & Address Block */}
                 <div className="grid grid-cols-1 md:grid-cols-2">
                     <div className="p-6 md:p-8 border-r border-gray-700">
                         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Shipping Details</h3>

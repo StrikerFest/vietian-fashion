@@ -15,6 +15,7 @@ export async function GET(request) {
                 .filter(id => !isNaN(id));
         }
 
+        // Fetch products with the Unified Taxonomy (variant_attributes)
         let query = supabase
             .from('products')
             .select(`
@@ -47,26 +48,35 @@ export async function GET(request) {
         const flattenedData = [];
         for (const product of products) {
             if (!product.product_variants || product.product_variants.length === 0) {
-                // Export product without variants
                 flattenedData.push({
                     'product_name': product.name,
                     'description': product.description || '',
                     'seo_title': product.seo_title || '',
                     'seo_description': product.seo_description || '',
-                    'sku': '', 'price': '', 'size': '', 'color': '', 'on_hand': '', 'dynamic_attributes': ''
+                    'sku': '', 'price': '', 'on_hand': '', 'dynamic_attributes': ''
                 });
                 continue;
             }
 
             for (const variant of product.product_variants) {
-                // Build Dynamic Attribute String (Format: "Material: Cotton; Style: Casual")
+                // Build Dynamic Attribute String (Format: "Size: L; Color: Red")
                 const attrStrings = [];
+
+                // 1. Process Unified Attributes
                 if (variant.variant_attributes) {
                     variant.variant_attributes.forEach(va => {
                         if (va.attribute_value?.parent?.name) {
                             attrStrings.push(`${va.attribute_value.parent.name}: ${va.attribute_value.name}`);
                         }
                     });
+                }
+
+                // 2. Fallback for legacy columns (if they still exist and aren't in dynamic list)
+                if (variant.size && !attrStrings.some(s => s.startsWith('Size:'))) {
+                    attrStrings.push(`Size: ${variant.size}`);
+                }
+                if (variant.color && !attrStrings.some(s => s.startsWith('Color:'))) {
+                    attrStrings.push(`Color: ${variant.color}`);
                 }
 
                 flattenedData.push({
@@ -76,10 +86,8 @@ export async function GET(request) {
                     'seo_description': product.seo_description || '',
                     'sku': variant.sku,
                     'price': variant.price,
-                    'size': variant.size || '',   // Legacy column
-                    'color': variant.color || '', // Legacy column
                     'on_hand': variant.inventory_levels?.[0]?.on_hand ?? 0,
-                    'dynamic_attributes': attrStrings.join('; ') // New column
+                    'dynamic_attributes': attrStrings.join('; ')
                 });
             }
         }

@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 
 export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
-    // ... [State definitions same as existing] ...
     const [shippingCarrier, setShippingCarrier] = useState('');
     const [trackingNumber, setTrackingNumber] = useState('');
     const [isSavingTracking, setIsSavingTracking] = useState(false);
@@ -20,7 +19,26 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
     if (!order) return null;
 
-    // ... [Discount helper same as existing] ...
+    // Helper to render variant details dynamically
+    const renderVariantLabel = (variant) => {
+        if (!variant) return 'Unknown Variant';
+
+        // 1. Dynamic Attributes (New System)
+        if (variant.attributes && Object.keys(variant.attributes).length > 0) {
+            return Object.entries(variant.attributes)
+                .map(([key, val]) => `${val}`) // Display "Red / L"
+                .join(' / ');
+        }
+
+        // 2. Legacy Fallback (Old System)
+        if (variant.color || variant.size) {
+            return `${variant.color || ''} ${variant.size || ''}`.trim();
+        }
+
+        // 3. Last Resort
+        return 'Standard';
+    };
+
     const getDiscountDetails = (ord) => {
         if (!ord || !ord.order_discounts || ord.order_discounts.length === 0) {
             return { text: null, amount: 0 };
@@ -45,7 +63,6 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
     const discountDetails = getDiscountDetails(order);
 
-    // ... [Handlers handleSaveTracking & handleCancelOrder same as existing] ...
     const handleSaveTracking = async () => {
         if (!shippingCarrier && !trackingNumber) {
             alert('Please enter Shipping Carrier or Tracking Number.');
@@ -94,26 +111,31 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
             <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-6 border-b border-gray-700 flex justify-between items-center sticky top-0 bg-gray-800 z-10">
-                    <h2 className="text-2xl font-bold">Order #{order.id}</h2>
-                    <div className="flex items-center gap-4"><OrderStatusBadge status={order.status} /><button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button></div>
+                    <h2 className="text-2xl font-bold text-white">Order #{order.id}</h2>
+                    <div className="flex items-center gap-4">
+                        <OrderStatusBadge status={order.status} />
+                        <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+                    </div>
                 </div>
 
                 <div className="p-6 space-y-6">
-                    {/* Order Items - UPDATED */}
+                    {/* Order Items */}
                     <div>
-                        <h3 className="font-semibold mb-2 text-lg">Order Items</h3>
+                        <h3 className="font-semibold mb-2 text-lg text-white">Order Items</h3>
                         <div className="space-y-2">
                             {order.order_items.map((item, idx) => (
                                 <div key={idx} className="flex justify-between items-start text-sm p-3 bg-gray-900/50 rounded border border-gray-700">
                                     <div>
                                         <p className="font-medium text-white">{item.product_variants.products.name}</p>
-                                        <p className="text-gray-400">
-                                            {item.product_variants.sku}
-                                            <span className="ml-2 text-gray-500">
-                                                {item.product_variants.color} {item.product_variants.size && `/ ${item.product_variants.size}`}
+                                        <p className="text-gray-400 flex items-center gap-2">
+                                            <span className="font-mono text-xs text-gray-500">{item.product_variants.sku}</span>
+                                            <span className="text-gray-300">•</span>
+                                            <span className="text-gray-300">
+                                                {renderVariantLabel(item.product_variants)}
                                             </span>
                                         </p>
-                                        {/* Display Custom Options */}
+
+                                        {/* Custom Options (Engraving, etc.) */}
                                         {item.custom_options && Object.keys(item.custom_options).length > 0 && (
                                             <div className="mt-2 pl-2 border-l-2 border-indigo-500/50">
                                                 {Object.entries(item.custom_options).map(([key, opt]) => (
@@ -127,15 +149,18 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                             </div>
                                         )}
                                     </div>
-                                    <p className="text-gray-300 whitespace-nowrap ml-4">{item.quantity} x ${item.price_at_purchase.toFixed(2)}</p>
+                                    <div className="text-right">
+                                        <p className="text-gray-300 whitespace-nowrap">{item.quantity} x ${item.price_at_purchase.toFixed(2)}</p>
+                                        <p className="text-white font-bold">${(item.quantity * item.price_at_purchase).toFixed(2)}</p>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* ... [Rest of modal (Totals, Address, Tracking) remains mostly same] ... */}
+                    {/* Payment Details */}
                     <div>
-                        <h3 className="font-semibold mb-2 text-lg">Payment Details</h3>
+                        <h3 className="font-semibold mb-2 text-lg text-white">Payment Details</h3>
                         <div className="space-y-1 text-sm bg-gray-900/50 p-4 rounded border border-gray-700">
                             <div className="flex justify-between"><span className="text-gray-400">Subtotal</span><span className="text-white">${order.subtotal?.toFixed(2) ?? '0.00'}</span></div>
                             {discountDetails.text && <div className="flex justify-between text-green-400"><span>{discountDetails.text}</span><span>-${discountDetails.amount.toFixed(2)}</span></div>}
@@ -143,8 +168,9 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                         </div>
                     </div>
 
+                    {/* Address */}
                     <div>
-                        <h3 className="font-semibold mb-2 text-lg">Shipping Address</h3>
+                        <h3 className="font-semibold mb-2 text-lg text-white">Shipping Address</h3>
                         {order.addresses ? (
                             <div className="text-sm text-gray-300 bg-gray-900/50 p-4 rounded border border-gray-700">
                                 <p className="font-medium text-white mb-1">{order.addresses.address_line_1}</p>
@@ -155,6 +181,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                         ) : <p className="text-sm text-gray-500 italic">No address provided.</p>}
                     </div>
 
+                    {/* Tracking */}
                     {order.status !== 'cancelled' && order.status !== 'delivered' && (
                         <div className="bg-gray-900/50 p-4 rounded border border-gray-700 space-y-3">
                             <h3 className="font-semibold text-white">Update Tracking</h3>
