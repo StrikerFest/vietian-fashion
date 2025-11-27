@@ -65,24 +65,28 @@ export function AdminAuthProvider({ children }) {
         setSession(adminSession);
         setUserRole('admin');
 
-        // 5. CRITICAL: Sign out of the default cookie-based auth.
-        // This makes the user a "guest" on the storefront.
-        await supabase.auth.signOut();
+        // 5. [CRITICAL FIX] DO NOT SIGN OUT HERE.
+        // We keep the Supabase cookie active so Middleware and API routes pass.
+        // The "Customer" part of the site will see this user as logged in,
+        // which is acceptable (Admins can be customers too).
 
         return { success: true };
     };
 
     // --- Admin-specific LOGOUT function ---
-    const logout = () => {
-        // Clear state and localStorage. No Supabase call needed.
+    const logout = async () => {
+        // Clear state and localStorage
         setSession(null);
         setUserRole(null);
         localStorage.removeItem(ADMIN_SESSION_KEY);
         localStorage.removeItem(ADMIN_ROLE_KEY);
+
+        // Also sign out of Supabase to clear the cookie
+        await supabase.auth.signOut();
     };
 
     const value = {
-        supabase, // Share the client, but not the auth state
+        supabase,
         session,
         userRole,
         isLoading,
@@ -97,7 +101,6 @@ export function AdminAuthProvider({ children }) {
     );
 }
 
-// --- NEW: Custom hook for admin auth ---
 export function useAdminAuth() {
     const context = useContext(AdminAuthContext);
     if (context === undefined) {

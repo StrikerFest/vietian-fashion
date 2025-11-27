@@ -1,10 +1,21 @@
 // app/api/admin/analytics/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+// --- FIX: Use Auth Helper to validate session ---
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function GET() {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     try {
-        // 1. Basic Stats (Existing)
+        // --- FIX: Explicit Session Check ---
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // 1. Basic Stats
         const { count: totalOrders } = await supabase
             .from('orders')
             .select('id', { count: 'exact', head: true });
@@ -15,8 +26,7 @@ export async function GET() {
 
         const totalRevenue = (revenueData || []).reduce((sum, order) => sum + (order.total_amount || 0), 0);
 
-        // 2. Sales Trend (Last 30 Days) - For the Graph
-        // We group orders by date to create a time-series
+        // 2. Sales Trend
         const salesByDate = {};
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -29,11 +39,9 @@ export async function GET() {
             }
         });
 
-        // Convert to array for Recharts: [{ name: 'Oct 24', sales: 450 }, ...]
         const salesChartData = Object.entries(salesByDate).map(([name, sales]) => ({ name, sales }));
 
-        // 3. Top Selling Products (Complex Join)
-        // Note: In a large app, this aggregation should be a database view or RPC function
+        // 3. Top Selling Products
         const { data: bestSellers } = await supabase
             .from('order_items')
             .select(`
@@ -44,7 +52,7 @@ export async function GET() {
                 )
             `)
             .order('quantity', { ascending: false })
-            .limit(50); // Fetch enough to aggregate
+            .limit(50);
 
         const productSales = {};
         bestSellers.forEach(item => {
@@ -54,7 +62,6 @@ export async function GET() {
             productSales[pId].sold += item.quantity;
         });
 
-        // Sort by sold count and take top 5
         const topProducts = Object.values(productSales)
             .sort((a, b) => b.sold - a.sold)
             .slice(0, 5);
@@ -71,7 +78,7 @@ export async function GET() {
                     products ( id, name )
                 )
             `)
-            .lt('on_hand', 10) // Alert threshold
+            .lt('on_hand', 10)
             .limit(5);
 
         const lowStockItems = lowStockData.map(item => ({

@@ -50,7 +50,6 @@ export async function POST(request) {
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // Updated instructions to request ARRAYS based on limits
         const systemInstruction = `
             You are a smart fashion shopping assistant. 
             
@@ -82,27 +81,45 @@ export async function POST(request) {
         // 4. Execute AI
         const result = await model.generateContent([systemInstruction, promptContext]);
         const response = await result.response;
-        const cleanedText = response.text().replace(/```json|```/g, '').trim();
+        const text = response.text();
+
+        // --- FIX: Robust JSON Extraction ---
+        // Find the first '{' and the last '}' to ignore conversational fluff
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const cleanedText = jsonMatch ? jsonMatch[0] : text;
 
         let aiResponse = { searchTags: [userQuery], collectionIds: [], attributeIds: [] };
+
         try {
-            aiResponse = JSON.parse(cleanedText);
+            const parsed = JSON.parse(cleanedText);
+
+            // Validate Structure (Prevent crashes if AI returns null or wrong types)
+            if (parsed.searchTags && Array.isArray(parsed.searchTags)) {
+                aiResponse.searchTags = parsed.searchTags;
+            }
+            if (parsed.collectionIds && Array.isArray(parsed.collectionIds)) {
+                aiResponse.collectionIds = parsed.collectionIds;
+            }
+            if (parsed.attributeIds && Array.isArray(parsed.attributeIds)) {
+                aiResponse.attributeIds = parsed.attributeIds;
+            }
         } catch (e) {
-            console.error("AI Parse Error:", e);
+            console.error("AI Parse Error (Falling back to keyword):", e);
+            // Fallback is already set to basic keyword search
         }
 
         const { searchTags, collectionIds, attributeIds } = aiResponse;
 
         // 5. Fetch Result Data
-        // A. Products (Limit applied here)
+        // A. Products
         const { data: products, error: productError } = await supabase
             .rpc('search_products_by_tags', { tag_names: searchTags || [] })
             .select('*, product_variants(*, inventory_levels(*))')
-            .limit(limits.products); // <--- Apply Product Limit
+            .limit(limits.products);
 
         if (productError) throw productError;
 
-        // B. Fetch Matched Collections (Multiple)
+        // B. Fetch Matched Collections
         let matchedCollections = [];
         if (collectionIds && collectionIds.length > 0) {
             const { data } = await supabase
@@ -113,7 +130,7 @@ export async function POST(request) {
             matchedCollections = data || [];
         }
 
-        // C. Fetch Matched Attributes (Multiple)
+        // C. Fetch Matched Attributes
         let matchedAttributes = [];
         if (attributeIds && attributeIds.length > 0) {
             const { data } = await supabase
@@ -124,11 +141,10 @@ export async function POST(request) {
             matchedAttributes = data || [];
         }
 
-        // 6. Return Response
         return NextResponse.json({
             products,
-            collections: matchedCollections, // Now an array
-            attributes: matchedAttributes,   // Now an array
+            collections: matchedCollections,
+            attributes: matchedAttributes,
             generatedTags: searchTags
         });
 

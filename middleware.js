@@ -7,35 +7,33 @@ export async function middleware(req) {
 
     // Refresh session if expired
     const { data: { session } } = await supabase.auth.getSession();
+    const path = req.nextUrl.pathname;
 
-    // 1. Protect /admin routes
-    if (req.nextUrl.pathname.startsWith('/admin')) {
+    // 1. Protect /admin routes (Pages and APIs)
+    if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
 
-        // Allow access to login page
-        if (req.nextUrl.pathname === '/admin/login') {
-            // If already logged in as admin, redirect to dashboard
+        // Allow access to login page explicitly
+        if (path === '/admin/login') {
+            // If already logged in, redirect to dashboard
             if (session) {
-                // Note: Ideally we verify the 'admin' role here too, but middleware
-                // shouldn't do heavy DB calls. We rely on the page-level check for role,
-                // but we can at least redirect authenticated users.
-                // For now, let the login page handle the redirect if they are already admin.
-                return res;
+                return NextResponse.redirect(new URL('/admin', req.url));
             }
             return res;
         }
 
-        // If trying to access protected admin pages without a session
+        // If no session exists
         if (!session) {
+            // A. API Routes: Return 401 JSON (don't return HTML redirect)
+            if (path.startsWith('/api/')) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            }
+            // B. Pages: Redirect to login
             return NextResponse.redirect(new URL('/admin/login', req.url));
         }
-
-        // Optional: If you stored user role in metadata, you could check it here.
-        // const role = session.user.user_metadata.role;
-        // if (role !== 'admin') return NextResponse.redirect(new URL('/', req.url));
     }
 
     // 2. Protect Account routes
-    if (req.nextUrl.pathname.startsWith('/account')) {
+    if (path.startsWith('/account')) {
         if (!session) {
             return NextResponse.redirect(new URL('/login', req.url));
         }
@@ -45,5 +43,6 @@ export async function middleware(req) {
 }
 
 export const config = {
-    matcher: ['/admin/:path*', '/account/:path*', '/login', '/admin/login'],
+    // Added '/api/admin/:path*' to ensure admin APIs are protected
+    matcher: ['/admin/:path*', '/api/admin/:path*', '/account/:path*', '/login', '/admin/login'],
 };
