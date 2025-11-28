@@ -3,10 +3,10 @@
 
 import { useState, useEffect } from 'react';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [shippingCarrier, setShippingCarrier] = useState('');
     const [trackingNumber, setTrackingNumber] = useState('');
     const [isSavingTracking, setIsSavingTracking] = useState(false);
@@ -21,18 +21,13 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
     if (!order) return null;
 
-    // Helper to render variant details dynamically
     const renderVariantLabel = (variant) => {
         if (!variant) return 'Unknown Variant';
-
-        // 1. Dynamic Attributes (New System)
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             return Object.entries(variant.attributes)
-                .map(([key, val]) => `${val}`) // Display "Red / L"
+                .map(([key, val]) => `${val}`)
                 .join(' / ');
         }
-
-        // 2. Last Resort
         return 'Standard';
     };
 
@@ -59,10 +54,12 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
     };
 
     const discountDetails = getDiscountDetails(order);
+    const shippingCost = order.shipping_cost || 0;
+    const taxAmount = order.tax_amount || 0;
 
     const handleSaveTracking = async () => {
         if (!shippingCarrier && !trackingNumber) {
-            addToast('Please enter Shipping Carrier or Tracking Number.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Please enter Shipping Carrier or Tracking Number.', 'error');
             return;
         }
         setIsSavingTracking(true);
@@ -75,9 +72,9 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
             if (!response.ok) throw new Error('Failed to update tracking info');
             const { order: updatedOrder } = await response.json();
             onUpdateOrder(updatedOrder);
-            addToast('Tracking information saved successfully!', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Tracking information saved successfully!', 'success');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Error: ${error.message}`, 'error');
         } finally {
             setIsSavingTracking(false);
         }
@@ -95,9 +92,9 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
             if (!response.ok) throw new Error('Failed to cancel order');
             const { order: updatedOrder } = await response.json();
             onUpdateOrder(updatedOrder);
-            addToast('Order cancelled successfully!', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Order cancelled successfully!', 'success');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Error: ${error.message}`, 'error');
         } finally {
             setIsCancelling(false);
         }
@@ -131,8 +128,6 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                                 {renderVariantLabel(item.product_variants)}
                                             </span>
                                         </p>
-
-                                        {/* Custom Options (Engraving, etc.) */}
                                         {item.custom_options && Object.keys(item.custom_options).length > 0 && (
                                             <div className="mt-2 pl-2 border-l-2 border-indigo-500/50">
                                                 {Object.entries(item.custom_options).map(([key, opt]) => (
@@ -161,7 +156,16 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                         <div className="space-y-1 text-sm bg-gray-900/50 p-4 rounded border border-gray-700">
                             <div className="flex justify-between"><span className="text-gray-400">Subtotal</span><span className="text-white">${order.subtotal?.toFixed(2) ?? '0.00'}</span></div>
                             {discountDetails.text && <div className="flex justify-between text-green-400"><span>{discountDetails.text}</span><span>-${discountDetails.amount.toFixed(2)}</span></div>}
-                            <div className="flex justify-between text-gray-400"><span>Shipping</span><span className="text-white font-medium">Free</span></div>
+
+                            <div className="flex justify-between text-gray-400">
+                                <span>Shipping</span>
+                                <span className="text-white">${Number(shippingCost).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-400">
+                                <span>Tax</span>
+                                <span className="text-white">${Number(taxAmount).toFixed(2)}</span>
+                            </div>
+
                             <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between font-bold text-base text-white"><span>Grand Total</span><span>${order.total_amount.toFixed(2)}</span></div>
                         </div>
                     </div>

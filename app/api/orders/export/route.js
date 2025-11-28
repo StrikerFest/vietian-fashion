@@ -13,7 +13,7 @@ export async function GET(request) {
         let query = supabase
             .from('orders')
             .select(`
-                id, created_at, status, subtotal, total_amount, shipping_carrier, tracking_number,
+                id, created_at, status, subtotal, total_amount, shipping_carrier, tracking_number, tax_amount, shipping_cost,
                 users ( email ),
                 addresses ( address_line_1, city, state_province_region, postal_code, country ),
                 order_discounts ( discounts ( code ) ),
@@ -52,26 +52,26 @@ export async function GET(request) {
                 'Date': new Date(order.created_at).toLocaleDateString(),
                 'Status': order.status,
                 'Customer': order.users?.email || 'Guest',
+                'Subtotal': order.subtotal,
+                'Discount Code': discountCode,
+                'Tax': order.tax_amount || 0,
+                'Shipping Cost': order.shipping_cost || 0,
                 'Total': order.total_amount,
-                'Discount': discountCode,
-                'Shipping': address ? `${address.city}, ${address.country}` : 'N/A'
+                'Shipping Address': address ? `${address.city}, ${address.country}` : 'N/A'
             };
 
             if (order.order_items?.length > 0) {
                 for (const item of order.order_items) {
-                    // --- THE FIX: Build Dynamic Variant String ---
                     const variantParts = [];
                     const v = item.product_variants;
 
                     if (v?.variant_attributes && v.variant_attributes.length > 0) {
                         v.variant_attributes.forEach(va => {
                             if (va.attribute_value?.parent?.name) {
-                                // e.g. "Color: Red"
                                 variantParts.push(`${va.attribute_value.parent.name}: ${va.attribute_value.name}`);
                             }
                         });
                     } else {
-                        // Very subtle fallback for pure SKU variants or data integrity issues
                         variantParts.push('Standard');
                     }
 
@@ -79,7 +79,7 @@ export async function GET(request) {
                         ...baseData,
                         'Product': v?.products?.name || 'Unknown',
                         'SKU': v?.sku || 'N/A',
-                        'Variant': variantParts.join('; '), // "Size: M; Color: Red"
+                        'Variant': variantParts.join('; '),
                         'Qty': item.quantity,
                         'Unit Price': item.price_at_purchase
                     });

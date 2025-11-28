@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { updateInventory } from '@/utils/inventory';
 
-// GET Single Order
 export async function GET(request, context) {
     const { id } = await context.params;
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
@@ -13,6 +12,8 @@ export async function GET(request, context) {
             .from('orders')
             .select(`
                 *,
+                tax_amount,    
+                shipping_cost, 
                 order_discounts ( discounts ( code, type, value ) ),
                 addresses ( * ),
                 order_items (
@@ -36,9 +37,11 @@ export async function GET(request, context) {
         // Transform (Consistent with List View)
         const formattedOrder = {
             ...order,
+            // Ensure defaults for older orders
+            tax_amount: order.tax_amount || 0,
+            shipping_cost: order.shipping_cost || 0,
             order_items: order.order_items.map(item => {
                 const attributes = {};
-
                 item.product_variants?.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) {
                         attributes[va.attribute_value.parent.name] = va.attribute_value.name;
@@ -61,7 +64,7 @@ export async function GET(request, context) {
     }
 }
 
-// PUT remains unchanged...
+// PUT logic remains unchanged... (It handles cancellations/tracking)
 export async function PUT(request, context) {
     const params = await context.params;
     const { id } = params;

@@ -4,7 +4,8 @@
 import { useState } from 'react';
 import RecommendationSettings from '@/components/admin/settings/RecommendationSettings';
 import HomepageSettings from '@/components/admin/settings/HomepageSettings';
-import EmailSettings from '@/components/admin/settings/EmailSettings'; // --- NEW IMPORT ---
+import EmailSettings from '@/components/admin/settings/EmailSettings';
+import TaxSettings from '@/components/admin/settings/TaxSettings'; // --- NEW IMPORT ---
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('homepage');
@@ -12,7 +13,8 @@ export default function SettingsPage() {
     const tabs = [
         { id: 'homepage', label: 'Homepage Layout' },
         { id: 'recommendation', label: 'AI Recommendation' },
-        { id: 'email', label: 'Email Config' }, // --- NEW TAB ---
+        { id: 'email', label: 'Email Config' },
+        { id: 'tax', label: 'Tax & Shipping' }, // --- NEW TAB ---
         { id: 'general', label: 'General' },
     ];
 
@@ -52,6 +54,10 @@ export default function SettingsPage() {
 
                 {activeTab === 'email' && (
                     <EmailSettings />
+                )}
+
+                {activeTab === 'tax' && (
+                    <TaxSettings />
                 )}
 
                 {activeTab === 'general' && (

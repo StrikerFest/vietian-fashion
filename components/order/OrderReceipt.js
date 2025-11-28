@@ -6,8 +6,12 @@ import Link from 'next/link';
 export default function OrderReceipt({ order }) {
     const appliedDiscount = order.order_discounts?.[0]?.discounts;
     const shippingAddress = order.addresses;
-    let discountAmount = 0;
 
+    // Fallbacks for legacy orders (before tax/shipping cols existed)
+    const taxAmount = order.tax_amount || 0;
+    const shippingCost = order.shipping_cost || 0;
+
+    let discountAmount = 0;
     if (appliedDiscount && order.subtotal) {
         if (appliedDiscount.type === 'percentage') discountAmount = (order.subtotal * Math.min(Math.max(appliedDiscount.value, 0), 100)) / 100;
         else if (appliedDiscount.type === 'fixed') discountAmount = Math.min(appliedDiscount.value, order.subtotal);
@@ -17,7 +21,6 @@ export default function OrderReceipt({ order }) {
     const renderAttributes = (variant) => {
         if (!variant) return null;
 
-        // Use the new dynamic attributes map
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             return (
                 <span className="text-sm text-gray-400">
@@ -25,7 +28,6 @@ export default function OrderReceipt({ order }) {
                 </span>
             );
         }
-
         return <span className="text-sm text-gray-500">{variant.sku}</span>;
     };
 
@@ -49,10 +51,7 @@ export default function OrderReceipt({ order }) {
                                     <div className="w-12 h-12 bg-gray-700 rounded-md flex items-center justify-center text-xs text-gray-400 shrink-0">IMG</div>
                                     <div>
                                         <p className="font-medium text-white">{item.product_variants?.products?.name || 'Item'}</p>
-                                        {/* UPDATED ATTRIBUTE DISPLAY */}
                                         {renderAttributes(item.product_variants)}
-
-                                        {/* Custom Options (Engraving, etc) */}
                                         {item.custom_options && Object.keys(item.custom_options).length > 0 && (
                                             <div className="mt-1 space-y-0.5">
                                                 {Object.entries(item.custom_options).map(([key, opt]) => (
@@ -98,7 +97,19 @@ export default function OrderReceipt({ order }) {
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between text-gray-300"><span>Subtotal</span><span>${order.subtotal.toFixed(2)}</span></div>
                             {appliedDiscount && <div className="flex justify-between text-green-400"><span>Discount ({appliedDiscount.code})</span><span>-${discountAmount.toFixed(2)}</span></div>}
-                            <div className="flex justify-between text-gray-300"><span>Shipping</span><span>Free</span></div>
+
+                            <div className="flex justify-between text-gray-300">
+                                <span>Shipping</span>
+                                <span className={shippingCost === 0 ? "text-green-400" : "text-white"}>
+                                    {shippingCost === 0 ? 'Free' : `$${Number(shippingCost).toFixed(2)}`}
+                                </span>
+                            </div>
+
+                            <div className="flex justify-between text-gray-300">
+                                <span>Tax</span>
+                                <span>${Number(taxAmount).toFixed(2)}</span>
+                            </div>
+
                             <div className="pt-4 mt-4 border-t border-gray-700 flex justify-between items-center"><span className="font-bold text-white text-lg">Total</span><span className="font-bold text-white text-2xl">${order.total_amount.toFixed(2)}</span></div>
                         </div>
                     </div>

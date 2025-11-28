@@ -8,7 +8,6 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request) {
-    // --- MODIFIED: Added guestAddressData ---
     const { cartItems, userId, addressId, discountId, guestAddressData } = await request.json();
 
     if (!cartItems || cartItems.length === 0) {
@@ -19,12 +18,12 @@ export async function POST(request) {
     let finalAddressId = addressId || null;
 
     try {
-        // --- NEW: Step 0: Handle Guest Address Insertion ---
+        // --- Step 0: Handle Guest Address ---
         if (!finalUserId && guestAddressData) {
             const { data: newAddress, error: addressError } = await supabase
                 .from('addresses')
                 .insert({
-                    user_id: null, // Critical: Null user_id for guest order, allowing it to be temporary
+                    user_id: null,
                     address_line_1: guestAddressData.address_line_1,
                     address_line_2: guestAddressData.address_line_2 || null,
                     city: guestAddressData.city,
@@ -44,12 +43,9 @@ export async function POST(request) {
             return NextResponse.json({ error: 'A shipping address is required.' }, { status: 400 });
         }
 
-
-        // --- Step 1: Server-side validation and stock check ---
+        // --- Step 1: Validation & Subtotal ---
         let subtotal = 0;
         const verifiedItems = [];
-
-        // Dedupe variant IDs for query
         const variantIds = [...new Set(cartItems.map(item => item.id))];
 
         const { data: inventoryLevels, error: inventoryError } = await supabase
@@ -62,7 +58,6 @@ export async function POST(request) {
         const inventoryMap = new Map(inventoryLevels.map(i => [i.variant_id, i]));
 
         for (const item of cartItems) {
-            // A. Stock Check
             const inventory = inventoryMap.get(item.id);
             const availableStock = (inventory?.on_hand || 0) - (inventory?.committed || 0);
 
@@ -70,9 +65,7 @@ export async function POST(request) {
                 return NextResponse.json({ error: `Not enough stock for ${item.productName}. Only ${availableStock} available.` }, { status: 400 });
             }
 
-            // B. Price Verification
             const verifiedUnitPrice = await calculateItemPrice(supabase, item.id, item.selectedOptions);
-
             subtotal += verifiedUnitPrice * item.quantity;
 
             verifiedItems.push({
@@ -81,7 +74,7 @@ export async function POST(request) {
             });
         }
 
-        // --- Step 2: Validate Discount ---
+        // --- Step 2: Discount ---
         let validatedDiscount = null;
         let discountAmount = 0;
         if (discountId) {
@@ -107,9 +100,36 @@ export async function POST(request) {
             }
         }
 
-        const totalAmount = Math.max(0, subtotal - discountAmount);
+        // --- Step 3: Tax & Shipping Calculation ---
+        let taxAmount = 0;
+        let shippingCost = 0;
 
-        // --- Step 4: Create Order ---
+        const { data: settingsData } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'tax_config')
+            .single();
+
+        const config = settingsData?.value || { taxRate: 0, shippingCost: 0, freeShippingThreshold: 0 };
+
+        const taxableAmount = Math.max(0, subtotal - discountAmount);
+
+        // Calculate Tax
+        if (config.taxRate > 0) {
+            taxAmount = (taxableAmount * config.taxRate) / 100;
+        }
+
+        // Calculate Shipping
+        const freeShippingThreshold = parseFloat(config.freeShippingThreshold || 0);
+        if (freeShippingThreshold > 0 && taxableAmount >= freeShippingThreshold) {
+            shippingCost = 0;
+        } else {
+            shippingCost = parseFloat(config.shippingCost || 0);
+        }
+
+        const totalAmount = taxableAmount + taxAmount + shippingCost;
+
+        // --- Step 4: Create Order (WITH NEW COLUMNS) ---
         const { data: newOrder, error: orderError } = await supabase
             .from('orders')
             .insert({
@@ -117,6 +137,8 @@ export async function POST(request) {
                 shipping_address_id: finalAddressId,
                 subtotal: subtotal,
                 total_amount: totalAmount,
+                tax_amount: taxAmount,       // --- NEW ---
+                shipping_cost: shippingCost, // --- NEW ---
                 status: 'paid'
             })
             .select()
@@ -124,7 +146,7 @@ export async function POST(request) {
 
         if (orderError) throw orderError;
 
-        // --- Step 5: Create Order Items ---
+        // --- Step 5: Order Items ---
         const orderItemsToInsert = verifiedItems.map(item => ({
             order_id: newOrder.id,
             variant_id: item.id,
@@ -139,7 +161,7 @@ export async function POST(request) {
 
         if (orderItemsError) throw orderItemsError;
 
-        // --- Step 6: Link Discount ---
+        // --- Step 6: Discount Link ---
         if (validatedDiscount) {
             await supabase.from('order_discounts').insert({
                 order_id: newOrder.id,
@@ -147,7 +169,7 @@ export async function POST(request) {
             });
         }
 
-        // --- Step 7: Update Inventory ---
+        // --- Step 7: Inventory ---
         for (const item of cartItems) {
             await updateInventory(supabase, {
                 variantId: item.id,
@@ -157,7 +179,7 @@ export async function POST(request) {
             });
         }
 
-        // --- Step 8: Send Email (Dynamic) ---
+        // --- Step 8: Email ---
         try {
             let customerEmail = null;
             let customerName = "Valued Customer";
@@ -167,15 +189,8 @@ export async function POST(request) {
                 customerEmail = user?.email;
                 customerName = user?.first_name || "Customer";
             }
-            // Use guest address data for email if user is null
-            if (!customerEmail && finalAddressId && guestAddressData) {
-                // Since email is not captured on the cart page for guests,
-                // this block is currently moot unless we add an email field to GuestAddressForm.
-                // For now, we only send email if registered.
-            }
 
             if (customerEmail) {
-                // Fetch Template
                 const { data: template } = await supabase
                     .from('email_templates')
                     .select('*')
@@ -183,14 +198,12 @@ export async function POST(request) {
                     .eq('is_active', true)
                     .single();
 
-                // --- NEW: Fetch Sender Config ---
                 const { data: emailSettings } = await supabase
                     .from('settings')
                     .select('value')
                     .eq('key', 'email_config')
                     .single();
 
-                // Fallback defaults
                 const senderName = emailSettings?.value?.senderName || 'AI Fashion';
                 const senderEmail = emailSettings?.value?.senderEmail || 'orders@yourdomain.com';
                 const fromAddress = `${senderName} <${senderEmail}>`;
@@ -211,15 +224,12 @@ export async function POST(request) {
             }
         } catch (e) {
             console.error("Email failed:", e);
-            // Don't fail the whole checkout if email fails, but log it critical
         }
 
         return NextResponse.json({ success: true, orderId: newOrder.id });
 
     } catch (error) {
         console.error('Checkout error:', error);
-        // --- NEW: If an address was inserted for a guest, we may want to clean it up on failure (Optional cleanup) ---
-        // Since we don't have transaction control, we rely on a soft delete policy or regular database cleanup.
         return NextResponse.json({ error: 'Checkout failed.', details: error.message }, { status: 500 });
     }
 }

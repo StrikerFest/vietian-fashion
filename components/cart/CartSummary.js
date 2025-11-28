@@ -1,12 +1,11 @@
 // components/cart/CartSummary.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function CartSummary({
                                         subtotal,
                                         discountAmount,
-                                        total,
                                         appliedDiscount,
                                         onApplyDiscount,
                                         onRemoveDiscount,
@@ -19,6 +18,33 @@ export default function CartSummary({
     const [discountMessage, setDiscountMessage] = useState({ type: '', text: '' });
     const [isApplying, setIsApplying] = useState(false);
 
+    // Tax and Shipping State
+    const [config, setConfig] = useState({ taxRate: 0, shippingCost: 0, freeShippingThreshold: 0 });
+
+    useEffect(() => {
+        // Fetch configuration client-side to update summary display
+        fetch('/api/settings?key=tax_config')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.value) setConfig(data.value);
+            })
+            .catch(err => console.error("Failed to load tax config", err));
+    }, []);
+
+    // --- Dynamic Calculations ---
+    const taxableAmount = Math.max(0, subtotal - discountAmount);
+    const taxAmount = (taxableAmount * (config.taxRate || 0)) / 100;
+
+    let shippingCost = parseFloat(config.shippingCost || 0);
+    const freeShippingThreshold = parseFloat(config.freeShippingThreshold || 0);
+
+    if (freeShippingThreshold > 0 && taxableAmount >= freeShippingThreshold) {
+        shippingCost = 0;
+    }
+
+    // Client-side total (Note: Server recalculates this for security)
+    const finalTotal = taxableAmount + taxAmount + shippingCost;
+
     const handleApply = async (e) => {
         e.preventDefault();
         if (!discountInput.trim()) return;
@@ -26,7 +52,6 @@ export default function CartSummary({
         setIsApplying(true);
         setDiscountMessage({ type: '', text: '' });
 
-        // We assume onApplyDiscount returns a result object { success, message }
         const result = await onApplyDiscount(discountInput);
 
         setDiscountMessage({
@@ -42,7 +67,7 @@ export default function CartSummary({
         setDiscountMessage({ type: '', text: '' });
     };
 
-    const canCheckout = session ? hasSelectedAddress : true; // Guests can always proceed (address logic handled differently for guests if needed)
+    const canCheckout = session ? hasSelectedAddress : true;
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg sticky top-24 border border-gray-700 shadow-xl">
@@ -110,12 +135,21 @@ export default function CartSummary({
 
                 <div className="flex justify-between text-gray-400">
                     <span>Shipping</span>
-                    <span className="text-white font-medium">Free</span>
+                    {shippingCost === 0 ? (
+                        <span className="text-green-400 font-medium">Free</span>
+                    ) : (
+                        <span className="text-white font-medium">${shippingCost.toFixed(2)}</span>
+                    )}
+                </div>
+
+                <div className="flex justify-between text-gray-400">
+                    <span>Estimated Tax ({config.taxRate}%)</span>
+                    <span className="text-white font-medium">${taxAmount.toFixed(2)}</span>
                 </div>
 
                 <div className="border-t border-gray-700 pt-4 mt-4 flex justify-between items-end">
                     <span className="text-white font-bold text-lg">Total</span>
-                    <span className="text-2xl font-extrabold text-white">${total.toFixed(2)}</span>
+                    <span className="text-2xl font-extrabold text-white">${finalTotal.toFixed(2)}</span>
                 </div>
             </div>
 
@@ -135,7 +169,6 @@ export default function CartSummary({
                 )}
             </button>
 
-            {/* Validation Message */}
             {session && !hasSelectedAddress && (
                 <p className="text-xs text-red-400 text-center mt-3 bg-red-900/10 p-2 rounded border border-red-900/30">
                     Please select a shipping address to continue.

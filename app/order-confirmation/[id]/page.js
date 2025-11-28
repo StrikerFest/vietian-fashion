@@ -7,12 +7,12 @@ import { supabase } from '@/lib/supabaseClient';
 import { useParams } from 'next/navigation';
 import ReturnRequestModal from '@/components/account/ReturnRequestModal';
 import OrderReceipt from '@/components/order/OrderReceipt';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function OrderConfirmationPage() {
     const params = useParams();
     const orderId = params?.id;
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
 
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +23,6 @@ export default function OrderConfirmationPage() {
             const fetchOrderDetails = async () => {
                 setIsLoading(true);
                 try {
-                    // --- UPDATED QUERY: Include variant_attributes ---
                     const { data, error } = await supabase
                         .from('orders')
                         .select(`
@@ -31,6 +30,8 @@ export default function OrderConfirmationPage() {
                             created_at,
                             subtotal,
                             total_amount,
+                            tax_amount,      -- NEW: Fetch Tax
+                            shipping_cost,   -- NEW: Fetch Shipping
                             status,
                             shipping_carrier,
                             tracking_number,
@@ -66,12 +67,13 @@ export default function OrderConfirmationPage() {
 
                     if (error) throw error;
 
-                    // --- TRANSFORM: Map attributes for the UI ---
                     const formattedOrder = {
                         ...data,
+                        // Ensure defaults for older orders
+                        tax_amount: data.tax_amount || 0,
+                        shipping_cost: data.shipping_cost || 0,
                         order_items: data.order_items.map(item => {
                             const attributes = {};
-                            // Collect dynamic attributes
                             item.product_variants?.variant_attributes?.forEach(va => {
                                 if (va.attribute_value?.parent?.name) {
                                     attributes[va.attribute_value.parent.name] = va.attribute_value.name;
@@ -82,7 +84,7 @@ export default function OrderConfirmationPage() {
                                 ...item,
                                 product_variants: {
                                     ...item.product_variants,
-                                    attributes // Pass this to OrderReceipt
+                                    attributes
                                 }
                             };
                         })
@@ -101,7 +103,7 @@ export default function OrderConfirmationPage() {
     }, [orderId]);
 
     const handleReturnSuccess = () => {
-        addToast("Return request submitted! We will review it shortly.", 'success'); // --- FIXED: Replaced alert() ---
+        addToast("Return request submitted! We will review it shortly.", 'success');
     };
 
     if (isLoading) {
@@ -149,7 +151,7 @@ export default function OrderConfirmationPage() {
                 isOpen={isReturnModalOpen}
                 onClose={() => setIsReturnModalOpen(false)}
                 order={order}
-                onSuccess={handleReturnSuccess} // --- MODIFIED: Use new handler ---
+                onSuccess={handleReturnSuccess}
             />
         </main>
     );
