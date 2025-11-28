@@ -1472,15 +1472,75 @@ ALTER TABLE ONLY "public"."wishlists"
 
 
 
+CREATE POLICY "Admin full access categories" ON "public"."categories" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access collections" ON "public"."collections" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access discounts" ON "public"."discounts" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access inventory" ON "public"."inventory_levels" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access inventory_logs" ON "public"."inventory_adjustments" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
 CREATE POLICY "Admin full access option_sets" ON "public"."option_sets" USING ((( SELECT "user_roles"."role"
    FROM "public"."user_roles"
   WHERE ("user_roles"."user_id" = "auth"."uid"())) = 'admin'::"text"));
 
 
 
+CREATE POLICY "Admin full access product_categories" ON "public"."product_categories" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access product_collections" ON "public"."product_collections" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access product_images" ON "public"."product_images" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
 CREATE POLICY "Admin full access product_options" ON "public"."product_options" USING ((( SELECT "user_roles"."role"
    FROM "public"."user_roles"
   WHERE ("user_roles"."user_id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access products" ON "public"."products" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access purchase_order_items" ON "public"."purchase_order_items" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access purchase_orders" ON "public"."purchase_orders" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access return items" ON "public"."return_items" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access reviews" ON "public"."reviews" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access suppliers" ON "public"."suppliers" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access variants" ON "public"."product_variants" USING (("public"."get_user_role"() = 'admin'::"text"));
 
 
 
@@ -1493,6 +1553,14 @@ CREATE POLICY "Admin read all users" ON "public"."users" FOR SELECT USING (("pub
 
 
 CREATE POLICY "Admin read wishlists" ON "public"."wishlists" FOR SELECT USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin view all order discounts" ON "public"."order_discounts" USING (("public"."get_user_role"() = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin view all order items" ON "public"."order_items" USING (("public"."get_user_role"() = 'admin'::"text"));
 
 
 
@@ -1528,7 +1596,57 @@ CREATE POLICY "Public read access product_options" ON "public"."product_options"
 
 
 
+CREATE POLICY "Public read approved reviews" ON "public"."reviews" FOR SELECT USING ((("is_approved" = true) OR ("auth"."uid"() = "user_id")));
+
+
+
+CREATE POLICY "Public read categories" ON "public"."categories" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public read collections" ON "public"."collections" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public read discounts" ON "public"."discounts" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public read inventory" ON "public"."inventory_levels" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public read product_categories" ON "public"."product_categories" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public read product_collections" ON "public"."product_collections" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public read product_images" ON "public"."product_images" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public read products" ON "public"."products" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public read variants" ON "public"."product_variants" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Users create return items" ON "public"."return_items" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."return_requests"
+  WHERE (("return_requests"."id" = "return_items"."return_request_id") AND ("return_requests"."user_id" = "auth"."uid"())))));
+
+
+
 CREATE POLICY "Users create returns" ON "public"."return_requests" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users create reviews" ON "public"."reviews" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
@@ -1548,7 +1666,25 @@ CREATE POLICY "Users update own profile" ON "public"."users" FOR UPDATE USING ((
 
 
 
+CREATE POLICY "Users view own order discounts" ON "public"."order_discounts" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."orders"
+  WHERE (("orders"."id" = "order_discounts"."order_id") AND ("orders"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users view own order items" ON "public"."order_items" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."orders"
+  WHERE (("orders"."id" = "order_items"."order_id") AND ("orders"."user_id" = "auth"."uid"())))));
+
+
+
 CREATE POLICY "Users view own orders" ON "public"."orders" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users view own return items" ON "public"."return_items" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."return_requests"
+  WHERE (("return_requests"."id" = "return_items"."return_request_id") AND ("return_requests"."user_id" = "auth"."uid"())))));
 
 
 
@@ -1556,13 +1692,82 @@ CREATE POLICY "Users view own returns" ON "public"."return_requests" FOR SELECT 
 
 
 
+ALTER TABLE "public"."addresses" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."categories" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."collections" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."discounts" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."email_templates" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."inventory_adjustments" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."inventory_levels" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."option_sets" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."order_discounts" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."order_items" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."orders" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."product_categories" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."product_collections" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."product_images" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."product_options" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."product_variants" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."products" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."purchase_order_items" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."purchase_orders" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."return_items" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."return_requests" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."reviews" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."settings" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."suppliers" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."user_roles" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."users" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."variant_attributes" ENABLE ROW LEVEL SECURITY;

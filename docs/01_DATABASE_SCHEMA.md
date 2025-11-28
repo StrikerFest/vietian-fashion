@@ -1,145 +1,112 @@
 # Database Schema & Architecture
 
-This document outlines the data model powering the AI Fashion Store. The database is hosted on **Supabase (PostgreSQL)** and utilizes relational integrity, custom SQL functions (RPC), and specific design patterns like Soft Deletes and Unified Taxonomy.
+This document outlines the data model powering the AI Fashion Store. The database is hosted on **Supabase (PostgreSQL)** and utilizes relational integrity, custom SQL functions (RPC), and the `pgvector` extension for AI features.
 
 ## 1. Core Commerce Entities
 
 ### `products`
 The central catalog entity.
-* **`id`**: Primary Key.
+* **`id`**: BigInt (PK).
+* **`name`**, **`description`**: Text content.
 * **`status`**: 'draft', 'active', 'archived'.
-* **`seo_title` / `seo_description`**: For search engine optimization.
-* **`deleted_at`**: Used for **Soft Deletes**. We rarely `DELETE` rows; instead, we set this timestamp to archive products while preserving order history.
-* **Relationships**: One-to-Many with `product_variants`.
+* **`image_url`**: Main product display image.
+* **`position`**: Integer for custom sorting.
+* **`seo_title` / `seo_description`**: SEO metadata.
+* **`deleted_at`**: Timestamp for Soft Deletes.
 
 ### `product_variants`
-Represents the sellable SKU (e.g., "Red T-Shirt, Size M").
-* **`sku`**: Unique Stock Keeping Unit identifier.
-* **`price`**: Base selling price.
-* **`size`**, **`color`**: Specific attributes defining this variant.
-* **Note**: Does *not* store stock counts directly. See `inventory_levels`.
+Represents the sellable SKU.
+* **`id`**: BigInt (PK).
+* **`product_id`**: FK to `products`.
+* **`sku`**: Unique identifier.
+* **`price`**: Base price.
+* **Note**: Stock is tracked in `inventory_levels`. Attribute values (e.g., Size: L) are linked via `variant_attributes`.
 
 ### `inventory_levels`
-Decouples stock quantity from the product definition.
-* **`variant_id`**: Link to specific SKU.
+Decouples stock quantity from the variant definition.
+* **`variant_id`**: FK to `product_variants`.
 * **`on_hand`**: Physical stock available.
-* **`committed`**: Stock reserved in active carts/unpaid orders (future proofing).
-* **Why separate?** Allows for future expansion into multi-warehouse support without altering the `product_variants` schema.
+* **`committed`**: Stock reserved in active carts (future-proofing).
 
 ---
 
-## 2. Unified Taxonomy (Categories)
-
-The system uses a **Unified Category Model** to handle both Navigation Menus and Filtering Attributes.
+## 2. Unified Taxonomy & AI
 
 ### `categories`
+Handles both Navigation and Attributes.
 * **`type`**: Enum (`'catalog'` or `'attribute'`).
-    * **`catalog`**: Used for navigation (e.g., "Men", "Summer Collection").
-    * **`attribute`**: Used for product filters (e.g., "Color", "Material").
-* **`parent_id`**: Self-referencing FK.
-    * For `catalog`: Defines menu hierarchy (Men -> Shirts).
-    * For `attribute`: Defines grouping (Color -> Red, Blue).
-* **`display_style`**: ('list', 'swatch', 'pill') Controls frontend rendering filters.
-* **`start_date` / `end_date`**: **Time-Fencing**. Categories can be scheduled to appear/disappear automatically (e.g., a "Holiday Special" category).
+* **`display_style`**: 'list', 'swatch', 'pill'.
+* **`embedding`**: `vector(768)` for Semantic Search (Google text-embedding-004).
+* **`start_date` / `end_date`**: Time-fencing for automated visibility.
 
 ### `collections`
-Marketing-focused groupings distinct from the strict category hierarchy.
-* **`slug`**: URL friendly identifier.
-* **`is_featured`**: Boolean to promote on the homepage.
-* **Usage**: "Summer Vibes", "Office Essentials". Products can belong to multiple collections via `product_collections`.
+Marketing groupings.
+* **`slug`**: URL-friendly ID.
+* **`is_featured`**: Featured status for homepage.
+* **`embedding`**: `vector(768)` for Semantic Search.
+
+### `tags`
+* **`name`**: Simple keyword tagging for products.
 
 ---
 
-## 3. Sales & Order Management
+## 3. Product Options (Customization)
+
+### `option_sets`
+Groups of custom fields applied dynamically.
+* **`rules`**: JSONB defining logic (e.g., "Show on Category X").
+* **`priority`**: Rendering order.
+
+### `product_options`
+The actual input definitions.
+* **`type`**: 'text', 'radio', 'select', etc.
+* **`price_modifier`**: Base surcharge for selecting this option.
+* **`values`**: JSONB choices (e.g., `[{ "label": "Red", "price_modifier": 5 }]`).
+
+---
+
+## 4. Sales & Users
+
+### `users`
+Synced with Supabase Auth.
+* **`id`**: UUID matching `auth.users`.
+* **`is_admin`**: Boolean role flag.
+
+### `addresses`
+User shipping destinations.
+* **`is_default`**: Boolean flag.
 
 ### `orders`
-* **`user_id`**: Link to the customer.
-* **`status`**: State machine (`pending` -> `paid` -> `shipped` -> `delivered` -> `cancelled` | `refunded`).
-* **`total_amount`**: Final charge.
-* **`shipping_address_id`**: Snapshot of destination.
+* **`status`**: 'pending', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded'.
+* **`total_amount`**, **`subtotal`**: Financial snapshots.
 
 ### `order_items`
-* **`price_at_purchase`**: **Critical**. We store the price *at the moment of sale* to ensure historical accuracy even if the product price changes later.
-* **`returned_quantity`**: Tracks partial returns.
+* **`price_at_purchase`**: Snapshot price.
+* **`custom_options`**: JSONB storing user customization choices.
 
-### `order_discounts` & `discounts`
-* **`discounts`**: Stores rules (`percentage` vs `fixed`, `code`, `start/end_date`).
-* **`order_discounts`**: Junction table linking specific orders to the discount used.
+### `wishlists`
+Junction table for saved items.
+* **`user_id`**, **`product_id`**.
 
----
-
-## 4. Logistics & Operations
-
-### `suppliers`
-Database of vendors.
-* **`contact_person`**, **`email`**, **`phone`**.
-
-### `purchase_orders` (PO)
-Internal orders to replenish stock from suppliers.
-* **`status`**: `draft` -> `ordered` -> `received`.
-* **Workflow**: When a PO is marked `received`, it triggers a system update to increment `inventory_levels`.
-
-### `inventory_adjustments` (Audit Log)
-An immutable ledger of every stock change.
-* **`reason`**: "Order #123", "PO Receive #5", "Damaged", "Return #9".
-* **`quantity_change`**: Positive (add) or Negative (remove).
-* **Usage**: Allows admins to trace exactly why stock levels are what they are.
+### `reviews`
+User-generated feedback.
+* **`is_approved`**: Boolean for moderation.
 
 ---
 
-## 5. Returns (RMA)
+## 5. Operations
 
-### `return_requests`
-* **`status`**: `pending` -> `approved` | `rejected`.
-* **`reason`**: User provided explanation.
-* **`admin_notes`**: Internal context.
+### `suppliers` & `purchase_orders`
+ERP-lite features for restocking.
+* **`purchase_orders`** status: 'draft' -> 'ordered' -> 'received'.
 
-### `return_items`
-* **`should_restock`**: Boolean flag controlled by Admins. If true, approving the return automatically increments inventory.
+### `inventory_adjustments`
+Audit log for all stock changes (Orders, POs, Returns).
 
----
-
-## 6. AI & Configuration
+### `return_requests` & `return_items`
+RMA system.
+* **`status`**: 'pending', 'approved', 'rejected'.
+* **`should_restock`**: Boolean flag for inventory logic.
 
 ### `settings`
-A key-value store for dynamic app configuration.
-* **`ai_search_attributes`**: JSON array defining which attributes (e.g., "Season", "Occasion") appear in the AI Search prompt.
-* **`ai_search_limits`**: JSON object defining how many Products/Collections/Categories the AI should recommend.
-
-### `email_templates`
-HTML templates for system emails.
-* **`type`**: `order_confirm`, `wishlist_sale`, etc.
-* **`body_html`**: Contains placeholders like `{{customer_name}}` for dynamic replacement.
-
----
-
-## 7. Critical Database Functions (RPC)
-
-### `search_products_by_tags(tag_names)`
-The engine behind the **Semantic Search**.
-* **Input**: An array of strings generated by Gemini (e.g., `['summer', 'linen', 'dress']`).
-* **Logic**:
-    1.  Joins `products` -> `product_categories` -> `categories`.
-    2.  Filters for categories where `type = 'attribute'`.
-    3.  Performs a fuzzy match (`ILIKE`) between the input tags and Attribute Names.
-    4.  Ranks products by the number of matching attributes.
-* **Output**: A set of `products` ordered by relevance.
-
-### `approve_return_request(request_id, notes)`
-A transactional function to handle Return Approvals safely.
-* **Logic**:
-    1.  Updates `return_requests` status to 'approved'.
-    2.  Iterates through `return_items`.
-    3.  If `should_restock` is true, updates `inventory_levels` AND inserts a record into `inventory_adjustments`.
-    4.  Updates `order_items.returned_quantity`.
-    5.  Updates the parent `orders` status to `refunded` or `partially-refunded`.
-
-### `get_user_role()`
-Security helper.
-* **Logic**: checks the `user_roles` table for the current `auth.uid()` to determine if the user is an `'admin'`.
-
-## ⚠️ Critical Schema Note: User IDs
-* **`auth.users`**: Supabase's internal Auth table uses **UUIDs**.
-* **`public.users`**: Our custom profile table currently uses **BigInt** (legacy).
-* **Discrepancy**: Ensure strict type checking when linking these. The `orders` table expects `user_id` (BigInt) but `wishlists` expects `user_id` (UUID).
-    * *Correction Strategy*: In future migrations, `public.users.id` and all FK references (`orders.user_id`) should be migrated to `UUID` to align perfectly with Supabase Auth.
+Key-Value store for app configuration (`homepage_config`, `ai_search_limits`).
