@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 // --- HELPER: Single Condition Row ---
 function ConditionRow({ condition, onChange, onRemove, products, collections, categories }) {
@@ -219,6 +220,7 @@ function OptionBuilder({ options, onChange }) {
     );
 }
 export default function OptionSetForm({ initialData, onSuccess, onCancel }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [formData, setFormData] = useState({
         title: '',
         priority: 0,
@@ -274,7 +276,7 @@ export default function OptionSetForm({ initialData, onSuccess, onCancel }) {
             if (!res.ok) throw new Error('Failed to save');
             onSuccess(initialData ? 'Option Set updated' : 'Option Set created');
         } catch (err) {
-            alert(err.message);
+            addToast(err.message, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }

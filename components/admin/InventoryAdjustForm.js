@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function InventoryAdjustForm({ products, onAdjust }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [selectedProductId, setSelectedProductId] = useState('');
     const [selectedVariantId, setSelectedVariantId] = useState('');
     const [adjustmentQty, setAdjustmentQty] = useState('');
@@ -40,18 +42,25 @@ export default function InventoryAdjustForm({ products, onAdjust }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedVariantId || !adjustmentQty || !reason) return alert('Fill all fields.');
-        if (parseInt(adjustmentQty) === 0) return alert('Quantity cannot be 0.');
+        if (!selectedVariantId || !adjustmentQty || !reason) {
+            addToast('Fill all fields: Product, Variant, Quantity, and Reason.', 'error'); // --- FIXED: Replaced alert() ---
+            return;
+        }
+        if (parseInt(adjustmentQty) === 0) {
+            addToast('Quantity change cannot be 0.', 'error'); // --- FIXED: Replaced alert() ---
+            return;
+        }
 
         if (!confirm(`Adjust stock by ${adjustmentQty}?`)) return;
 
         setIsSubmitting(true);
         try {
             await onAdjust({ variant_id: selectedVariantId, quantity_change: adjustmentQty, reason });
+            // The success toast is handled by the calling page (app/admin/inventory/page.js)
             setAdjustmentQty('');
             setReason('');
         } catch(e) {
-            alert(e.message);
+            addToast(e.message, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }

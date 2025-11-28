@@ -21,6 +21,11 @@ export default function LoginPage() {
         }
     }, [session, isAuthLoading, router]);
 
+    // --- NEW: Handler for Password Mismatch from AuthForm ---
+    const handlePasswordMismatch = () => {
+        setMessage({ type: 'error', text: 'Error: Passwords do not match.' });
+    };
+
     const handleAuth = async (formData) => {
         setIsLoading(true);
         setMessage({ type: '', text: '' });
@@ -72,6 +77,7 @@ export default function LoginPage() {
                     onSubmit={handleAuth}
                     isLoading={isLoading}
                     message={message}
+                    onPasswordMismatch={handlePasswordMismatch} // --- MODIFIED: Pass new handler ---
                 />
             </div>
         </main>

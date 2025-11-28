@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function ProductOptions({ productId, variantId, onChange, setIsValid }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [optionSets, setOptionSets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selections, setSelections] = useState({}); // { optionId: "Value" }
@@ -21,12 +23,13 @@ export default function ProductOptions({ productId, variantId, onChange, setIsVa
                 setOptionSets(data || []);
             } catch (e) {
                 console.error(e);
+                addToast("Failed to load custom options.", 'error'); // --- FIXED: Replaced silent console error ---
             } finally {
                 setLoading(false);
             }
         };
         fetchOptions();
-    }, [productId, variantId]);
+    }, [productId, variantId, addToast]); // Added addToast to dependency array
 
     // Validation & Price Calculation
     useEffect(() => {

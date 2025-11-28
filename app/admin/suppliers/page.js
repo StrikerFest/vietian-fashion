@@ -4,8 +4,10 @@
 import { useState, useEffect } from 'react';
 import SupplierForm from '@/components/admin/SupplierForm';
 import SupplierList from '@/components/admin/SupplierList';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function SuppliersPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [suppliers, setSuppliers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingSupplier, setEditingSupplier] = useState(null);
@@ -19,6 +21,7 @@ export default function SuppliersPage() {
             setSuppliers(data || []);
         } catch (error) {
             console.error("Failed to fetch suppliers:", error);
+            addToast("Failed to load suppliers.", 'error'); // Fallback for fetch error
         } finally {
             setIsLoading(false);
         }
@@ -35,14 +38,14 @@ export default function SuppliersPage() {
             if (!response.ok) throw new Error('Failed to delete supplier');
 
             setSuppliers(prev => prev.filter(s => s.id !== supplierId));
-            alert('Supplier deleted successfully!');
+            addToast('Supplier archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
     const handleFormSuccess = (message) => {
-        alert(message);
+        addToast(message, 'success'); // --- FIXED: Replaced alert() ---
         setEditingSupplier(null);
         fetchSuppliers();
     };

@@ -2,8 +2,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [formData, setFormData] = useState({
         address_line_1: '',
         address_line_2: '',
@@ -14,7 +16,7 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
         is_default: false
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState('');
+    const [error, setError] = useState(''); // Still used for internal modal error
 
     if (!isOpen) return null;
 
@@ -42,8 +44,12 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
 
             if (!response.ok) {
                 const data = await response.json();
+                // Throw error to be caught below
                 throw new Error(data.error || 'Failed to add address');
             }
+
+            // Success handling
+            addToast('New address saved successfully!', 'success'); // --- NEW ---
 
             // Reset form and notify parent
             setFormData({
@@ -59,6 +65,7 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
             onClose();
         } catch (err) {
             setError(err.message);
+            addToast(`Error adding address: ${err.message}`, 'error'); // --- NEW ---
         } finally {
             setIsSubmitting(false);
         }

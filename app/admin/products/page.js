@@ -6,8 +6,10 @@ import ProductFilters from '@/components/admin/ProductFilters';
 import ProductForm from '@/components/admin/ProductForm';
 import ProductImportExport from '@/components/admin/ProductImportExport';
 import PaginationControls from '@/components/ui/PaginationControls';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function AdminProductsPage() {
+    const { addToast } = useToast(); // --- NEW ---
     // --- Data State ---
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -67,10 +69,11 @@ export default function AdminProductsPage() {
             setCollections(await collectionsRes.json() || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
+            addToast("Failed to fetch products data.", 'error');
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, searchQuery]);
+    }, [page, limit, searchQuery, addToast]);
 
     // Debounce search
     useEffect(() => {
@@ -174,13 +177,13 @@ export default function AdminProductsPage() {
             const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to delete');
+                throw new Error(errorData.error || 'Failed to archive product');
             }
             fetchData(); // Reload data
             setSelectedProductIds(prev => prev.filter(id => id !== productId));
-            alert('Product deleted successfully!');
+            addToast('Product archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(`Error: ${error.message}`);
+            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
@@ -199,7 +202,7 @@ export default function AdminProductsPage() {
     };
 
     const handleFormSuccess = (message) => {
-        alert(message);
+        addToast(message, 'success'); // --- FIXED: Replaced alert() ---
         setShowForm(false);
         setEditingProduct(null);
         fetchData();

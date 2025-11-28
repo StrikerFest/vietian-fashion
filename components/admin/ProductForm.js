@@ -4,11 +4,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 const emptyVariant = { sku: '', price: '', on_hand: '', attribute_value_ids: {} };
 
 export default function ProductForm({ initialData, categories = [], collections = [], onSuccess, onCancel }) {
     const supabase = createClientComponentClient();
+    const { addToast } = useToast(); // --- NEW ---
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -146,11 +148,14 @@ export default function ProductForm({ initialData, categories = [], collections 
                 body: JSON.stringify(body)
             });
 
-            if (!res.ok) throw new Error('Failed to save product');
-            onSuccess();
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Failed to save product');
+            }
+            onSuccess(initialData ? 'Product updated successfully!' : 'Product created successfully!');
 
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }
@@ -239,7 +244,7 @@ export default function ProductForm({ initialData, categories = [], collections 
 
                 <div className="flex justify-end gap-4 pt-6 border-t border-gray-700">
                     <button type="button" onClick={onCancel} className="px-6 py-2 rounded bg-gray-600 text-white font-bold">Cancel</button>
-                    <button type="submit" disabled={isSubmitting} className="px-6 py-2 rounded bg-indigo-600 text-white font-bold disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save Product'}</button>
+                    <button type="submit" disabled={isSubmitting} className="px-6 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-bold disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save Product'}</button>
                 </div>
             </form>
         </div>

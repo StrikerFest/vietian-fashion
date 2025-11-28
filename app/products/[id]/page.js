@@ -9,6 +9,7 @@ import ProductGallery from '@/components/product/ProductGallery';
 import VariantSelector from '@/components/product/VariantSelector';
 import ProductReviews from '@/components/product/ProductReviews';
 import ProductOptions from '@/components/product/ProductOptions';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -16,6 +17,7 @@ export default function ProductDetailPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { addToCart } = useCart();
+    const { addToast } = useToast(); // --- NEW ---
 
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -77,7 +79,7 @@ export default function ProductDetailPage() {
     const handleAddToCart = () => {
         if (product && selectedVariant) {
             if (!areOptionsValid) {
-                alert("Please fill in all required options.");
+                addToast("Please fill in all required options.", 'error'); // --- FIXED: Replaced alert() ---
                 return;
             }
             addToCart(product, selectedVariant, customOptions);

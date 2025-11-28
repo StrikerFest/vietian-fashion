@@ -4,8 +4,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import PurchaseOrderList from '@/components/admin/PurchaseOrderList';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function PurchaseOrdersPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -17,6 +19,7 @@ export default function PurchaseOrdersPage() {
             setOrders(data || []);
         } catch (error) {
             console.error(error);
+            addToast("Failed to load purchase orders.", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -36,8 +39,9 @@ export default function PurchaseOrdersPage() {
             });
             if(!res.ok) throw new Error('Failed to update status');
             fetchOrders();
+            addToast(`Purchase Order #${id} marked as ${newStatus}!`, 'success'); // --- FIXED: Replaced alert() ---
         } catch (e) {
-            alert(e.message);
+            addToast(e.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
@@ -47,8 +51,9 @@ export default function PurchaseOrdersPage() {
             const res = await fetch(`/api/admin/purchase-orders/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Failed to delete');
             setOrders(prev => prev.filter(o => o.id !== id));
+            addToast(`Purchase Order #${id} archived.`, 'success'); // --- FIXED: Replaced alert() ---
         } catch (e) {
-            alert(e.message);
+            addToast(e.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 

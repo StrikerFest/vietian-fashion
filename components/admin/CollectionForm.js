@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function CollectionForm({ initialData, onSuccess, onCancel }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [isFeatured, setIsFeatured] = useState(false);
@@ -51,7 +53,7 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
 
             onSuccess(isEditing ? 'Collection updated!' : 'Collection created!');
         } catch (error) {
-            alert(`Error: ${error.message}`);
+            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }

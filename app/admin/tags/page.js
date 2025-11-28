@@ -4,8 +4,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import TagForm from '@/components/admin/TagForm';
 import TagList from '@/components/admin/TagList';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function TagsPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [tags, setTags] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -20,6 +22,7 @@ export default function TagsPage() {
             setTags(data || []);
         } catch (error) {
             console.error("Failed to fetch tags:", error);
+            addToast("Failed to load tags.", 'error'); // Fallback for fetch error
         } finally {
             setIsLoading(false);
         }
@@ -41,14 +44,14 @@ export default function TagsPage() {
             if (!response.ok) throw new Error('Failed to delete tag');
 
             setTags(prev => prev.filter(t => t.id !== id));
-            alert('Tag deleted.');
+            addToast('Tag archived successfully.', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
     const handleFormSuccess = (message) => {
-        alert(message);
+        addToast(message, 'success'); // --- FIXED: Replaced alert() ---
         setEditingTag(null);
         fetchTags();
     };

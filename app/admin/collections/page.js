@@ -4,9 +4,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import CollectionForm from '@/components/admin/CollectionForm';
 import CollectionList from '@/components/admin/CollectionList';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
+import PaginationControls from '@/components/ui/PaginationControls';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function CollectionsPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [collections, setCollections] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -41,10 +43,11 @@ export default function CollectionsPage() {
             }
         } catch (error) {
             console.error("Failed to fetch collections:", error);
+            addToast("Failed to load collections.", 'error'); // Fallback for fetch error
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, searchQuery]);
+    }, [page, limit, searchQuery, addToast]);
 
     // Debounce search
     useEffect(() => {
@@ -61,9 +64,9 @@ export default function CollectionsPage() {
             if (!response.ok) throw new Error('Failed to delete collection');
 
             fetchCollections(); // Reload
-            alert('Collection deleted successfully!');
+            addToast('Collection archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
@@ -73,7 +76,7 @@ export default function CollectionsPage() {
     };
 
     const handleFormSuccess = (message) => {
-        alert(message);
+        addToast(message, 'success'); // --- FIXED: Replaced alert() ---
         setShowForm(false);
         setEditingCollection(null);
         fetchCollections();

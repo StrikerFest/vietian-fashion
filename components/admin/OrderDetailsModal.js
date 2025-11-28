@@ -3,8 +3,10 @@
 
 import { useState, useEffect } from 'react';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [shippingCarrier, setShippingCarrier] = useState('');
     const [trackingNumber, setTrackingNumber] = useState('');
     const [isSavingTracking, setIsSavingTracking] = useState(false);
@@ -60,7 +62,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
     const handleSaveTracking = async () => {
         if (!shippingCarrier && !trackingNumber) {
-            alert('Please enter Shipping Carrier or Tracking Number.');
+            addToast('Please enter Shipping Carrier or Tracking Number.', 'error'); // --- FIXED: Replaced alert() ---
             return;
         }
         setIsSavingTracking(true);
@@ -73,9 +75,9 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
             if (!response.ok) throw new Error('Failed to update tracking info');
             const { order: updatedOrder } = await response.json();
             onUpdateOrder(updatedOrder);
-            alert('Tracking information saved successfully!');
+            addToast('Tracking information saved successfully!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(`Error: ${error.message}`);
+            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSavingTracking(false);
         }
@@ -93,9 +95,9 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
             if (!response.ok) throw new Error('Failed to cancel order');
             const { order: updatedOrder } = await response.json();
             onUpdateOrder(updatedOrder);
-            alert('Order cancelled successfully!');
+            addToast('Order cancelled successfully!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(`Error: ${error.message}`);
+            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsCancelling(false);
         }
@@ -159,6 +161,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                         <div className="space-y-1 text-sm bg-gray-900/50 p-4 rounded border border-gray-700">
                             <div className="flex justify-between"><span className="text-gray-400">Subtotal</span><span className="text-white">${order.subtotal?.toFixed(2) ?? '0.00'}</span></div>
                             {discountDetails.text && <div className="flex justify-between text-green-400"><span>{discountDetails.text}</span><span>-${discountDetails.amount.toFixed(2)}</span></div>}
+                            <div className="flex justify-between text-gray-400"><span>Shipping</span><span className="text-white font-medium">Free</span></div>
                             <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between font-bold text-base text-white"><span>Grand Total</span><span>${order.total_amount.toFixed(2)}</span></div>
                         </div>
                     </div>
@@ -188,7 +191,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 bg-gray-800 border-t border-gray-700 flex justify-between items-center rounded-b-lg">
+                <div className="p-4 bg-gray-900/50 flex justify-between rounded-b-lg">
                     {order.status !== 'cancelled' && order.status !== 'delivered' ? (
                         <button onClick={handleCancelOrder} disabled={isCancelling} className="bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-800 font-semibold py-2 px-4 rounded disabled:opacity-50 text-sm">
                             {isCancelling ? '...' : 'Cancel Order'}

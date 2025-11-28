@@ -5,9 +5,11 @@ import { useState, useEffect, useCallback } from 'react';
 import OrderExport from '@/components/admin/OrderExport';
 import OrderDetailsModal from '@/components/admin/OrderDetailsModal';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
+import PaginationControls from '@/components/ui/PaginationControls';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function OrdersPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -35,10 +37,11 @@ export default function OrdersPage() {
             }
         } catch (error) {
             console.error(error);
+            addToast('Failed to load orders.', 'error'); // --- FIXED ---
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit]);
+    }, [page, limit, addToast]);
 
     useEffect(() => {
         fetchOrders();

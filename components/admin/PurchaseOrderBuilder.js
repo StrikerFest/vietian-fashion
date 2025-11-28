@@ -3,9 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) {
     const router = useRouter();
+    const { addToast } = useToast(); // --- NEW ---
 
     const [supplierId, setSupplierId] = useState('');
     const [expectedDate, setExpectedDate] = useState('');
@@ -45,13 +47,16 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
     };
 
     const addItem = () => {
-        if (!selectedProductId || !selectedVariantId || qty <= 0) return;
+        if (!selectedProductId || !selectedVariantId || qty <= 0) {
+            addToast('Please select a product, variant, and quantity.', 'info');
+            return;
+        }
 
         const product = products.find(p => p.id == selectedProductId);
         const variant = variantsMap[selectedProductId].find(v => v.id == selectedVariantId);
 
         if (items.find(i => i.variant_id === variant.id)) {
-            alert('This variant is already in the order.');
+            addToast('This variant is already in the order.', 'info'); // --- FIXED: Replaced alert() ---
             return;
         }
 
@@ -74,8 +79,14 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!supplierId) return alert('Please select a supplier');
-        if (items.length === 0) return alert('Please add items');
+        if (!supplierId) {
+            addToast('Please select a supplier.', 'error'); // --- FIXED: Replaced alert() ---
+            return;
+        }
+        if (items.length === 0) {
+            addToast('Please add items to the order.', 'error'); // --- FIXED: Replaced alert() ---
+            return;
+        }
 
         setIsSubmitting(true);
         await onSubmit({ supplierId, expectedDate, items });

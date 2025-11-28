@@ -10,10 +10,12 @@ import CartItemList from '@/components/cart/CartItemList';
 import CartSummary from '@/components/cart/CartSummary';
 import ShippingAddressSelector from '@/components/cart/ShippingAddressSelector';
 import AddressModal from '@/components/AddressModal';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function CartPage() {
     const router = useRouter();
     const { session } = useAuth();
+    const { addToast } = useToast(); // --- NEW ---
 
     // Cart Context
     const {
@@ -75,7 +77,7 @@ export default function CartPage() {
     // --- Checkout Logic ---
     const handleCheckout = async () => {
         if (session && !selectedAddressId) {
-            alert('Please select a shipping address.');
+            addToast('Please select a shipping address.', 'error'); // --- FIXED: Replaced alert() ---
             return;
         }
 
@@ -105,7 +107,7 @@ export default function CartPage() {
             }
         } catch (error) {
             console.error('Checkout error:', error);
-            alert(`Error: ${error.message}`);
+            addToast(`Checkout Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
             setIsCheckingOut(false);
         }
     };

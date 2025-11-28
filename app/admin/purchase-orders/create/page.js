@@ -4,9 +4,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PurchaseOrderBuilder from '@/components/admin/PurchaseOrderBuilder';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function CreatePurchaseOrderPage() {
     const router = useRouter();
+    const { addToast } = useToast(); // --- NEW ---
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -22,6 +24,7 @@ export default function CreatePurchaseOrderPage() {
                 setProducts(await prodRes.json() || []);
             } catch (error) {
                 console.error("Failed to load data", error);
+                addToast("Failed to load necessary data for PO creation.", 'error');
             } finally {
                 setIsLoading(false);
             }
@@ -46,9 +49,10 @@ export default function CreatePurchaseOrderPage() {
                 throw new Error(err.error || 'Failed to create order');
             }
 
+            addToast('Purchase Order created successfully!', 'success'); // --- NEW ---
             router.push('/admin/purchase-orders');
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 

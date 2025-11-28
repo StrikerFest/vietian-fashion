@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function TemplateForm({ initialData, onSuccess, onCancel }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [name, setName] = useState('');
     const [type, setType] = useState('marketing'); // 'marketing', 'wishlist_sale', 'order_confirm'
     const [subject, setSubject] = useState('');
@@ -35,7 +37,7 @@ export default function TemplateForm({ initialData, onSuccess, onCancel }) {
             if (!res.ok) throw new Error('Failed to save template');
             onSuccess(initialData ? 'Template updated' : 'Template created');
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }

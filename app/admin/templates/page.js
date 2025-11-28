@@ -4,8 +4,10 @@
 import { useState, useEffect } from 'react';
 import TemplateForm from '@/components/admin/TemplateForm';
 import TemplateList from '@/components/admin/TemplateList';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function TemplatesPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [templates, setTemplates] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -19,6 +21,7 @@ export default function TemplatesPage() {
             setTemplates(data || []);
         } catch (error) {
             console.error(error);
+            addToast("Failed to load templates.", 'error'); // --- FIXED: Added error handling ---
         } finally {
             setIsLoading(false);
         }
@@ -28,12 +31,18 @@ export default function TemplatesPage() {
 
     const handleDelete = async (id) => {
         if (!confirm('Delete this template?')) return;
-        await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' });
-        fetchTemplates();
+        try {
+            const res = await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed to delete template');
+            fetchTemplates();
+            addToast('Template deleted successfully!', 'success'); // --- FIXED: Added success toast ---
+        } catch (error) {
+            addToast(error.message, 'error'); // --- FIXED: Added error toast ---
+        }
     };
 
     const handleSuccess = (msg) => {
-        alert(msg);
+        addToast(msg, 'success'); // --- FIXED: Replaced alert() ---
         setShowForm(false);
         setEditingTemplate(null);
         fetchTemplates();

@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function TagForm({ initialData, onSuccess, onCancel }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,7 +41,7 @@ export default function TagForm({ initialData, onSuccess, onCancel }) {
             onSuccess(isEditing ? 'Tag updated!' : 'Tag created!');
             setName('');
         } catch (error) {
-            alert(`Error: ${error.message}`);
+            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }

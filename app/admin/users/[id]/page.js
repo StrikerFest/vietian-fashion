@@ -6,11 +6,13 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import UserAddresses from '@/components/admin/UserAddresses';
 import UserOrders from '@/components/admin/UserOrders';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function UserDetailsPage() {
     const params = useParams();
     const { id } = params;
     const router = useRouter();
+    const { addToast } = useToast(); // --- NEW ---
 
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +25,7 @@ export default function UserDetailsPage() {
                 const response = await fetch(`/api/admin/users/${id}`);
                 if (!response.ok) {
                     if (response.status === 404) {
-                        alert("User not found");
+                        addToast("User not found", 'error'); // --- FIXED: Replaced alert() ---
                         router.push('/admin/users');
                         return;
                     }
@@ -33,12 +35,13 @@ export default function UserDetailsPage() {
                 setUser(data);
             } catch (error) {
                 console.error(error);
+                addToast(error.message, 'error'); // --- FIXED ---
             } finally {
                 setIsLoading(false);
             }
         };
         fetchUser();
-    }, [id, router]);
+    }, [id, router, addToast]);
 
     if (isLoading) {
         return (

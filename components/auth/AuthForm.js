@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 
-export default function AuthForm({ isSignUp, onSubmit, isLoading, message }) {
+export default function AuthForm({ isSignUp, onSubmit, isLoading, message, onPasswordMismatch }) { // --- MODIFIED: Added onPasswordMismatch ---
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -11,15 +11,8 @@ export default function AuthForm({ isSignUp, onSubmit, isLoading, message }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (isSignUp && password !== confirmPassword) {
-            // We can handle this validation here or pass it up
-            // For simplicity, passing up implies the parent handles alerts,
-            // but let's just pass the data.
-            // Actually, simpler to let parent verify or verify here.
-            // Let's verify here for "password mismatch" to keep parent clean.
-            if (password !== confirmPassword) {
-                alert("Passwords do not match");
-                return;
-            }
+            onPasswordMismatch(); // --- FIXED: Replaced alert() ---
+            return;
         }
         onSubmit({ email, password });
     };

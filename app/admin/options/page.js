@@ -1,10 +1,13 @@
+// app/admin/options/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
 import OptionSetList from '@/components/admin/OptionSetList';
 import OptionSetForm from '@/components/admin/OptionSetForm';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function ProductOptionsPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [sets, setSets] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [view, setView] = useState('list'); // 'list', 'form'
@@ -18,6 +21,7 @@ export default function ProductOptionsPage() {
             setSets(data || []);
         } catch (error) {
             console.error(error);
+            addToast("Failed to load option sets.", 'error'); // Fallback for fetch error
         } finally {
             setIsLoading(false);
         }
@@ -31,6 +35,7 @@ export default function ProductOptionsPage() {
         if(!confirm("Delete this option set?")) return;
         await fetch(`/api/admin/option-sets/${id}`, { method: 'DELETE' });
         fetchSets();
+        addToast("Option set archived successfully.", 'success'); // --- FIXED: Replaced alert() ---
     };
 
     const handleDuplicate = async (set) => {
@@ -52,16 +57,19 @@ export default function ProductOptionsPage() {
                 body: JSON.stringify(payload)
             });
             if(res.ok) {
-                alert("Duplicated successfully!");
+                addToast("Option set duplicated successfully!", 'success'); // --- FIXED: Replaced alert() ---
                 fetchSets();
+            } else {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to duplicate');
             }
         } catch(e) {
-            alert(e.message);
+            addToast(e.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
     const handleSuccess = (msg) => {
-        alert(msg);
+        addToast(msg, 'success'); // --- FIXED: Replaced alert() ---
         setView('list');
         setEditingSet(null);
         fetchSets();

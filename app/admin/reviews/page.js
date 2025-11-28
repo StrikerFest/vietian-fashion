@@ -3,9 +3,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import ReviewList from '@/components/admin/ReviewList';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
+import PaginationControls from '@/components/ui/PaginationControls';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function ReviewsPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [reviews, setReviews] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -32,11 +34,11 @@ export default function ReviewsPage() {
             }
         } catch (error) {
             console.error(error);
-            alert(`Error fetching reviews: ${error.message}`);
+            addToast(`Error fetching reviews: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit]);
+    }, [page, limit, addToast]);
 
     useEffect(() => {
         fetchReviews();
@@ -55,9 +57,9 @@ export default function ReviewsPage() {
 
             // Optimistic update
             setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, is_approved: true } : r));
-            alert('Review approved successfully!');
+            addToast('Review approved successfully!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
@@ -69,9 +71,9 @@ export default function ReviewsPage() {
 
             setReviews(prev => prev.filter(r => r.id !== reviewId));
             // Ideally refetch to update counts, but this is fine for now
-            alert('Review deleted successfully!');
+            addToast('Review archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 

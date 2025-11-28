@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function DiscountForm({ initialData, onSuccess, onCancel }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [code, setCode] = useState('');
     const [type, setType] = useState('percentage');
     const [value, setValue] = useState('');
@@ -29,15 +31,15 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
 
         // Validation
         if (!code || !type || value === '') {
-            alert('Please fill in Code, Type, and Value.');
+            addToast('Please fill in Code, Type, and Value.', 'error'); // --- FIXED: Replaced alert() ---
             return;
         }
         if (type === 'percentage' && (parseFloat(value) < 0 || parseFloat(value) > 100)) {
-            alert('Percentage value must be between 0 and 100.');
+            addToast('Percentage value must be between 0 and 100.', 'error'); // --- FIXED: Replaced alert() ---
             return;
         }
         if (type === 'fixed' && parseFloat(value) < 0) {
-            alert('Fixed value cannot be negative.');
+            addToast('Fixed value cannot be negative.', 'error'); // --- FIXED: Replaced alert() ---
             return;
         }
 
@@ -69,7 +71,7 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
 
             onSuccess(isEditing ? 'Discount updated!' : 'Discount created!');
         } catch (error) {
-            alert(`Error: ${error.message}`);
+            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }

@@ -4,15 +4,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link'; // --- NEW ---
+import Link from 'next/link';
 import AddressModal from '@/components/AddressModal';
 import OrderHistory from '@/components/account/OrderHistory';
 import AddressBook from '@/components/account/AddressBook';
 import ProfileSettings from '@/components/account/ProfileSettings';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function AccountPage() {
     const { session, isLoading: isAuthLoading } = useAuth();
     const router = useRouter();
+    const { addToast } = useToast(); // --- NEW ---
 
     // State
     const [orders, setOrders] = useState([]);
@@ -68,8 +70,9 @@ export default function AccountPage() {
                 throw new Error(data.error || 'Failed to delete address');
             }
             fetchAddresses();
+            addToast('Address deleted successfully.', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 

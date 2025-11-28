@@ -2,8 +2,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function ProductImportExport({ selectedProductIds, onImportSuccess }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [importFile, setImportFile] = useState(null);
     const [isImporting, setIsImporting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
@@ -45,7 +47,8 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
 
     const handleExport = async (mode = 'all') => {
         if (mode === 'selected' && selectedProductIds.length === 0) {
-            return alert('Please select products to export.');
+            addToast('Please select products to export.', 'info'); // --- FIXED: Replaced alert() ---
+            return;
         }
 
         setIsExporting(true);
@@ -71,8 +74,9 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
+            addToast('Export successful. Download started.', 'success'); // --- NEW ---
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsExporting(false);
         }

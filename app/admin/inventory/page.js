@@ -4,9 +4,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import InventoryAdjustForm from '@/components/admin/InventoryAdjustForm';
 import InventoryLogList from '@/components/admin/InventoryLogList';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
+import PaginationControls from '@/components/ui/PaginationControls';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function InventoryPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [logs, setLogs] = useState([]);
     const [products, setProducts] = useState([]);
     const [isLoadingLogs, setIsLoadingLogs] = useState(true);
@@ -57,7 +59,7 @@ export default function InventoryPage() {
             throw new Error(errorData.error || 'Adjustment failed');
         }
 
-        alert('Inventory updated successfully.');
+        addToast('Inventory adjusted successfully.', 'success'); // --- FIXED: Replaced alert() ---
         fetchLogs(); // Refresh logs to show new entry
         // Optionally refresh products to update local stock counts if needed
         fetch('/api/products').then(res => res.json()).then(data => setProducts(data || []));

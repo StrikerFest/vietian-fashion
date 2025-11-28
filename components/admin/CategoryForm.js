@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function CategoryForm({ initialData, categories, onSuccess, onCancel }) {
+    const { addToast } = useToast(); // --- NEW ---
     // Basic Fields
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -91,7 +93,7 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
 
             onSuccess(initialData ? 'Category updated!' : 'Category created!');
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }
@@ -262,6 +264,7 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                                         type="datetime-local"
                                         value={endDate}
                                         onChange={(e) => setEndDate(e.target.value)}
+                                        min={startDate || ''}
                                         className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-xs"
                                     />
                                 </div>

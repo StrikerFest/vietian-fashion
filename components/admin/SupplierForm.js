@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function SupplierForm({ initialData, onSuccess, onCancel }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [name, setName] = useState('');
     const [contactPerson, setContactPerson] = useState('');
     const [email, setEmail] = useState('');
@@ -46,7 +48,7 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }) {
 
             onSuccess(isEditing ? 'Supplier updated!' : 'Supplier created!');
         } catch (error) {
-            alert(`Error: ${error.message}`);
+            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }

@@ -4,8 +4,10 @@
 import { useState, useEffect } from 'react';
 import CategoryForm from '@/components/admin/CategoryForm';
 import CategoryList from '@/components/admin/CategoryList';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function CategoriesPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [categories, setCategories] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -20,6 +22,7 @@ export default function CategoriesPage() {
             setCategories(data || []);
         } catch (error) {
             console.error("Failed to fetch categories:", error);
+            addToast("Failed to load categories.", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -33,12 +36,12 @@ export default function CategoriesPage() {
         if (!confirm('Are you sure? This can only be done if it has no sub-categories or products.')) return;
         try {
             const response = await fetch(`/api/categories/${categoryId}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to delete category');
+            if (!response.ok) throw new Error('Failed to archive category');
 
             setCategories(prev => prev.filter(c => c.id !== categoryId));
-            alert('Category deleted successfully!');
+            addToast('Category archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
@@ -48,7 +51,7 @@ export default function CategoriesPage() {
     };
 
     const handleFormSuccess = (message) => {
-        alert(message);
+        addToast(message, 'success'); // --- FIXED: Replaced alert() ---
         setShowForm(false);
         setEditingCategory(null);
         fetchCategories();

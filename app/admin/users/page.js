@@ -3,9 +3,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import UsersTable from '@/components/admin/UsersTable';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
+import PaginationControls from '@/components/ui/PaginationControls';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function UsersPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [users, setUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -39,10 +41,11 @@ export default function UsersPage() {
             }
         } catch (error) {
             console.error("Failed to fetch users:", error);
+            addToast("Failed to load users.", 'error'); // --- FIXED ---
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, searchQuery]);
+    }, [page, limit, searchQuery, addToast]);
 
     // Debounce search
     useEffect(() => {
@@ -57,12 +60,15 @@ export default function UsersPage() {
 
         try {
             const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to archive user');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to archive user');
+            }
 
             fetchUsers(); // Reload to update list/counts
-            alert('User archived successfully.');
+            addToast('User archived successfully.', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(error.message);
+            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 

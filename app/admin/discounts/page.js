@@ -4,9 +4,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import DiscountForm from '@/components/admin/DiscountForm';
 import DiscountList from '@/components/admin/DiscountList';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
+import PaginationControls from '@/components/ui/PaginationControls';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function DiscountsPage() {
+    const { addToast } = useToast(); // --- NEW ---
     const [discounts, setDiscounts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -35,10 +37,11 @@ export default function DiscountsPage() {
             }
         } catch (error) {
             console.error("Failed to fetch discounts:", error);
+            addToast("Failed to load discounts.", 'error');
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit]);
+    }, [page, limit, addToast]);
 
     useEffect(() => {
         fetchDiscounts();
@@ -54,9 +57,9 @@ export default function DiscountsPage() {
                 throw new Error(errorData.error || 'Failed to delete discount');
             }
             fetchDiscounts(); // Reload
-            alert('Discount deleted successfully!');
+            addToast('Discount archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            alert(`Error: ${error.message}`);
+            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
@@ -66,7 +69,7 @@ export default function DiscountsPage() {
     };
 
     const handleFormSuccess = (message) => {
-        alert(message);
+        addToast(message, 'success'); // --- FIXED: Replaced alert() ---
         setShowForm(false);
         setEditingDiscount(null);
         fetchDiscounts();

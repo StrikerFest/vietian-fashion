@@ -2,8 +2,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function ReturnDetailsModal({ request, onClose, onUpdate }) {
+    const { addToast } = useToast(); // --- NEW ---
     const [adminNotes, setAdminNotes] = useState(request.admin_notes || '');
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -41,14 +43,17 @@ export default function ReturnDetailsModal({ request, onClose, onUpdate }) {
                 body: JSON.stringify({ status, admin_notes: adminNotes })
             });
 
-            if (!response.ok) throw new Error('Action failed');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Action failed');
+            }
             const { message } = await response.json();
 
-            alert(message);
+            addToast(message, 'success'); // --- FIXED: Replaced alert() ---
             onUpdate();
             onClose();
         } catch (e) {
-            alert(e.message);
+            addToast(e.message, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsProcessing(false);
         }

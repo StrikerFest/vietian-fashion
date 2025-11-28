@@ -7,10 +7,12 @@ import { supabase } from '@/lib/supabaseClient';
 import { useParams } from 'next/navigation';
 import ReturnRequestModal from '@/components/account/ReturnRequestModal';
 import OrderReceipt from '@/components/order/OrderReceipt';
+import { useToast } from '@/context/ToastContext'; // --- NEW ---
 
 export default function OrderConfirmationPage() {
     const params = useParams();
     const orderId = params?.id;
+    const { addToast } = useToast(); // --- NEW ---
 
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -98,6 +100,10 @@ export default function OrderConfirmationPage() {
         }
     }, [orderId]);
 
+    const handleReturnSuccess = () => {
+        addToast("Return request submitted! We will review it shortly.", 'success'); // --- FIXED: Replaced alert() ---
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -143,7 +149,7 @@ export default function OrderConfirmationPage() {
                 isOpen={isReturnModalOpen}
                 onClose={() => setIsReturnModalOpen(false)}
                 order={order}
-                onSuccess={() => alert("Return request submitted! We will review it shortly.")}
+                onSuccess={handleReturnSuccess} // --- MODIFIED: Use new handler ---
             />
         </main>
     );
