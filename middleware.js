@@ -1,3 +1,4 @@
+// strikerfest/vietian-fashion/vietian-fashion-master/middleware.js
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 
@@ -15,6 +16,7 @@ export async function middleware(req) {
         // Allow access to login page explicitly
         if (path === '/admin/login') {
             // If already logged in, redirect to dashboard
+            // (The dashboard route itself will verify if they are actually an admin below)
             if (session) {
                 return NextResponse.redirect(new URL('/admin', req.url));
             }
@@ -29,6 +31,19 @@ export async function middleware(req) {
             }
             // B. Pages: Redirect to login
             return NextResponse.redirect(new URL('/admin/login', req.url));
+        }
+
+        // --- NEW: Verify Admin Role ---
+        // Just having a session isn't enough; we must ensure the user has the 'admin' role.
+        const { data: userRole, error: roleError } = await supabase.rpc('get_user_role');
+
+        if (roleError || userRole !== 'admin') {
+            // A. API Routes: Return 403 Forbidden
+            if (path.startsWith('/api/')) {
+                return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+            }
+            // B. Pages: Redirect to home (or a custom "Access Denied" page)
+            return NextResponse.redirect(new URL('/', req.url));
         }
     }
 

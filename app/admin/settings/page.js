@@ -3,25 +3,26 @@
 
 import { useState } from 'react';
 import RecommendationSettings from '@/components/admin/settings/RecommendationSettings';
-import HomepageSettings from '@/components/admin/settings/HomepageSettings'; // --- NEW IMPORT ---
+import HomepageSettings from '@/components/admin/settings/HomepageSettings';
+import EmailSettings from '@/components/admin/settings/EmailSettings'; // --- NEW IMPORT ---
 
 export default function SettingsPage() {
-    const [activeTab, setActiveTab] = useState('homepage'); // Default to homepage now? Or keep recommendation.
+    const [activeTab, setActiveTab] = useState('homepage');
 
     const tabs = [
-        { id: 'homepage', label: 'Homepage Layout' }, // --- NEW TAB ---
+        { id: 'homepage', label: 'Homepage Layout' },
         { id: 'recommendation', label: 'AI Recommendation' },
+        { id: 'email', label: 'Email Config' }, // --- NEW TAB ---
         { id: 'general', label: 'General' },
-        { id: 'notifications', label: 'Notifications' },
     ];
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <h1 className="text-3xl font-bold mb-2">System Settings</h1>
-            <p className="text-gray-400 mb-8">Manage store configuration, layout, and AI features.</p>
+            <p className="text-gray-400 mb-8">Manage store configuration, layout, and system behaviors.</p>
 
             {/* Tabs Header */}
-            <div className="flex border-b border-gray-700 mb-8 overflow-x-auto">
+            <div className="flex border-b border-gray-700 mb-8 overflow-x-auto no-scrollbar">
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
@@ -49,15 +50,13 @@ export default function SettingsPage() {
                     <RecommendationSettings />
                 )}
 
+                {activeTab === 'email' && (
+                    <EmailSettings />
+                )}
+
                 {activeTab === 'general' && (
                     <div className="text-center text-gray-500 py-12">
                         <p>General store settings (Currency, Timezone, etc.) would go here.</p>
-                    </div>
-                )}
-
-                {activeTab === 'notifications' && (
-                    <div className="text-center text-gray-500 py-12">
-                        <p>Notification preferences (Email providers, etc.) would go here.</p>
                     </div>
                 )}
             </div>

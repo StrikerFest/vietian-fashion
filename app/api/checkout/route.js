@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { updateInventory } from '@/utils/inventory';
-import { calculateItemPrice } from '@/utils/server-pricing'; // --- NEW IMPORT ---
+import { calculateItemPrice } from '@/utils/server-pricing';
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -20,9 +20,9 @@ export async function POST(request) {
     try {
         // --- Step 1: Server-side validation and stock check ---
         let subtotal = 0;
-        const verifiedItems = []; // Store items with verified prices for step 5
+        const verifiedItems = [];
 
-        // Variant IDs might be duplicated in cartItems if options differ, so we dedupe for the query
+        // Dedupe variant IDs for query
         const variantIds = [...new Set(cartItems.map(item => item.id))];
 
         const { data: inventoryLevels, error: inventoryError } = await supabase
@@ -43,21 +43,18 @@ export async function POST(request) {
                 return NextResponse.json({ error: `Not enough stock for ${item.productName}. Only ${availableStock} available.` }, { status: 400 });
             }
 
-            // B. Price Verification (CRITICAL SECURITY FIX)
-            // We ignore item.price from the client and recalculate it.
+            // B. Price Verification
             const verifiedUnitPrice = await calculateItemPrice(supabase, item.id, item.selectedOptions);
 
-            // Add to subtotal
             subtotal += verifiedUnitPrice * item.quantity;
 
-            // Store for later use (so we don't calculate again)
             verifiedItems.push({
                 ...item,
                 verifiedPrice: verifiedUnitPrice
             });
         }
 
-        // --- Step 2: Validate Discount (Unchanged) ---
+        // --- Step 2: Validate Discount ---
         let validatedDiscount = null;
         let discountAmount = 0;
         if (discountId) {
@@ -100,13 +97,12 @@ export async function POST(request) {
 
         if (orderError) throw orderError;
 
-        // --- Step 5: Create Order Items (UPDATED) ---
-        // We now use the 'verifiedItems' array which contains the server-validated price
+        // --- Step 5: Create Order Items ---
         const orderItemsToInsert = verifiedItems.map(item => ({
             order_id: newOrder.id,
             variant_id: item.id,
             quantity: item.quantity,
-            price_at_purchase: item.verifiedPrice, // <--- SECURE PRICE
+            price_at_purchase: item.verifiedPrice,
             custom_options: item.selectedOptions || {}
         }));
 
@@ -116,7 +112,7 @@ export async function POST(request) {
 
         if (orderItemsError) throw orderItemsError;
 
-        // --- Step 6: Link Discount (Unchanged) ---
+        // --- Step 6: Link Discount ---
         if (validatedDiscount) {
             await supabase.from('order_discounts').insert({
                 order_id: newOrder.id,
@@ -124,7 +120,7 @@ export async function POST(request) {
             });
         }
 
-        // --- Step 7: Update Inventory (Unchanged) ---
+        // --- Step 7: Update Inventory ---
         for (const item of cartItems) {
             await updateInventory(supabase, {
                 variantId: item.id,
@@ -134,7 +130,7 @@ export async function POST(request) {
             });
         }
 
-        // --- Step 8: Send Email (Unchanged) ---
+        // --- Step 8: Send Email (Dynamic) ---
         try {
             let customerEmail = null;
             let customerName = "Valued Customer";
@@ -146,12 +142,25 @@ export async function POST(request) {
             }
 
             if (customerEmail) {
+                // Fetch Template
                 const { data: template } = await supabase
                     .from('email_templates')
                     .select('*')
                     .eq('type', 'order_confirm')
                     .eq('is_active', true)
                     .single();
+
+                // --- NEW: Fetch Sender Config ---
+                const { data: emailSettings } = await supabase
+                    .from('settings')
+                    .select('value')
+                    .eq('key', 'email_config')
+                    .single();
+
+                // Fallback defaults
+                const senderName = emailSettings?.value?.senderName || 'AI Fashion';
+                const senderEmail = emailSettings?.value?.senderEmail || 'orders@yourdomain.com';
+                const fromAddress = `${senderName} <${senderEmail}>`;
 
                 if (template) {
                     const html = template.body_html
@@ -160,7 +169,7 @@ export async function POST(request) {
                         .replace('{{total_amount}}', totalAmount.toFixed(2));
 
                     await resend.emails.send({
-                        from: 'AI Fashion <orders@yourdomain.com>',
+                        from: fromAddress,
                         to: customerEmail,
                         subject: template.subject.replace('{{order_id}}', newOrder.id),
                         html: html
@@ -169,6 +178,7 @@ export async function POST(request) {
             }
         } catch (e) {
             console.error("Email failed:", e);
+            // Don't fail the whole checkout if email fails, but log it critical
         }
 
         return NextResponse.json({ success: true, orderId: newOrder.id });

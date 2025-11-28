@@ -37,8 +37,19 @@ export async function POST(request) {
 
         if (!template) throw new Error("No active 'wishlist_sale' email template found.");
 
-        // 4. Prepare Emails
-        // Note: Free Resend tier has limits. For production, handle batching carefully.
+        // 4. Get Sender Configuration (Dynamic)
+        const { data: emailSettings } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'email_config')
+            .single();
+
+        // Fallback defaults if settings aren't configured yet
+        const senderName = emailSettings?.value?.senderName || 'AI Fashion';
+        const senderEmail = emailSettings?.value?.senderEmail || 'sales@your-domain.com';
+        const fromAddress = `${senderName} <${senderEmail}>`;
+
+        // 5. Prepare Emails
         const emailBatch = wishlists.map(item => {
             const user = item.users;
             const filledBody = template.body_html
@@ -50,14 +61,14 @@ export async function POST(request) {
                 .replace(/{{product_name}}/g, product.name);
 
             return {
-                from: 'AI Fashion <sales@your-domain.com>', // Update this!
+                from: fromAddress, // Used dynamic address
                 to: user.email,
                 subject: filledSubject,
                 html: filledBody
             };
         });
 
-        // 5. Send
+        // 6. Send
         const { data, error } = await resend.batch.send(emailBatch);
 
         if (error) throw error;
@@ -73,17 +84,3 @@ export async function POST(request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
-
-/*
-TODO: DO NOT REMOVE
-Go to /admin/templates.
-
-Create a template with type Wishlist Sale Alert.
-
-Subject: Great news! {{product_name}} is on sale!
-
-Body: <p>Hi {{customer_name}},</p><p>The item you loved, <strong>{{product_name}}</strong>, is now <strong>{{discount_text}}</strong>!</p>
-
-Then, simply call this API (via a button on your Product page) whenever you drop a price.
-
- */
