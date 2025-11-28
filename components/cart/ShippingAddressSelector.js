@@ -3,13 +3,15 @@
 
 import Link from 'next/link';
 
+// --- MODIFIED: Now accepts 'children' prop ---
 export default function ShippingAddressSelector({
                                                     session,
                                                     addresses,
                                                     isLoading,
                                                     selectedAddressId,
                                                     onSelect,
-                                                    onAddNew
+                                                    onAddNew,
+                                                    children // --- NEW ---
                                                 }) {
     if (!session) {
         return (
@@ -21,9 +23,14 @@ export default function ShippingAddressSelector({
                         <p className="text-gray-300 mb-4 text-sm">
                             You are currently checking out as a guest. Sign in to save your address and track your order history.
                         </p>
+
+                        {/* --- RENDER GUEST ADDRESS FORM --- */}
+                        {children}
+                        {/* --- END RENDER GUEST ADDRESS FORM --- */}
+
                         <Link
                             href="/login"
-                            className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors"
+                            className="mt-4 inline-block bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors"
                         >
                             Sign In / Sign Up
                         </Link>
@@ -33,6 +40,7 @@ export default function ShippingAddressSelector({
         );
     }
 
+    // --- REGISTERED USER FLOW ---
     return (
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <div className="flex justify-between items-center mb-4">

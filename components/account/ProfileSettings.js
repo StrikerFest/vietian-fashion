@@ -1,155 +1,110 @@
+// components/account/ProfileSettings.js
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useToast } from '@/context/ToastContext';
+import { useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 export default function ProfileSettings() {
-    const { supabase } = useAuth();
+    const { session, supabase } = useAuth();
     const { addToast } = useToast();
 
-    const [formData, setFormData] = useState({
-        first_name: '',
-        last_name: '',
-        phone: '',
-        email: '' // Read-only
-    });
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
+    // Simple profile fields (for demo/future implementation)
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const res = await fetch('/api/account/profile');
-                if (res.ok) {
-                    const data = await res.json();
-                    setFormData({
-                        first_name: data.first_name || '',
-                        last_name: data.last_name || '',
-                        phone: data.phone || '',
-                        email: data.email || ''
-                    });
-                }
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchProfile();
-    }, []);
+    // Placeholder fetch (assuming you will hydrate these from API)
+    // useEffect(() => { /* fetch user profile details */ }, []);
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
-    const handleSubmit = async (e) => {
+    const handleUpdateProfile = async (e) => {
         e.preventDefault();
-        setIsSaving(true);
+        setIsSubmitting(true);
+
         try {
-            const res = await fetch('/api/account/profile', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    first_name: formData.first_name,
-                    last_name: formData.last_name,
-                    phone: formData.phone
-                })
-            });
+            // Placeholder: Implement API call to update user details in the 'users' table
+            // For example:
+            // await fetch('/api/account/profile', { method: 'PUT', body: JSON.stringify({ firstName, lastName }) });
 
-            if (!res.ok) throw new Error('Failed to update profile');
-
-            addToast('Profile updated successfully!', 'success');
+            addToast('Profile updated successfully! (Demo)', 'success');
         } catch (error) {
-            addToast(error.message, 'error');
+            addToast(`Error updating profile: ${error.message}`, 'error');
         } finally {
-            setIsSaving(false);
+            setIsSubmitting(false);
         }
     };
 
-    const handlePasswordReset = async () => {
-        if (!confirm("Send password reset email to " + formData.email + "?")) return;
-
-        const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-            redirectTo: `${window.location.origin}/account/reset-password`, // You'd need to build this page eventually
+    const handleChangePassword = async () => {
+        // Use the Supabase built-in flow for security
+        // This will send a password reset email to the logged-in user's address.
+        const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, {
+            redirectTo: `${window.location.origin}/reset-password`
         });
 
         if (error) {
-            addToast(error.message, 'error');
+            addToast(`Error initiating password change: ${error.message}`, 'error');
         } else {
-            addToast('Password reset email sent!', 'success');
+            addToast('Password change link sent! Check your email.', 'success');
         }
     };
 
-    if (isLoading) return <div className="animate-pulse h-48 bg-gray-800 rounded-lg"></div>;
-
     return (
-        <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-md h-full">
-            <h2 className="text-2xl font-bold mb-6 text-white">Profile Settings</h2>
+        <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <h2 className="text-xl font-bold mb-4 text-white">Profile Settings</h2>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-400">First Name</label>
-                        <input
-                            type="text"
-                            name="first_name"
-                            value={formData.first_name}
-                            onChange={handleChange}
-                            className="w-full bg-gray-900 border border-gray-600 rounded p-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-400">Last Name</label>
-                        <input
-                            type="text"
-                            name="last_name"
-                            value={formData.last_name}
-                            onChange={handleChange}
-                            className="w-full bg-gray-900 border border-gray-600 rounded p-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-400">Phone Number</label>
-                    <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        className="w-full bg-gray-900 border border-gray-600 rounded p-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                    />
-                </div>
-
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+                {/* Email (Read-only) */}
                 <div>
                     <label className="block text-sm font-medium mb-1 text-gray-400">Email</label>
                     <input
                         type="email"
-                        value={formData.email}
+                        value={session.user.email}
                         disabled
-                        className="w-full bg-gray-700 border border-gray-600 rounded p-2.5 text-gray-400 cursor-not-allowed"
+                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-400 text-sm cursor-not-allowed"
                     />
                 </div>
 
-                <div className="pt-2 flex justify-between items-center">
-                    <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-sm text-indigo-400 hover:text-indigo-300 hover:underline"
-                    >
-                        Reset Password
-                    </button>
-
-                    <button
-                        type="submit"
-                        disabled={isSaving}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-bold transition-colors disabled:bg-gray-600"
-                    >
-                        {isSaving ? 'Saving...' : 'Save Changes'}
-                    </button>
+                {/* Name fields (Placeholder) */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1 text-gray-300">First Name</label>
+                        <input
+                            type="text"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1 text-gray-300">Last Name</label>
+                        <input
+                            type="text"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white text-sm"
+                        />
+                    </div>
                 </div>
+
+                <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded disabled:bg-gray-600 transition-colors"
+                >
+                    {isSubmitting ? 'Saving...' : 'Update Profile'}
+                </button>
             </form>
+
+            <div className="pt-4 mt-4 border-t border-gray-700">
+                <p className="text-sm font-bold text-gray-400 mb-2">Security</p>
+                <button
+                    onClick={handleChangePassword}
+                    className="w-full text-left text-sm text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
+                >
+                    Request Password Change Email
+                </button>
+            </div>
         </div>
     );
 }

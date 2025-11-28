@@ -9,13 +9,14 @@ import { useAuth } from '@/context/AuthContext';
 import CartItemList from '@/components/cart/CartItemList';
 import CartSummary from '@/components/cart/CartSummary';
 import ShippingAddressSelector from '@/components/cart/ShippingAddressSelector';
+import GuestAddressForm from '@/components/cart/GuestAddressForm'; // --- NEW IMPORT ---
 import AddressModal from '@/components/AddressModal';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function CartPage() {
     const router = useRouter();
     const { session } = useAuth();
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
 
     // Cart Context
     const {
@@ -37,6 +38,11 @@ export default function CartPage() {
     const [selectedAddressId, setSelectedAddressId] = useState(null);
     const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
     const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+
+    // --- NEW GUEST ADDRESS STATE ---
+    const [guestAddressData, setGuestAddressData] = useState(null);
+    const [isGuestAddressValid, setIsGuestAddressValid] = useState(false);
+
 
     // --- Address Logic ---
     const fetchAddresses = useCallback(async () => {
@@ -76,9 +82,23 @@ export default function CartPage() {
 
     // --- Checkout Logic ---
     const handleCheckout = async () => {
-        if (session && !selectedAddressId) {
-            addToast('Please select a shipping address.', 'error'); // --- FIXED: Replaced alert() ---
-            return;
+        let finalAddressId = null;
+        let finalGuestAddress = null;
+        let requiresAddress = true; // Assume physical goods
+
+        if (session) {
+            if (!selectedAddressId) {
+                addToast('Please select a shipping address.', 'error');
+                return;
+            }
+            finalAddressId = selectedAddressId;
+        } else {
+            // Guest Checkout
+            if (!isGuestAddressValid || !guestAddressData) {
+                addToast('Please fill in a complete shipping address.', 'error');
+                return;
+            }
+            finalGuestAddress = guestAddressData;
         }
 
         setIsCheckingOut(true);
@@ -90,7 +110,9 @@ export default function CartPage() {
                     cartItems,
                     discountId: appliedDiscount?.id || null,
                     userId: session?.user?.id || null,
-                    addressId: selectedAddressId
+                    addressId: finalAddressId,
+                    // --- NEW: Pass raw address data for guest checkout ---
+                    guestAddressData: finalGuestAddress
                 }),
             });
 
@@ -107,7 +129,7 @@ export default function CartPage() {
             }
         } catch (error) {
             console.error('Checkout error:', error);
-            addToast(`Checkout Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Checkout Error: ${error.message}`, 'error');
             setIsCheckingOut(false);
         }
     };
@@ -130,6 +152,11 @@ export default function CartPage() {
             </main>
         );
     }
+
+    // Check if the user is logged in AND has selected a valid address OR if they are a guest AND have a valid guest address
+    const hasValidAddress = session
+        ? !!selectedAddressId
+        : isGuestAddressValid;
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -156,7 +183,15 @@ export default function CartPage() {
                             selectedAddressId={selectedAddressId}
                             onSelect={setSelectedAddressId}
                             onAddNew={() => setIsAddressModalOpen(true)}
-                        />
+                        >
+                            {/* --- NEW: Pass Guest Form as Child if no session --- */}
+                            {!session && (
+                                <GuestAddressForm
+                                    onChange={setGuestAddressData}
+                                    setIsValid={setIsGuestAddressValid}
+                                />
+                            )}
+                        </ShippingAddressSelector>
                     </div>
 
                     {/* Right Column: Summary */}
@@ -171,7 +206,8 @@ export default function CartPage() {
                             onCheckout={handleCheckout}
                             isCheckingOut={isCheckingOut}
                             session={session}
-                            hasSelectedAddress={!!selectedAddressId}
+                            // --- MODIFIED: Use the combined validation ---
+                            hasSelectedAddress={hasValidAddress}
                         />
                     </div>
                 </div>

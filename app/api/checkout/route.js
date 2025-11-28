@@ -8,16 +8,43 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request) {
-    const { cartItems, userId, addressId, discountId } = await request.json();
+    // --- MODIFIED: Added guestAddressData ---
+    const { cartItems, userId, addressId, discountId, guestAddressData } = await request.json();
 
     if (!cartItems || cartItems.length === 0) {
         return NextResponse.json({ error: 'Cart is empty.' }, { status: 400 });
     }
 
     const finalUserId = userId || null;
-    const finalAddressId = addressId || null;
+    let finalAddressId = addressId || null;
 
     try {
+        // --- NEW: Step 0: Handle Guest Address Insertion ---
+        if (!finalUserId && guestAddressData) {
+            const { data: newAddress, error: addressError } = await supabase
+                .from('addresses')
+                .insert({
+                    user_id: null, // Critical: Null user_id for guest order, allowing it to be temporary
+                    address_line_1: guestAddressData.address_line_1,
+                    address_line_2: guestAddressData.address_line_2 || null,
+                    city: guestAddressData.city,
+                    state_province_region: guestAddressData.state_province_region,
+                    postal_code: guestAddressData.postal_code,
+                    country: guestAddressData.country,
+                    is_default: false
+                })
+                .select('id')
+                .single();
+
+            if (addressError) throw new Error(`Failed to create guest address: ${addressError.message}`);
+            finalAddressId = newAddress.id;
+        }
+
+        if (!finalAddressId) {
+            return NextResponse.json({ error: 'A shipping address is required.' }, { status: 400 });
+        }
+
+
         // --- Step 1: Server-side validation and stock check ---
         let subtotal = 0;
         const verifiedItems = [];
@@ -140,6 +167,12 @@ export async function POST(request) {
                 customerEmail = user?.email;
                 customerName = user?.first_name || "Customer";
             }
+            // Use guest address data for email if user is null
+            if (!customerEmail && finalAddressId && guestAddressData) {
+                // Since email is not captured on the cart page for guests,
+                // this block is currently moot unless we add an email field to GuestAddressForm.
+                // For now, we only send email if registered.
+            }
 
             if (customerEmail) {
                 // Fetch Template
@@ -185,6 +218,8 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Checkout error:', error);
+        // --- NEW: If an address was inserted for a guest, we may want to clean it up on failure (Optional cleanup) ---
+        // Since we don't have transaction control, we rely on a soft delete policy or regular database cleanup.
         return NextResponse.json({ error: 'Checkout failed.', details: error.message }, { status: 500 });
     }
 }
