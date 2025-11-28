@@ -11,13 +11,9 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
 
         const groups = new Set();
         variants.forEach(v => {
-            // New dynamic path
             if (v.attributes) {
                 Object.keys(v.attributes).forEach(key => groups.add(key));
             }
-            // Fallback for legacy data (optional, keeps old products working)
-            if (v.size) groups.add('Size');
-            if (v.color) groups.add('Color');
         });
         return Array.from(groups).sort();
     }, [variants]);
@@ -28,13 +24,9 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
         const options = new Set();
 
         variants.forEach(v => {
-            // Check dynamic attributes
             if (v.attributes && v.attributes[groupName]) {
                 options.add(v.attributes[groupName]);
             }
-            // Check legacy columns
-            else if (groupName === 'Size' && v.size) options.add(v.size);
-            else if (groupName === 'Color' && v.color) options.add(v.color);
         });
 
         return Array.from(options).sort();
@@ -47,20 +39,12 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
         // Start with current attributes
         const currentAttributes = selectedVariant?.attributes || {};
 
-        // Merge legacy fields into the map for comparison if needed
-        if (selectedVariant?.size) currentAttributes['Size'] = selectedVariant.size;
-        if (selectedVariant?.color) currentAttributes['Color'] = selectedVariant.color;
-
         // Apply new selection
         const targetAttributes = { ...currentAttributes, [groupName]: value };
 
         // Find the best match
         const exactMatch = variants.find(v => {
             const vAttrs = v.attributes || {};
-            // Polyfill legacy
-            if (v.size) vAttrs['Size'] = v.size;
-            if (v.color) vAttrs['Color'] = v.color;
-
             // Check if this variant matches ALL target attributes
             return Object.entries(targetAttributes).every(([key, val]) => vAttrs[key] === val);
         });
@@ -71,7 +55,7 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
             // Fuzzy Match: If exact combination doesn't exist, just switch to the variant that has the clicked value
             // (Resetting other selections effectively)
             const partialMatch = variants.find(v => {
-                const val = v.attributes?.[groupName] || (groupName === 'Size' ? v.size : groupName === 'Color' ? v.color : null);
+                const val = v.attributes?.[groupName];
                 return val === value;
             });
             if (partialMatch) onSelect(partialMatch);
@@ -90,10 +74,7 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
                     <div className="flex flex-wrap gap-3">
                         {getOptionsForGroup(groupName).map(optionValue => {
                             // Check if selected
-                            const currentVal = selectedVariant?.attributes?.[groupName] ||
-                                (groupName === 'Size' ? selectedVariant?.size :
-                                    groupName === 'Color' ? selectedVariant?.color : null);
-
+                            const currentVal = selectedVariant?.attributes?.[groupName];
                             const isSelected = currentVal === optionValue;
 
                             return (

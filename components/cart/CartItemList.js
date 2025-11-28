@@ -49,20 +49,11 @@ export default function CartItemList({ cartItems, updateQuantity, removeFromCart
 
                         {/* Variant Attributes (Dynamic) */}
                         <div className="text-sm text-gray-400 mt-1 flex flex-wrap gap-2">
-                            {/* 1. Dynamic Attributes */}
                             {item.attributes && Object.entries(item.attributes).map(([key, val]) => (
                                 <span key={key} className="bg-gray-700 px-2 py-0.5 rounded text-xs border border-gray-600">
                                     <span className="text-gray-500 mr-1">{key}:</span>{val}
                                 </span>
                             ))}
-
-                            {/* 2. Legacy Fallback (for items added before migration) */}
-                            {(!item.attributes && (item.size || item.color)) && (
-                                <>
-                                    {item.size && <span className="bg-gray-700 px-2 py-0.5 rounded text-xs border border-gray-600">Size: {item.size}</span>}
-                                    {item.color && <span className="bg-gray-700 px-2 py-0.5 rounded text-xs border border-gray-600">Color: {item.color}</span>}
-                                </>
-                            )}
                         </div>
 
                         {/* Custom Options */}

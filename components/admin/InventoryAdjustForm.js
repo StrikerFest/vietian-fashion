@@ -33,12 +33,9 @@ export default function InventoryAdjustForm({ products, onAdjust }) {
         let details = '';
         if (v.attributes && Object.keys(v.attributes).length > 0) {
             details = Object.values(v.attributes).join(' / ');
-        } else {
-            // Legacy fallback
-            details = `${v.color || ''} ${v.size || ''}`.trim();
         }
 
-        return `${v.sku} - ${details} (Stock: ${v.inventory_levels?.[0]?.on_hand ?? 0})`;
+        return `${v.sku}${details ? ` - ${details}` : ''} (Stock: ${v.inventory_levels?.[0]?.on_hand ?? 0})`;
     };
 
     const handleSubmit = async (e) => {

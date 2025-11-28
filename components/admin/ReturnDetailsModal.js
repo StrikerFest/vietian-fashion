@@ -16,9 +16,6 @@ export default function ReturnDetailsModal({ request, onClose, onUpdate }) {
         let details = [];
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             details = Object.values(variant.attributes);
-        } else if (variant.size || variant.color) {
-            if (variant.color) details.push(variant.color);
-            if (variant.size) details.push(variant.size);
         }
 
         return (

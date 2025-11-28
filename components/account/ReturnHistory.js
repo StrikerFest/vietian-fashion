@@ -20,11 +20,7 @@ export default function ReturnHistory({ returns }) {
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             return Object.values(variant.attributes).join(' / ');
         }
-        // 2. Legacy Fallback
-        if (variant.color || variant.size) {
-            return `${variant.color || ''} ${variant.size || ''}`.trim();
-        }
-        // 3. SKU Fallback
+        // 2. SKU Fallback
         return variant.sku;
     };
 

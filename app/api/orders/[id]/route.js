@@ -18,7 +18,7 @@ export async function GET(request, context) {
                 order_items (
                     id, quantity, price_at_purchase, custom_options,
                     product_variants (
-                        id, sku, size, color,
+                        id, sku,
                         products ( name ),
                         variant_attributes (
                             attribute_value:categories (
@@ -38,8 +38,6 @@ export async function GET(request, context) {
             ...order,
             order_items: order.order_items.map(item => {
                 const attributes = {};
-                if (item.product_variants?.size) attributes['Size'] = item.product_variants.size;
-                if (item.product_variants?.color) attributes['Color'] = item.product_variants.color;
 
                 item.product_variants?.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) {
@@ -65,7 +63,6 @@ export async function GET(request, context) {
 
 // PUT remains unchanged...
 export async function PUT(request, context) {
-    // ... (Same as before)
     const params = await context.params;
     const { id } = params;
     const body = await request.json();

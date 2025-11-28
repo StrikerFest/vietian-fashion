@@ -30,12 +30,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                 .join(' / ');
         }
 
-        // 2. Legacy Fallback (Old System)
-        if (variant.color || variant.size) {
-            return `${variant.color || ''} ${variant.size || ''}`.trim();
-        }
-
-        // 3. Last Resort
+        // 2. Last Resort
         return 'Standard';
     };
 

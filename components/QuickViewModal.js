@@ -59,10 +59,6 @@ export default function QuickViewModal({ productId, onClose }) {
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             return Object.values(variant.attributes).join(' / ');
         }
-        // Fallback legacy
-        if (variant.color || variant.size) {
-            return `${variant.color || ''} ${variant.size || ''}`.trim();
-        }
         // Fallback SKU
         return variant.sku;
     };

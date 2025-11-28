@@ -62,21 +62,13 @@ export async function GET(request) {
                 // Build Dynamic Attribute String (Format: "Size: L; Color: Red")
                 const attrStrings = [];
 
-                // 1. Process Unified Attributes
+                // Process Unified Attributes
                 if (variant.variant_attributes) {
                     variant.variant_attributes.forEach(va => {
                         if (va.attribute_value?.parent?.name) {
                             attrStrings.push(`${va.attribute_value.parent.name}: ${va.attribute_value.name}`);
                         }
                     });
-                }
-
-                // 2. Fallback for legacy columns (if they still exist and aren't in dynamic list)
-                if (variant.size && !attrStrings.some(s => s.startsWith('Size:'))) {
-                    attrStrings.push(`Size: ${variant.size}`);
-                }
-                if (variant.color && !attrStrings.some(s => s.startsWith('Color:'))) {
-                    attrStrings.push(`Color: ${variant.color}`);
                 }
 
                 flattenedData.push({

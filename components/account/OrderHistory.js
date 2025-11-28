@@ -17,11 +17,6 @@ export default function OrderHistory({ orders, isLoading }) {
                 .join(' • ');
         }
 
-        // Legacy Fallback
-        if (variant.size || variant.color) {
-            return `${variant.color || ''} ${variant.size || ''}`.trim();
-        }
-
         return variant.sku || '';
     };
 

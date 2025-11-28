@@ -40,8 +40,6 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
         let details = '';
         if (v.attributes && Object.keys(v.attributes).length > 0) {
             details = Object.values(v.attributes).join(' / ');
-        } else if (v.color || v.size) {
-            details = `${v.color || ''} ${v.size || ''}`.trim();
         }
         return `${v.sku}${details ? ` - ${details}` : ''}`;
     };

@@ -26,15 +26,6 @@ export default function OrderReceipt({ order }) {
             );
         }
 
-        // Fallback for legacy data
-        if (variant.color || variant.size) {
-            return (
-                <span className="text-sm text-gray-400">
-                    {variant.color} {variant.size && `/ ${variant.size}`}
-                </span>
-            );
-        }
-
         return <span className="text-sm text-gray-500">{variant.sku}</span>;
     };
 

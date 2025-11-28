@@ -39,10 +39,6 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             return Object.values(variant.attributes).join(' / ');
         }
-        // Fallback
-        if (variant.color || variant.size) {
-            return `${variant.color || ''} ${variant.size || ''}`.trim();
-        }
         return variant.sku;
     };
 
