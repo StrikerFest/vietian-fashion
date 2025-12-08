@@ -129,7 +129,7 @@ export async function POST(request) {
 
         const totalAmount = taxableAmount + taxAmount + shippingCost;
 
-        // --- Step 4: Create Order (WITH NEW COLUMNS) ---
+        // --- Step 4: Create Order ---
         const { data: newOrder, error: orderError } = await supabase
             .from('orders')
             .insert({
@@ -137,9 +137,9 @@ export async function POST(request) {
                 shipping_address_id: finalAddressId,
                 subtotal: subtotal,
                 total_amount: totalAmount,
-                tax_amount: taxAmount,       // --- NEW ---
-                shipping_cost: shippingCost, // --- NEW ---
-                status: 'paid'
+                tax_amount: taxAmount,
+                shipping_cost: shippingCost,
+                status: 'pending' // --- MODIFIED: Changed from 'paid' to 'pending' for manual transfer ---
             })
             .select()
             .single();

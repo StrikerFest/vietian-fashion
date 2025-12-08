@@ -683,6 +683,8 @@ CREATE TABLE IF NOT EXISTS "public"."orders" (
     "status" "text" DEFAULT 'pending'::"text" NOT NULL,
     "shipping_carrier" "text",
     "tracking_number" "text",
+    "tax_amount" numeric DEFAULT 0,
+    "shipping_cost" numeric DEFAULT 0,
     CONSTRAINT "status_check" CHECK (("status" = ANY (ARRAY['pending'::"text", 'paid'::"text", 'shipped'::"text", 'delivered'::"text", 'cancelled'::"text", 'refunded'::"text", 'partially-refunded'::"text"])))
 );
 

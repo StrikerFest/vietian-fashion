@@ -2,12 +2,13 @@
 'use client';
 
 import Link from 'next/link';
+import VietQRDisplay from './VietQRDisplay'; // --- NEW IMPORT ---
 
 export default function OrderReceipt({ order }) {
     const appliedDiscount = order.order_discounts?.[0]?.discounts;
     const shippingAddress = order.addresses;
 
-    // Fallbacks for legacy orders (before tax/shipping cols existed)
+    // Fallbacks for legacy orders
     const taxAmount = order.tax_amount || 0;
     const shippingCost = order.shipping_cost || 0;
 
@@ -17,10 +18,8 @@ export default function OrderReceipt({ order }) {
         else if (appliedDiscount.type === 'fixed') discountAmount = Math.min(appliedDiscount.value, order.subtotal);
     }
 
-    // Helper to render attributes
     const renderAttributes = (variant) => {
         if (!variant) return null;
-
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             return (
                 <span className="text-sm text-gray-400">
@@ -31,15 +30,29 @@ export default function OrderReceipt({ order }) {
         return <span className="text-sm text-gray-500">{variant.sku}</span>;
     };
 
+    // --- Check if we need to show payment info ---
+    const showPaymentQR = order.status === 'pending';
+
     return (
         <div className="max-w-4xl mx-auto">
             <div className="text-center mb-10">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-900/30 text-green-400 mb-4 border border-green-800">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 border ${showPaymentQR ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' : 'bg-green-900/30 text-green-400 border-green-800'}`}>
+                    {showPaymentQR ? (
+                        <span className="text-3xl">⏳</span>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                    )}
                 </div>
-                <h1 className="text-4xl font-extrabold text-white mb-2">Order Confirmed!</h1>
-                <p className="text-gray-400">Order <span className="font-mono text-indigo-400">#{order.id}</span> has been placed.</p>
+                <h1 className="text-4xl font-extrabold text-white mb-2">{showPaymentQR ? 'Order Placed!' : 'Order Confirmed!'}</h1>
+                <p className="text-gray-400">Order <span className="font-mono text-indigo-400">#{order.id}</span> has been {showPaymentQR ? 'received' : 'processed'}.</p>
             </div>
+
+            {/* --- NEW: VietQR Integration --- */}
+            {showPaymentQR && (
+                <div className="mb-12">
+                    <VietQRDisplay order={order} />
+                </div>
+            )}
 
             <div className="bg-gray-800 rounded-xl overflow-hidden border border-gray-700 shadow-2xl">
                 <div className="p-6 md:p-8 border-b border-gray-700 bg-gray-800/50">
@@ -89,7 +102,9 @@ export default function OrderReceipt({ order }) {
                         ) : <p className="text-gray-500 italic">Digital / Guest Checkout</p>}
                         <div className="mt-6 pt-6 border-t border-gray-700">
                             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</h3>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900 text-green-200">{order.status}</span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${showPaymentQR ? 'bg-yellow-900 text-yellow-200' : 'bg-green-900 text-green-200'}`}>
+                                {order.status}
+                            </span>
                         </div>
                     </div>
                     <div className="p-6 md:p-8 bg-gray-700/10">

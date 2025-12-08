@@ -37,7 +37,6 @@ export async function GET(request, context) {
         // Transform (Consistent with List View)
         const formattedOrder = {
             ...order,
-            // Ensure defaults for older orders
             tax_amount: order.tax_amount || 0,
             shipping_cost: order.shipping_cost || 0,
             order_items: order.order_items.map(item => {
@@ -64,7 +63,6 @@ export async function GET(request, context) {
     }
 }
 
-// PUT logic remains unchanged... (It handles cancellations/tracking)
 export async function PUT(request, context) {
     const params = await context.params;
     const { id } = params;
@@ -74,6 +72,7 @@ export async function PUT(request, context) {
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     try {
+        // 1. Handle Cancellation (Requires Inventory Restock)
         if (status === 'cancelled') {
             const { data: order, error: fetchError } = await supabase
                 .from('orders')
@@ -97,16 +96,24 @@ export async function PUT(request, context) {
 
             const { data: updated } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', id).select().single();
             return NextResponse.json({ message: 'Order cancelled', order: updated });
+        }
 
-        } else {
+        // 2. Handle General Updates (Status: Pending -> Paid, or Tracking Info)
+        else {
+            const updates = {};
+            if (shipping_carrier !== undefined) updates.shipping_carrier = shipping_carrier;
+            if (tracking_number !== undefined) updates.tracking_number = tracking_number;
+            if (status) updates.status = status; // Allow updating status to 'paid', 'shipped', etc.
+
             const { data: updated, error } = await supabase
                 .from('orders')
-                .update({ shipping_carrier, tracking_number })
+                .update(updates)
                 .eq('id', id)
-                .select().single();
+                .select()
+                .single();
 
             if (error) throw error;
-            return NextResponse.json({ message: 'Updated', order: updated });
+            return NextResponse.json({ message: 'Order updated', order: updated });
         }
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

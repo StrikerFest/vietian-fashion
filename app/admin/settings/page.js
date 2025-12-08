@@ -5,7 +5,8 @@ import { useState } from 'react';
 import RecommendationSettings from '@/components/admin/settings/RecommendationSettings';
 import HomepageSettings from '@/components/admin/settings/HomepageSettings';
 import EmailSettings from '@/components/admin/settings/EmailSettings';
-import TaxSettings from '@/components/admin/settings/TaxSettings'; // --- NEW IMPORT ---
+import TaxSettings from '@/components/admin/settings/TaxSettings';
+import PaymentSettings from '@/components/admin/settings/PaymentSettings'; // --- NEW IMPORT ---
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('homepage');
@@ -14,7 +15,8 @@ export default function SettingsPage() {
         { id: 'homepage', label: 'Homepage Layout' },
         { id: 'recommendation', label: 'AI Recommendation' },
         { id: 'email', label: 'Email Config' },
-        { id: 'tax', label: 'Tax & Shipping' }, // --- NEW TAB ---
+        { id: 'tax', label: 'Tax & Shipping' },
+        { id: 'payment', label: 'Payment (VietQR)' }, // --- NEW TAB ---
         { id: 'general', label: 'General' },
     ];
 
@@ -58,6 +60,10 @@ export default function SettingsPage() {
 
                 {activeTab === 'tax' && (
                     <TaxSettings />
+                )}
+
+                {activeTab === 'payment' && ( // --- NEW TAB CONTENT ---
+                    <PaymentSettings />
                 )}
 
                 {activeTab === 'general' && (

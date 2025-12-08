@@ -11,6 +11,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
     const [trackingNumber, setTrackingNumber] = useState('');
     const [isSavingTracking, setIsSavingTracking] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
 
     useEffect(() => {
         if (order) {
@@ -57,6 +58,8 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
     const shippingCost = order.shipping_cost || 0;
     const taxAmount = order.tax_amount || 0;
 
+    // --- Action Handlers ---
+
     const handleSaveTracking = async () => {
         if (!shippingCarrier && !trackingNumber) {
             addToast('Please enter Shipping Carrier or Tracking Number.', 'error');
@@ -77,6 +80,26 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
             addToast(`Error: ${error.message}`, 'error');
         } finally {
             setIsSavingTracking(false);
+        }
+    };
+
+    const handleConfirmPayment = async () => {
+        if (!confirm('Confirm that you have received the bank transfer for this order?')) return;
+        setIsConfirmingPayment(true);
+        try {
+            const response = await fetch(`/api/orders/${order.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'paid' }),
+            });
+            if (!response.ok) throw new Error('Failed to update order status');
+            const { order: updatedOrder } = await response.json();
+            onUpdateOrder(updatedOrder);
+            addToast('Payment confirmed! Order marked as Paid.', 'success');
+        } catch (error) {
+            addToast(`Error: ${error.message}`, 'error');
+        } finally {
+            setIsConfirmingPayment(false);
         }
     };
 
@@ -113,6 +136,28 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                 </div>
 
                 <div className="p-6 space-y-6">
+                    {/* --- NEW: Payment Verification Helper --- */}
+                    {order.status === 'pending' && (
+                        <div className="bg-yellow-900/20 border border-yellow-700/50 p-4 rounded-lg">
+                            <h3 className="text-yellow-500 font-bold text-sm uppercase mb-2 flex items-center gap-2">
+                                ⚠️ Payment Verification Needed
+                            </h3>
+                            <p className="text-sm text-gray-300 mb-3">
+                                Check your bank app for a transfer with these exact details:
+                            </p>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="bg-gray-900 p-2 rounded border border-gray-700">
+                                    <span className="block text-xs text-gray-500">Expected Amount</span>
+                                    <span className="font-mono text-white font-bold">${order.total_amount.toFixed(2)}</span>
+                                </div>
+                                <div className="bg-gray-900 p-2 rounded border border-gray-700">
+                                    <span className="block text-xs text-gray-500">Description / Memo</span>
+                                    <span className="font-mono text-white font-bold">ORDER {order.id}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Order Items */}
                     <div>
                         <h3 className="font-semibold mb-2 text-lg text-white">Order Items</h3>
@@ -196,11 +241,29 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
                 {/* Footer */}
                 <div className="p-4 bg-gray-900/50 flex justify-between rounded-b-lg">
-                    {order.status !== 'cancelled' && order.status !== 'delivered' ? (
-                        <button onClick={handleCancelOrder} disabled={isCancelling} className="bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-800 font-semibold py-2 px-4 rounded disabled:opacity-50 text-sm">
-                            {isCancelling ? '...' : 'Cancel Order'}
-                        </button>
-                    ) : <div></div>}
+                    {/* Actions Area */}
+                    <div className="flex gap-3">
+                        {order.status === 'pending' && (
+                            <button
+                                onClick={handleConfirmPayment}
+                                disabled={isConfirmingPayment}
+                                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:bg-gray-600 text-sm flex items-center gap-2"
+                            >
+                                {isConfirmingPayment ? 'Processing...' : (
+                                    <>
+                                        <span>✓</span> Confirm Payment
+                                    </>
+                                )}
+                            </button>
+                        )}
+
+                        {order.status !== 'cancelled' && order.status !== 'delivered' && (
+                            <button onClick={handleCancelOrder} disabled={isCancelling} className="bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-800 font-semibold py-2 px-4 rounded disabled:opacity-50 text-sm">
+                                {isCancelling ? '...' : 'Cancel Order'}
+                            </button>
+                        )}
+                    </div>
+
                     <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded text-sm">Close</button>
                 </div>
             </div>
