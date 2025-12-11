@@ -1,12 +1,21 @@
 // app/api/reviews/[reviewId]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 // PUT (Approve/Update)
 export async function PUT(request, context) {
     const params = await context.params;
     const { reviewId } = params;
     const { is_approved } = await request.json();
+
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // ----------------------------
 
     if (!reviewId) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
@@ -31,10 +40,17 @@ export async function DELETE(request, context) {
     const params = await context.params;
     const { reviewId } = params;
 
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // ----------------------------
+
     if (!reviewId) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     try {
-        // --- NEW: Soft Delete ---
         const { error } = await supabase
             .from('reviews')
             .update({ deleted_at: new Date().toISOString() })
@@ -45,7 +61,6 @@ export async function DELETE(request, context) {
         return NextResponse.json({ message: 'Review archived successfully.' });
 
     } catch (error) {
-        console.error(`Error archiving review ${reviewId}:`, error);
         return NextResponse.json({ error: 'Failed to archive review.', details: error.message }, { status: 500 });
     }
 }

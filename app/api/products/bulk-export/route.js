@@ -1,11 +1,22 @@
 // app/api/products/bulk-export/route.js
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import {NextResponse} from 'next/server';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Use dynamic client
+import {cookies} from 'next/headers';
 import Papa from 'papaparse';
 
 export async function GET(request) {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({message: "Unauthorized"}, {status: 401});
+    }
+    // ----------------------------
+
     try {
-        const { searchParams } = new URL(request.url);
+        const {searchParams} = new URL(request.url);
         const idsQuery = searchParams.get('ids');
 
         let idArray = null;
@@ -15,7 +26,7 @@ export async function GET(request) {
                 .filter(id => !isNaN(id));
         }
 
-        // Fetch products with the Unified Taxonomy (variant_attributes)
+        // Fetch products with the Unified Taxonomy
         let query = supabase
             .from('products')
             .select(`
@@ -31,18 +42,18 @@ export async function GET(request) {
                 )
             `)
             .is('deleted_at', null)
-            .order('name', { ascending: true });
+            .order('name', {ascending: true});
 
         if (idArray && idArray.length > 0) {
             query = query.in('id', idArray);
         }
 
-        const { data: products, error } = await query;
+        const {data: products, error} = await query;
 
         if (error) throw error;
 
         if (!products || products.length === 0) {
-            return NextResponse.json({ message: "No active products found to export." }, { status: 200 });
+            return NextResponse.json({message: "No active products found to export."}, {status: 200});
         }
 
         const flattenedData = [];
@@ -59,10 +70,9 @@ export async function GET(request) {
             }
 
             for (const variant of product.product_variants) {
-                // Build Dynamic Attribute String (Format: "Size: L; Color: Red")
+                // Build Dynamic Attribute String
                 const attrStrings = [];
 
-                // Process Unified Attributes
                 if (variant.variant_attributes) {
                     variant.variant_attributes.forEach(va => {
                         if (va.attribute_value?.parent?.name) {
@@ -84,15 +94,15 @@ export async function GET(request) {
             }
         }
 
-        const csv = Papa.unparse(flattenedData, { header: true });
+        const csv = Papa.unparse(flattenedData, {header: true});
         const headers = new Headers();
         headers.set('Content-Type', 'text/csv');
         headers.set('Content-Disposition', 'attachment; filename="products_export.csv"');
 
-        return new Response(csv, { headers });
+        return new Response(csv, {headers});
 
     } catch (error) {
         console.error('Error exporting products:', error);
-        return NextResponse.json({ error: 'Failed to export products.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: 'Failed to export products.', details: error.message}, {status: 500});
     }
 }

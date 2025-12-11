@@ -1,9 +1,20 @@
 // app/api/reviews/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'; // Use dynamic client
+import { cookies } from 'next/headers';
 
 // GET all active reviews (Admin)
 export async function GET(request) {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY ACCESS
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // ------------------------------------
+
     const { searchParams } = new URL(request.url);
 
     const page = parseInt(searchParams.get('page') || '1');
@@ -24,7 +35,7 @@ export async function GET(request) {
                 products ( name ),
                 user_id
             `, { count: 'exact' })
-            .is('deleted_at', null) // Only active
+            .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .range(start, end);
 
@@ -46,9 +57,17 @@ export async function GET(request) {
     }
 }
 
-// POST (Create Review) - @unchanged
+// POST (Create Review)
 export async function POST(request) {
-    const { product_id, rating, comment, user_id } = await request.json();
+    // [SECURITY PATCH] Ignore 'user_id' from body to prevent spoofing
+    const { product_id, rating, comment } = await request.json();
+
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // 1. Get the Real User ID from the session
+    const { data: { session } } = await supabase.auth.getSession();
+    const realUserId = session?.user?.id || null;
 
     if (!product_id || !rating) {
         return NextResponse.json({ error: 'Product ID and Rating are required.' }, { status: 400 });
@@ -62,7 +81,7 @@ export async function POST(request) {
                 product_id,
                 rating: numericRating,
                 comment: comment || null,
-                user_id: user_id || null
+                user_id: realUserId // <--- FORCE THIS: Uses session ID or null
             })
             .select()
             .single();

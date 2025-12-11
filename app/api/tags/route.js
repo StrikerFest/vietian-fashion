@@ -1,38 +1,52 @@
 // app/api/tags/route.js
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import {NextResponse} from 'next/server';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs';
+import {cookies} from 'next/headers';
 
-// GET all active tags
+// GET all active tags (Publicly accessible for filters)
 export async function GET() {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
     try {
-        const { data, error } = await supabase
+        const {data, error} = await supabase
             .from('tags')
             .select('*')
-            .is('deleted_at', null) // --- NEW: Only active tags ---
-            .order('name', { ascending: true });
+            .is('deleted_at', null) // Only fetch active records
+            .order('name', {ascending: true});
 
         if (error) throw error;
         return NextResponse.json(data);
 
     } catch (error) {
         console.error('Error fetching tags:', error);
-        return NextResponse.json({ error: 'Failed to fetch tags.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: 'Failed to fetch tags.', details: error.message}, {status: 500});
     }
 }
 
-// POST a new tag (or restore)
+// POST a new tag (ADMIN ONLY)
 export async function POST(request) {
-    const { name } = await request.json();
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    // [SECURITY PATCH] Verify Admin Session
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+    }
+    // ------------------------------------
+
+    const {name} = await request.json();
 
     if (!name) {
-        return NextResponse.json({ error: 'Tag Name is required' }, { status: 400 });
+        return NextResponse.json({error: 'Tag Name is required'}, {status: 400});
     }
 
     const tagName = name.toLowerCase().trim();
 
     try {
-        // --- NEW: Check for existing tag (active or archived) ---
-        const { data: existingTag, error: checkError } = await supabase
+        // Check for existing tag (active or archived)
+        const {data: existingTag, error: checkError} = await supabase
             .from('tags')
             .select('id, deleted_at')
             .eq('name', tagName)
@@ -44,10 +58,10 @@ export async function POST(request) {
 
         if (existingTag) {
             if (existingTag.deleted_at) {
-                // --- NEW: Restore archived tag ---
-                const { data: restored, error: restoreError } = await supabase
+                // Restore archived tag
+                const {data: restored, error: restoreError} = await supabase
                     .from('tags')
-                    .update({ deleted_at: null })
+                    .update({deleted_at: null})
                     .eq('id', existingTag.id)
                     .select()
                     .single();
@@ -56,14 +70,14 @@ export async function POST(request) {
                 return NextResponse.json(restored);
             } else {
                 // Tag exists and is active
-                return NextResponse.json({ error: 'Tag already exists.' }, { status: 409 });
+                return NextResponse.json({error: 'Tag already exists.'}, {status: 409});
             }
         }
 
         // Create new tag
-        const { data, error } = await supabase
+        const {data, error} = await supabase
             .from('tags')
-            .insert([{ name: tagName }])
+            .insert([{name: tagName}])
             .select()
             .single();
 
@@ -73,6 +87,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Error creating tag:', error);
-        return NextResponse.json({ error: 'Failed to create tag.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: 'Failed to create tag.', details: error.message}, {status: 500});
     }
 }

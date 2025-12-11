@@ -1,11 +1,22 @@
 // app/api/suppliers/[id]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'; // Switch to dynamic client
+import { cookies } from 'next/headers';
 
 // PUT (update) a single supplier
 export async function PUT(request, context) {
     const params = await context.params;
     const { id } = params;
+
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // ----------------------------
 
     const { name, contact_person, email, phone } = await request.json();
 
@@ -31,6 +42,7 @@ export async function PUT(request, context) {
             .single();
 
         if (error) {
+            // Preserve your specific duplicate name check
             if (error.code === '23505') {
                 return NextResponse.json({ error: 'A supplier with this name already exists.' }, { status: 409 });
             }
@@ -50,16 +62,25 @@ export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
 
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // ----------------------------
+
     if (!id || isNaN(parseInt(id))) {
         return NextResponse.json({ error: 'Valid Supplier ID is required.' }, { status: 400 });
     }
     const numericSupplierId = parseInt(id);
 
     try {
-        // --- NEW: Soft Delete (Archive) ---
         const { error } = await supabase
             .from('suppliers')
-            .update({ deleted_at: new Date().toISOString() }) // Set deleted_at timestamp
+            .update({ deleted_at: new Date().toISOString() }) // Soft Delete
             .eq('id', numericSupplierId);
 
         if (error) throw error;

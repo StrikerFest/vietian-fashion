@@ -1,60 +1,39 @@
 // app/api/collections/[id]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 // PUT (Update)
 export async function PUT(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    const {
-        name,
-        description,
-        is_featured,
-        seo_title,
-        seo_description
-    } = await request.json();
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    if (!name) {
-        return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-    }
-    if (!id || isNaN(parseInt(id))) {
-        return NextResponse.json({ error: 'Valid Collection ID is required.' }, { status: 400 });
-    }
-    const numericCollectionId = parseInt(id);
+    // [SECURITY PATCH] ADMIN ONLY
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // ----------------------------
 
+    const { name, description, is_featured, seo_title, seo_description } = await request.json();
+    if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     try {
         const { data, error } = await supabase
             .from('collections')
-            .update({
-                name,
-                slug,
-                description,
-                is_featured: !!is_featured,
-                seo_title: seo_title || null,
-                seo_description: seo_description || null
-            })
-            .eq('id', numericCollectionId)
-            .select()
-            .single();
+            .update({ name, slug, description, is_featured: !!is_featured, seo_title, seo_description })
+            .eq('id', parseInt(id))
+            .select().single();
 
         if (error) {
-            if (error.code === '23505') {
-                return NextResponse.json({ error: 'A collection with this name or slug already exists.' }, { status: 409 });
-            }
-            if (error.code === 'PGRST116') {
-                return NextResponse.json({ error: 'Collection not found.' }, { status: 404 });
-            }
+            if (error.code === '23505') return NextResponse.json({ error: 'Exists.' }, { status: 409 });
             throw error;
         }
-
         return NextResponse.json(data);
-
     } catch (error) {
-        console.error(`Error updating collection ${numericCollectionId}:`, error);
-        return NextResponse.json({ error: 'Failed to update collection.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
@@ -63,24 +42,23 @@ export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    if (!id || isNaN(parseInt(id))) {
-        return NextResponse.json({ error: 'Valid Collection ID is required.' }, { status: 400 });
-    }
-    const numericCollectionId = parseInt(id);
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // ----------------------------
 
     try {
-        // --- NEW: Soft Delete ---
-        const { error: deleteError } = await supabase
+        const { error } = await supabase
             .from('collections')
             .update({ deleted_at: new Date().toISOString() })
-            .eq('id', numericCollectionId);
+            .eq('id', parseInt(id));
 
-        if (deleteError) throw deleteError;
-
-        return NextResponse.json({ message: 'Collection archived successfully.' });
-
+        if (error) throw error;
+        return NextResponse.json({ message: 'Collection archived.' });
     } catch (error) {
-        console.error(`Error archiving collection ${numericCollectionId}:`, error);
-        return NextResponse.json({ error: 'Failed to archive collection.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

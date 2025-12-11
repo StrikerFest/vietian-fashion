@@ -1,15 +1,23 @@
 // app/api/tags/[id]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
-// PUT (Update) a tag name
+// PUT (Update)
 export async function PUT(request, context) {
     const params = await context.params;
     const { id } = params;
     const { name } = await request.json();
 
-    if (!id) return NextResponse.json({ error: 'Tag ID required' }, { status: 400 });
-    if (!name) return NextResponse.json({ error: 'Tag Name required' }, { status: 400 });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // ----------------------------
+
+    if (!id || !name) return NextResponse.json({ error: 'ID and Name required' }, { status: 400 });
 
     try {
         const { data, error } = await supabase
@@ -20,42 +28,39 @@ export async function PUT(request, context) {
             .single();
 
         if (error) {
-            if (error.code === '23505') {
-                return NextResponse.json({ error: 'A tag with this name already exists.' }, { status: 409 });
-            }
+            if (error.code === '23505') return NextResponse.json({ error: 'Name exists.' }, { status: 409 });
             throw error;
         }
-
         return NextResponse.json(data);
     } catch (error) {
-        console.error(`Error updating tag ${id}:`, error);
-        return NextResponse.json({ error: 'Failed to update tag.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
-// DELETE (Archive) a tag
+// DELETE (Archive)
 export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    if (!id) return NextResponse.json({ error: 'Tag ID required' }, { status: 400 });
-    const tagId = parseInt(id);
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // ----------------------------
+
+    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     try {
-        // --- NEW: Soft Delete (Archive) ---
-        // We removed the "check usage in products" step because archiving allows
-        // historical data to persist without breaking foreign keys.
         const { error } = await supabase
             .from('tags')
             .update({ deleted_at: new Date().toISOString() })
-            .eq('id', tagId);
+            .eq('id', parseInt(id));
 
         if (error) throw error;
-
-        return NextResponse.json({ message: 'Tag archived successfully.' });
-
+        return NextResponse.json({ message: 'Tag archived.' });
     } catch (error) {
-        console.error(`Error archiving tag ${tagId}:`, error);
-        return NextResponse.json({ error: 'Failed to archive tag.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

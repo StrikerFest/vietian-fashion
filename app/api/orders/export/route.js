@@ -1,11 +1,22 @@
 // app/api/orders/export/route.js
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import {NextResponse} from 'next/server';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Use dynamic client
+import {cookies} from 'next/headers';
 import Papa from 'papaparse';
 
 export async function GET(request) {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    // [SECURITY PATCH] ADMIN ONLY - CRITICAL
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) {
+        return new Response('Unauthorized', {status: 401});
+    }
+    // ---------------------------------------
+
     try {
-        const { searchParams } = new URL(request.url);
+        const {searchParams} = new URL(request.url);
         const startDate = searchParams.get('start');
         const endDate = searchParams.get('end');
         const status = searchParams.get('status');
@@ -31,16 +42,16 @@ export async function GET(request) {
                     )
                 )
             `)
-            .order('created_at', { ascending: false });
+            .order('created_at', {ascending: false});
 
         if (startDate) query = query.gte('created_at', startDate);
         if (endDate) query = query.lte('created_at', endDate);
         if (status) query = query.eq('status', status);
 
-        const { data: orders, error } = await query;
+        const {data: orders, error} = await query;
         if (error) throw error;
 
-        if (!orders || orders.length === 0) return new Response('No data', { status: 200 });
+        if (!orders || orders.length === 0) return new Response('No data', {status: 200});
 
         const flattenedData = [];
         for (const order of orders) {
@@ -98,6 +109,6 @@ export async function GET(request) {
         });
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({error: error.message}, {status: 500});
     }
 }

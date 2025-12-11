@@ -1,39 +1,38 @@
 // app/api/categories/route.js
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import {NextResponse} from 'next/server';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Use dynamic client
+import {cookies} from 'next/headers';
 
 export async function GET(request) {
-    const { searchParams } = new URL(request.url);
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    const {searchParams} = new URL(request.url);
     const type = searchParams.get('type'); // 'catalog' or 'attribute'
-    const mode = searchParams.get('mode'); // 'public' (storefront) or 'admin'
+    const mode = searchParams.get('mode'); // 'public' or 'admin'
 
     try {
         let query = supabase
             .from('categories')
             .select('*')
             .is('deleted_at', null)
-            .order('sort_order', { ascending: true })
-            .order('name', { ascending: true });
+            .order('sort_order', {ascending: true})
+            .order('name', {ascending: true});
 
-        // 1. Filter by Type (Menu vs Filters)
+        // 1. Filter by Type
         if (type) {
             query = query.eq('type', type);
         }
 
-        // 2. Storefront Visibility Logic (Time-Fencing)
+        // 2. Storefront Visibility Logic
         if (mode === 'public') {
             const now = new Date().toISOString();
-
-            // Mandatory Active Check
             query = query.eq('is_active', true);
-
-            // Time Fencing: (start_date IS NULL OR start_date <= NOW)
-            // AND (end_date IS NULL OR end_date >= NOW)
             query = query.or(`start_date.is.null,start_date.lte.${now}`);
             query = query.or(`end_date.is.null,end_date.gte.${now}`);
         }
 
-        const { data, error } = await query;
+        const {data, error} = await query;
 
         if (error) throw error;
 
@@ -41,38 +40,35 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Error fetching categories:', error);
-        return NextResponse.json({ error: 'Failed to fetch categories.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: 'Failed to fetch categories.', details: error.message}, {status: 500});
     }
 }
 
+// POST (Create Category) - LOCKED TO ADMIN
 export async function POST(request) {
-    const body = await request.json();
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
-    // Destructure new fields
+    // [SECURITY PATCH] ADMIN ONLY
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+    }
+    // ----------------------------
+
+    const body = await request.json();
     const {
-        name,
-        description,
-        parent_id,
-        type = 'catalog', // Default to catalog
-        display_style = 'list',
-        value,
-        is_active = true,
-        sort_order = 0,
-        start_date,
-        end_date,
-        seo_title,
-        seo_description
+        name, description, parent_id, type = 'catalog', display_style = 'list',
+        value, is_active = true, sort_order = 0, start_date, end_date, seo_title, seo_description
     } = body;
 
-    if (!name) {
-        return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-    }
+    if (!name) return NextResponse.json({error: 'Name is required'}, {status: 400});
 
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     try {
-        // Check for existing active or archived category
-        const { data: existing, error: checkError } = await supabase
+        // Check existing
+        const {data: existing, error: checkError} = await supabase
             .from('categories')
             .select('id, deleted_at')
             .eq('slug', slug)
@@ -83,8 +79,8 @@ export async function POST(request) {
 
         if (existing) {
             if (existing.deleted_at) {
-                // Restore archived
-                const { data: restored, error: restoreError } = await supabase
+                // Restore
+                const {data: restored, error: restoreError} = await supabase
                     .from('categories')
                     .update({
                         deleted_at: null,
@@ -100,43 +96,30 @@ export async function POST(request) {
                         seo_description: seo_description || null
                     })
                     .eq('id', existing.id)
-                    .select()
-                    .single();
+                    .select().single();
 
                 if (restoreError) throw restoreError;
                 return NextResponse.json(restored);
             } else {
-                return NextResponse.json({ error: 'A category with this name/slug already exists.' }, { status: 409 });
+                return NextResponse.json({error: 'Category already exists.'}, {status: 409});
             }
         }
 
         // Create new
-        const { data, error } = await supabase
+        const {data, error} = await supabase
             .from('categories')
             .insert([{
-                name,
-                slug,
-                description,
-                parent_id: parent_id || null,
-                type,
-                display_style,
-                value: value || null,
-                is_active,
-                sort_order,
-                start_date: start_date || null,
-                end_date: end_date || null,
-                seo_title: seo_title || null,
-                seo_description: seo_description || null
+                name, slug, description, parent_id: parent_id || null, type,
+                display_style, value: value || null, is_active, sort_order,
+                start_date: start_date || null, end_date: end_date || null,
+                seo_title: seo_title || null, seo_description: seo_description || null
             }])
-            .select()
-            .single();
+            .select().single();
 
         if (error) throw error;
-
         return NextResponse.json(data);
 
     } catch (error) {
-        console.error('Error creating category:', error);
-        return NextResponse.json({ error: 'Failed to create category.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: error.message}, {status: 500});
     }
 }

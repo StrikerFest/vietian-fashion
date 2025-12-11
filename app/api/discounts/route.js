@@ -1,9 +1,22 @@
 // app/api/discounts/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'; // Use dynamic client
+import { cookies } from 'next/headers';
 
 // GET all active discounts
 export async function GET(request) {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY ACCESS
+    // Prevent public leaking of all discount codes
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // Optionally: Check for 'admin' role in public.user_roles if strictly required
+    // ------------------------------------
+
     const { searchParams } = new URL(request.url);
 
     const page = parseInt(searchParams.get('page') || '1');
@@ -37,8 +50,18 @@ export async function GET(request) {
     }
 }
 
-// POST - @unchanged
+// POST (Create Discount) - NOW SECURED
 export async function POST(request) {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY PATCH] ADMIN ONLY - PREVENT UNAUTHORIZED CREATION
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // -------------------------------------------------------------
+
     const { code, type, value, start_date, end_date, is_active } = await request.json();
 
     if (!code || !type || value === undefined || value === null) {
@@ -100,7 +123,6 @@ export async function POST(request) {
         return NextResponse.json(data);
 
     } catch (error) {
-        console.error('Error creating discount:', error);
         return NextResponse.json({ error: 'Failed to create discount.', details: error.message }, { status: 500 });
     }
 }

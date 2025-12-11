@@ -1,20 +1,19 @@
 // app/api/products/category/[...slug]/route.js
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import {NextResponse} from 'next/server';
+import {supabase} from '@/lib/supabaseClient';
 
 export async function GET(request, context) {
     const params = await context.params;
-    const { slug } = params;
-    const { searchParams } = new URL(request.url);
+    const {slug} = params;
+    const {searchParams} = new URL(request.url);
 
-    if (!slug || slug.length === 0) return NextResponse.json({ error: 'Category required' }, { status: 400 });
+    if (!slug || slug.length === 0) return NextResponse.json({error: 'Category required'}, {status: 400});
     const categorySlug = slug[slug.length - 1];
 
     const sortBy = searchParams.get('sort');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '12');
 
-    // Dynamic Filters
     const reservedParams = ['sort', 'page', 'limit', 'slug'];
     const attributeFilters = {};
     searchParams.forEach((value, key) => {
@@ -25,53 +24,54 @@ export async function GET(request, context) {
     });
 
     try {
-        // 1. Get Category
-        const { data: category } = await supabase.from('categories').select('*').eq('slug', categorySlug).single();
-        if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+        const {data: category} = await supabase.from('categories').select('*').eq('slug', categorySlug).single();
+        if (!category) return NextResponse.json({error: 'Category not found'}, {status: 404});
 
-        // 2. Find Linked Products (SMART LOOKUP)
+        // [SECURITY PATCH 1] Time-Fencing
+        const now = new Date();
+        if (!category.is_active) return NextResponse.json({error: 'Category inactive'}, {status: 404});
+        if (category.start_date && new Date(category.start_date) > now) return NextResponse.json({error: 'Category not started'}, {status: 404});
+        if (category.end_date && new Date(category.end_date) < now) return NextResponse.json({error: 'Category expired'}, {status: 404});
+
+        // 2. Find Linked Products
         let productIds = [];
 
         if (category.type === 'attribute') {
-            // If browsing an Attribute (e.g. "Red"), look in variant_attributes
-            const { data: variantLinks } = await supabase
+            const {data: variantLinks} = await supabase
                 .from('variant_attributes')
                 .select('variant_id')
                 .eq('attribute_value_id', category.id);
 
             const variantIds = variantLinks?.map(l => l.variant_id) || [];
             if (variantIds.length > 0) {
-                const { data: pIds } = await supabase
+                const {data: pIds} = await supabase
                     .from('product_variants')
                     .select('product_id')
                     .in('id', variantIds);
                 productIds = pIds?.map(p => p.product_id) || [];
             }
         } else {
-            // If browsing a Catalog (e.g. "Men"), look in product_categories
-            const { data: catLinks } = await supabase
+            const {data: catLinks} = await supabase
                 .from('product_categories')
                 .select('product_id')
                 .eq('category_id', category.id);
             productIds = catLinks?.map(l => l.product_id) || [];
         }
-
-        // Dedupe IDs
         productIds = [...new Set(productIds)];
 
-        if (productIds.length === 0) return NextResponse.json({ category, data: [], meta: { total: 0 } });
+        if (productIds.length === 0) return NextResponse.json({category, data: [], meta: {total: 0}});
 
-        // 3. Apply Sidebar Filters (Same as before)
+        // 3. Apply Filters
         if (Object.keys(attributeFilters).length > 0) {
             for (const [key, values] of Object.entries(attributeFilters)) {
-                const { data: matchingVariants } = await supabase
+                const {data: matchingVariants} = await supabase
                     .from('variant_attributes')
                     .select('variant_id, attribute_value:categories!inner(name)')
                     .in('attribute_value.name', values);
 
                 if (matchingVariants && matchingVariants.length > 0) {
                     const varIds = matchingVariants.map(v => v.variant_id);
-                    const { data: pIds } = await supabase.from('product_variants').select('product_id').in('id', varIds);
+                    const {data: pIds} = await supabase.from('product_variants').select('product_id').in('id', varIds);
                     const validPIds = new Set(pIds.map(p => p.product_id));
                     productIds = productIds.filter(id => validPIds.has(id));
                 } else {
@@ -80,7 +80,7 @@ export async function GET(request, context) {
             }
         }
 
-        if (productIds.length === 0) return NextResponse.json({ category, data: [], meta: { total: 0 } });
+        if (productIds.length === 0) return NextResponse.json({category, data: [], meta: {total: 0}});
 
         // 4. Fetch Products
         let productQuery = supabase
@@ -94,20 +94,21 @@ export async function GET(request, context) {
                         attribute_value:categories (name, parent:parent_id(name))
                     )
                 )
-            `, { count: 'exact' })
+            `, {count: 'exact'})
             .in('id', productIds)
-            .eq('status', 'active') // <--- SECURITY PATCH ADDED HERE
+            .eq('status', 'active') // [SECURITY PATCH 2] Status Filter
             .is('deleted_at', null);
 
-        if (sortBy === 'name-asc') productQuery = productQuery.order('name', { ascending: true });
-        else productQuery = productQuery.order('position', { ascending: false });
+        if (sortBy === 'name-asc') productQuery = productQuery.order('name', {ascending: true});
+        else productQuery = productQuery.order('position', {ascending: false});
 
         const start = (page - 1) * limit;
         productQuery = productQuery.range(start, start + limit - 1);
 
-        const { data: products, error, count } = await productQuery;
+        const {data: products, error, count} = await productQuery;
         if (error) throw error;
 
+        // --- DATA TRANSFORMATION & MASKING ---
         const formattedData = products.map(p => ({
             ...p,
             product_variants: p.product_variants.map(v => {
@@ -115,11 +116,21 @@ export async function GET(request, context) {
                 v.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) attributes[va.attribute_value.parent.name] = va.attribute_value.name;
                 });
-                return { ...v, attributes };
+
+                // [SECURITY PATCH 3] INVENTORY MASKING
+                const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+                const {inventory_levels, ...safeVariant} = v;
+
+                return {
+                    ...safeVariant,
+                    attributes,
+                    in_stock: realStock > 0,
+                    low_stock: realStock > 0 && realStock <= 10,
+                    stock_display: realStock > 10 ? 10 : realStock
+                };
             })
         }));
 
-        // Price Sort
         if (sortBy?.startsWith('price')) {
             const asc = sortBy === 'price-asc';
             formattedData.sort((a, b) => {
@@ -132,10 +143,10 @@ export async function GET(request, context) {
         return NextResponse.json({
             category,
             data: formattedData,
-            meta: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) }
+            meta: {page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit)}
         });
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({error: error.message}, {status: 500});
     }
 }

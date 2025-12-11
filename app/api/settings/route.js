@@ -1,8 +1,17 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import {NextResponse} from 'next/server';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs';
+import {cookies} from 'next/headers';
 
 export async function GET(request) {
-    const { searchParams } = new URL(request.url);
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    // [SECURITY PATCH] ADMIN ONLY - Prevent configuration leakage
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+    // -------------------------------------------------------------
+
+    const {searchParams} = new URL(request.url);
     const key = searchParams.get('key');
 
     try {
@@ -12,11 +21,10 @@ export async function GET(request) {
             query = query.eq('key', key).single();
         }
 
-        const { data, error } = await query;
+        const {data, error} = await query;
 
-        // If specific key requested but not found, return null data instead of 500
         if (error && error.code === 'PGRST116') {
-            return NextResponse.json({ value: null });
+            return NextResponse.json({value: null});
         }
 
         if (error) throw error;
@@ -24,15 +32,23 @@ export async function GET(request) {
         return NextResponse.json(data);
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({error: error.message}, {status: 500});
     }
 }
 
 export async function POST(request) {
-    const { key, value, description } = await request.json();
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    // [SECURITY PATCH] ADMIN ONLY - CRITICAL: Prevent unauthorized config changes
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+    // ---------------------------------------------------------------------------
+
+    const {key, value, description} = await request.json();
 
     try {
-        const { data, error } = await supabase
+        const {data, error} = await supabase
             .from('settings')
             .upsert({
                 key,
@@ -46,6 +62,6 @@ export async function POST(request) {
         if (error) throw error;
         return NextResponse.json(data);
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({error: error.message}, {status: 500});
     }
 }

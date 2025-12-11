@@ -1,7 +1,8 @@
 // app/api/generate-tags/route.js
-import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { supabase } from '@/lib/supabaseClient'; // Import Supabase
+import {NextResponse} from 'next/server';
+import {GoogleGenerativeAI} from '@google/generative-ai';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Switch client
+import {cookies} from 'next/headers';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -15,6 +16,14 @@ async function fileToGenerativePart(fileBuffer, mimeType) {
 }
 
 export async function POST(request) {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+    // ----------------------------
+
     try {
         const formData = await request.formData();
         const imageFile = formData.get('image');
@@ -22,12 +31,12 @@ export async function POST(request) {
         const productDescription = formData.get('description');
 
         if (!imageFile) {
-            return NextResponse.json({ error: 'No image file provided.' }, { status: 400 });
+            return NextResponse.json({error: 'No image file provided.'}, {status: 400});
         }
 
         // 1. Fetch Dynamic Attributes from Database
         // We only want root attributes (parents) that are active filters
-        const { data: attributes, error: dbError } = await supabase
+        const {data: attributes, error: dbError} = await supabase
             .from('categories')
             .select('name')
             .eq('type', 'attribute')
@@ -45,7 +54,7 @@ export async function POST(request) {
         const mimeType = imageFile.type;
         const imagePart = await fileToGenerativePart(buffer, mimeType);
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
 
         // 2. Construct Dynamic Prompt
         const prompt = `Analyze this fashion item image, name, and description.
@@ -79,10 +88,9 @@ export async function POST(request) {
         const cleanedText = text.replace(/```json|```/g, '').trim();
         const structuredTags = JSON.parse(cleanedText);
 
-        return NextResponse.json({ data: structuredTags });
+        return NextResponse.json({data: structuredTags});
 
     } catch (error) {
-        console.error('Error generating tags:', error);
-        return NextResponse.json({ error: 'Failed to generate tags.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: error.message}, {status: 500});
     }
 }

@@ -1,12 +1,17 @@
 // app/api/products/[id]/route.js
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import {NextResponse} from 'next/server';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs';
+import {cookies} from 'next/headers';
 
 export async function GET(request, context) {
-    const { id } = await context.params;
+    const {id} = await context.params;
     const numericProductId = parseInt(id);
 
-    const { data, error } = await supabase
+    // --- AUTH SETUP ---
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    const {data, error} = await supabase
         .from('products')
         .select(`
             *,
@@ -27,9 +32,18 @@ export async function GET(request, context) {
         .is('deleted_at', null)
         .single();
 
-    if (error || !data) return NextResponse.json({ error: 'Product not found.' }, { status: 404 });
+    if (error || !data) return NextResponse.json({error: 'Product not found.'}, {status: 404});
 
-    // Transform for Frontend
+    // --- SECURITY CHECK: DRAFT VISIBILITY ---
+    if (data.status !== 'active') {
+        const {data: {session}} = await supabase.auth.getSession();
+        if (!session) {
+            // Allow 404 to mask existence of draft
+            return NextResponse.json({error: 'Product not found.'}, {status: 404});
+        }
+    }
+
+    // --- DATA TRANSFORMATION & MASKING ---
     const formatted = {
         ...data,
         catalog_categories: data.categories.map(c => c.category).filter(c => c.type === 'catalog'),
@@ -43,7 +57,22 @@ export async function GET(request, context) {
                     attribute_value_ids.push(va.attribute_value.id);
                 }
             });
-            return { ...v, attributes, attribute_value_ids };
+
+            // [SECURITY PATCH] INVENTORY MASKING
+            const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+
+            // Remove raw inventory data
+            const {inventory_levels, ...safeVariant} = v;
+
+            return {
+                ...safeVariant,
+                attributes,
+                attribute_value_ids,
+                // UI Signals
+                in_stock: realStock > 0,
+                low_stock: realStock > 0 && realStock <= 10,
+                stock_display: realStock > 10 ? 10 : realStock
+            };
         }),
         categories: undefined
     };
@@ -52,23 +81,26 @@ export async function GET(request, context) {
 }
 
 export async function PUT(request, context) {
-    const { id } = await context.params;
+    const {id} = await context.params;
     const numericProductId = parseInt(id);
 
-    // FIX: Destructure 'status' and 'image_url' from request body
+    // Use dynamic client for security
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+
     const {
         name, description, status, image_url, seo_title, seo_description, variants,
         attribute_ids = [], category_id, collection_ids = [], position
     } = await request.json();
 
     try {
-        // 1. Update Product
-        // FIX: Add 'status' and 'image_url' to the update object
-        const updateData = { name, description, status, image_url, seo_title, seo_description };
+        const updateData = {name, description, status, image_url, seo_title, seo_description};
 
         if (position !== undefined) updateData.position = parseInt(position);
 
-        const { error: updateError } = await supabase
+        const {error: updateError} = await supabase
             .from('products')
             .update(updateData)
             .eq('id', numericProductId);
@@ -77,24 +109,21 @@ export async function PUT(request, context) {
 
         // 2. Sync Variants
         for (const v of variants) {
-            // Upsert Variant
-            const { data: upsertedVar, error: vErr } = await supabase.from('product_variants')
+            const {data: upsertedVar, error: vErr} = await supabase.from('product_variants')
                 .upsert({
-                    id: v.id, // Include ID if updating existing variant
+                    id: v.id,
                     product_id: numericProductId,
                     sku: v.sku,
                     price: v.price
-                }, { onConflict: 'id' })
+                }, {onConflict: 'id'})
                 .select()
                 .single();
 
             if (vErr) throw vErr;
 
-            // Update Inventory
             await supabase.from('inventory_levels')
-                .upsert({ variant_id: upsertedVar.id, on_hand: v.on_hand || 0 }, { onConflict: 'variant_id' });
+                .upsert({variant_id: upsertedVar.id, on_hand: v.on_hand || 0}, {onConflict: 'variant_id'});
 
-            // Sync Attributes (Delete all, re-insert selected)
             if (v.attribute_value_ids && Array.isArray(v.attribute_value_ids)) {
                 await supabase.from('variant_attributes').delete().eq('variant_id', upsertedVar.id);
 
@@ -102,9 +131,7 @@ export async function PUT(request, context) {
                     variant_id: upsertedVar.id,
                     attribute_value_id: catId
                 }));
-                if (attrInserts.length > 0) {
-                    await supabase.from('variant_attributes').insert(attrInserts);
-                }
+                if (attrInserts.length > 0) await supabase.from('variant_attributes').insert(attrInserts);
             }
         }
 
@@ -112,26 +139,30 @@ export async function PUT(request, context) {
         await supabase.from('product_collections').delete().eq('product_id', numericProductId);
         await supabase.from('product_categories').delete().eq('product_id', numericProductId);
 
-        if (collection_ids.length) await supabase.from('product_collections').insert(collection_ids.map(cid => ({ product_id: numericProductId, collection_id: cid })));
+        if (collection_ids.length) await supabase.from('product_collections').insert(collection_ids.map(cid => ({product_id: numericProductId, collection_id: cid})));
 
         const cats = [];
-        // Add Main Catalog Category
-        if (category_id) cats.push({ product_id: numericProductId, category_id });
-        // Add Global Attribute Categories
-        attribute_ids.forEach(aid => { if (parseInt(aid) !== parseInt(category_id)) cats.push({ product_id: numericProductId, category_id: aid }); });
+        if (category_id) cats.push({product_id: numericProductId, category_id});
+        attribute_ids.forEach(aid => {
+            if (parseInt(aid) !== parseInt(category_id)) cats.push({product_id: numericProductId, category_id: aid});
+        });
 
         if (cats.length) await supabase.from('product_categories').insert(cats);
 
-        return NextResponse.json({ message: 'Updated successfully' });
+        return NextResponse.json({message: 'Updated successfully'});
 
     } catch (error) {
-        console.error("Update failed:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({error: error.message}, {status: 500});
     }
 }
 
 export async function DELETE(request, context) {
-    const { id } = await context.params;
-    await supabase.from('products').update({ deleted_at: new Date().toISOString() }).eq('id', parseInt(id));
-    return NextResponse.json({ message: 'Archived' });
+    const {id} = await context.params;
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+
+    await supabase.from('products').update({deleted_at: new Date().toISOString()}).eq('id', parseInt(id));
+    return NextResponse.json({message: 'Archived'});
 }

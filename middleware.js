@@ -1,4 +1,4 @@
-// strikerfest/vietian-fashion/vietian-fashion-master/middleware.js
+// middleware.js
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 
@@ -10,13 +10,12 @@ export async function middleware(req) {
     const { data: { session } } = await supabase.auth.getSession();
     const path = req.nextUrl.pathname;
 
-    // 1. Protect /admin routes (Pages and APIs)
+    // 1. ADMIN ROUTES (Pages & APIs)
+    // Protects both /admin and /api/admin
     if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
 
-        // Allow access to login page explicitly
+        // Allow access to login page
         if (path === '/admin/login') {
-            // If already logged in, redirect to dashboard
-            // (The dashboard route itself will verify if they are actually an admin below)
             if (session) {
                 return NextResponse.redirect(new URL('/admin', req.url));
             }
@@ -25,31 +24,34 @@ export async function middleware(req) {
 
         // If no session exists
         if (!session) {
-            // A. API Routes: Return 401 JSON (don't return HTML redirect)
+            // API: Return 401 JSON
             if (path.startsWith('/api/')) {
                 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
             }
-            // B. Pages: Redirect to login
+            // Page: Redirect to login
             return NextResponse.redirect(new URL('/admin/login', req.url));
         }
 
-        // --- NEW: Verify Admin Role ---
-        // Just having a session isn't enough; we must ensure the user has the 'admin' role.
+        // Verify Admin Role (RBAC)
         const { data: userRole, error: roleError } = await supabase.rpc('get_user_role');
 
         if (roleError || userRole !== 'admin') {
-            // A. API Routes: Return 403 Forbidden
             if (path.startsWith('/api/')) {
                 return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
             }
-            // B. Pages: Redirect to home (or a custom "Access Denied" page)
             return NextResponse.redirect(new URL('/', req.url));
         }
     }
 
-    // 2. Protect Account routes
-    if (path.startsWith('/account')) {
+    // 2. ACCOUNT ROUTES (Pages & APIs) [SECURITY PATCH]
+    // Now protects /api/account routes from unauthorized access
+    if (path.startsWith('/account') || path.startsWith('/api/account')) {
         if (!session) {
+            // API: Return 401 JSON (Don't redirect an AJAX call)
+            if (path.startsWith('/api/')) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            }
+            // Page: Redirect to login
             return NextResponse.redirect(new URL('/login', req.url));
         }
     }
@@ -58,6 +60,12 @@ export async function middleware(req) {
 }
 
 export const config = {
-    // Added '/api/admin/:path*' to ensure admin APIs are protected
-    matcher: ['/admin/:path*', '/api/admin/:path*', '/account/:path*', '/login', '/admin/login'],
+    matcher: [
+        '/admin/:path*',
+        '/api/admin/:path*',
+        '/account/:path*',
+        '/api/account/:path*', // <--- CRITICAL: Ensures the middleware actually runs for these APIs
+        '/login',
+        '/admin/login'
+    ],
 };

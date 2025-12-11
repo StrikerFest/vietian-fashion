@@ -1,13 +1,21 @@
 // app/api/returns/route.js
-import { NextResponse } from 'next/server';
-import { supabase as staticSupabase } from '@/lib/supabaseClient';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import {NextResponse} from 'next/server';
+import {supabase as staticSupabase} from '@/lib/supabaseClient';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Use dynamic
+import {cookies} from 'next/headers';
 
-// GET all return requests (Admin)
+// GET all return requests (Admin Only)
 export async function GET() {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    // [SECURITY PATCH] ADMIN ONLY
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+    // ----------------------------
+
     try {
-        const { data, error } = await staticSupabase
+        const {data, error} = await staticSupabase
             .from('return_requests')
             .select(`
                 id,
@@ -36,35 +44,35 @@ export async function GET() {
                     )
                 )
             `)
-            .order('created_at', { ascending: false });
+            .order('created_at', {ascending: false});
 
         if (error) throw error;
         return NextResponse.json(data || []);
 
     } catch (error) {
         console.error('Error fetching return requests:', error);
-        return NextResponse.json({ error: 'Failed to fetch return requests.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: 'Failed to fetch return requests.', details: error.message}, {status: 500});
     }
 }
 
-// POST: Create a new return request (Customer)
-// Logic remains same, just ensuring IDs are correct
+// POST remains the same (it already checks for session)
 export async function POST(request) {
     const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const {data: {session}} = await supabase.auth.getSession();
+        if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
 
         const body = await request.json();
-        const { order_id, items, reason } = body;
+        const {order_id, items, reason} = body;
 
         if (!order_id || !items || items.length === 0 || !reason) {
-            return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+            return NextResponse.json({error: 'Missing required fields.'}, {status: 400});
         }
 
-        const { data: order, error: orderError } = await supabase
+        // Verify ownership
+        const {data: order, error: orderError} = await supabase
             .from('orders')
             .select('id, status')
             .eq('id', order_id)
@@ -72,10 +80,11 @@ export async function POST(request) {
             .single();
 
         if (orderError || !order) {
-            return NextResponse.json({ error: 'Order not found or access denied.' }, { status: 404 });
+            return NextResponse.json({error: 'Order not found or access denied.'}, {status: 404});
         }
 
-        const { data: returnRequest, error: createError } = await supabase
+        // Create Request
+        const {data: returnRequest, error: createError} = await supabase
             .from('return_requests')
             .insert({
                 order_id: order_id,
@@ -88,6 +97,7 @@ export async function POST(request) {
 
         if (createError) throw createError;
 
+        // Create Items
         const returnItemsData = items.map(item => ({
             return_request_id: returnRequest.id,
             order_item_id: item.order_item_id,
@@ -95,7 +105,7 @@ export async function POST(request) {
             should_restock: true
         }));
 
-        const { error: itemsError } = await supabase
+        const {error: itemsError} = await supabase
             .from('return_items')
             .insert(returnItemsData);
 
@@ -104,10 +114,8 @@ export async function POST(request) {
             throw itemsError;
         }
 
-        return NextResponse.json({ success: true, message: 'Return requested successfully.', id: returnRequest.id });
-
+        return NextResponse.json({success: true, message: 'Return requested.'});
     } catch (error) {
-        console.error('Error creating return request:', error);
-        return NextResponse.json({ error: 'Failed to create return request.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: error.message}, {status: 500});
     }
 }

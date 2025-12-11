@@ -1,35 +1,39 @@
 // app/api/returns/[id]/route.js
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient'; //
+import {NextResponse} from 'next/server';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Dynamic client
+import {cookies} from 'next/headers';
 
-// PUT (update) a single return request (Approve or Reject)
 export async function PUT(request, context) {
     const params = await context.params;
-    const { id } = params;
+    const {id} = params;
 
-    const { status, admin_notes } = await request.json(); // Expect 'approved' or 'rejected'
+    // [SECURITY PATCH] AUTH CHECK
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+    const {data: {session}} = await supabase.auth.getSession();
 
-    if (!id || isNaN(parseInt(id))) {
-        return NextResponse.json({ error: 'Valid Return Request ID is required.' }, { status: 400 });
+    if (!session) {
+        return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
+    // ---------------------------
+
+    const {status, admin_notes} = await request.json();
+
+    if (!id || isNaN(parseInt(id))) return NextResponse.json({error: 'Valid ID required.'}, {status: 400});
     const numericRequestId = parseInt(id);
 
     if (!status || !['approved', 'rejected'].includes(status)) {
-        return NextResponse.json({ error: 'Status must be "approved" or "rejected".' }, { status: 400 });
+        return NextResponse.json({error: 'Invalid status.'}, {status: 400});
     }
 
     try {
         let responseData;
 
         if (status === 'rejected') {
-            // --- Handle Rejection (Simple Update) ---
-            const { data, error } = await supabase
-                .from('return_requests') //
-                .update({
-                    status: 'rejected',
-                    admin_notes: admin_notes || null
-                })
-                .eq('id', numericRequestId) //
+            const {data, error} = await supabase
+                .from('return_requests')
+                .update({status: 'rejected', admin_notes: admin_notes || null})
+                .eq('id', numericRequestId)
                 .select()
                 .single();
 
@@ -37,34 +41,23 @@ export async function PUT(request, context) {
             responseData = data;
 
         } else if (status === 'approved') {
-            // --- Handle Approval (Complex Transaction via RPC) ---
-            // We call a database function to handle this atomically
-            // We will create this function in Supabase next.
-            const { data, error } = await supabase.rpc('approve_return_request', {
+            const {data, error} = await supabase.rpc('approve_return_request', {
                 request_id: numericRequestId,
                 notes: admin_notes || null
             });
+            if (error) throw new Error(error.message);
 
-            if (error) {
-                // The RPC function will 'raise exception' on failure, which Supabase client catches
-                throw new Error(`Failed to approve return: ${error.message}`);
-            }
-
-            // Refetch the data to return the updated request
-            const { data: approvedData, error: fetchError } = await supabase
-                .from('return_requests') //
-                .select('*, orders(*)') //
+            const {data: approvedData} = await supabase
+                .from('return_requests')
+                .select('*, orders(*)')
                 .eq('id', numericRequestId)
                 .single();
-
-            if (fetchError) throw fetchError;
             responseData = approvedData;
         }
 
-        return NextResponse.json({ message: `Return request ${status} successfully.`, data: responseData });
+        return NextResponse.json({message: `Return ${status} successfully.`, data: responseData});
 
     } catch (error) {
-        console.error(`Error processing return request ${numericRequestId}:`, error);
-        return NextResponse.json({ error: 'Failed to process return request.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: error.message}, {status: 500});
     }
 }

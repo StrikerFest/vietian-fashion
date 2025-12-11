@@ -1,9 +1,20 @@
 // app/api/orders/route.js
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import {NextResponse} from 'next/server';
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Use dynamic client
+import {cookies} from 'next/headers';
 
 export async function GET(request) {
-    const { searchParams } = new URL(request.url);
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+
+    // [SECURITY PATCH] ADMIN ONLY - PROTECT CUSTOMER DATA
+    const {data: {session}} = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+    }
+    // ----------------------------------------------------
+
+    const {searchParams} = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const start = (page - 1) * limit;
@@ -30,22 +41,19 @@ export async function GET(request) {
                         )
                     )
                 )
-            `, { count: 'exact' })
-            .order('created_at', { ascending: false })
+            `, {count: 'exact'})
+            .order('created_at', {ascending: false})
             .range(start, end);
 
         if (status) query = query.eq('status', status);
 
-        const { data, error, count } = await query;
+        const {data, error, count} = await query;
         if (error) throw error;
 
-        // Transform nested attributes for Admin Table
         const formattedOrders = data.map(order => ({
             ...order,
             order_items: order.order_items.map(item => {
                 const attributes = {};
-
-                // Map dynamic attributes
                 item.product_variants?.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) {
                         attributes[va.attribute_value.parent.name] = va.attribute_value.name;
@@ -56,7 +64,7 @@ export async function GET(request) {
                     ...item,
                     product_variants: {
                         ...item.product_variants,
-                        attributes // Inject new map
+                        attributes
                     }
                 };
             })
@@ -64,11 +72,11 @@ export async function GET(request) {
 
         return NextResponse.json({
             data: formattedOrders,
-            meta: { page, limit, total: count, totalPages: Math.ceil((count || 0) / limit) }
+            meta: {page, limit, total: count, totalPages: Math.ceil((count || 0) / limit)}
         });
 
     } catch (error) {
         console.error('Error fetching orders:', error);
-        return NextResponse.json({ error: 'Failed to fetch orders.', details: error.message }, { status: 500 });
+        return NextResponse.json({error: 'Failed to fetch orders.', details: error.message}, {status: 500});
     }
 }

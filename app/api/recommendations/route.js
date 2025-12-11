@@ -11,7 +11,6 @@ export async function POST(request) {
         const body = await request.json();
         const mode = body.mode || 'semantic';
 
-        // 1. Parse Input Query
         let userQuery = "";
         let attributes = {};
 
@@ -26,41 +25,45 @@ export async function POST(request) {
             return NextResponse.json({error: 'Query is required.'}, {status: 400});
         }
 
-        // --- BRANCH A: KEYWORD SEARCH (Deterministic) ---
+        // --- BRANCH A: KEYWORD SEARCH ---
         if (mode === 'keyword') {
             const searchTerm = `%${userQuery}%`;
 
             const [collectionsRes, categoriesRes, productsRes] = await Promise.all([
-                // 1. Search Collections
-                supabase.from('collections')
-                    .select('*')
-                    .ilike('name', searchTerm)
-                    .limit(5),
-
-                // 2. Search Categories
-                supabase.from('categories')
-                    .select('*')
-                    .ilike('name', searchTerm)
-                    .limit(5),
-
-                // 3. Search Products (Name or Description)
+                supabase.from('collections').select('*').ilike('name', searchTerm).limit(5),
+                supabase.from('categories').select('*').ilike('name', searchTerm).limit(5),
                 supabase.from('products')
                     .select('*, product_variants(*, inventory_levels(*))')
                     .or(`name.ilike.${searchTerm},description.ilike.${searchTerm}`)
-                    .eq('status', 'active') // <--- SECURITY PATCH ADDED HERE
+                    .eq('status', 'active') // [SECURITY] Hide Drafts
                     .is('deleted_at', null)
                     .limit(20)
             ]);
 
+            // [SECURITY] MASK INVENTORY FOR KEYWORD SEARCH
+            const maskedProducts = (productsRes.data || []).map(p => ({
+                ...p,
+                product_variants: p.product_variants.map(v => {
+                    const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+                    const {inventory_levels, ...safeVariant} = v;
+                    return {
+                        ...safeVariant,
+                        in_stock: realStock > 0,
+                        low_stock: realStock > 0 && realStock <= 10,
+                        stock_display: realStock > 10 ? 10 : realStock
+                    };
+                })
+            }));
+
             return NextResponse.json({
-                products: productsRes.data || [],
+                products: maskedProducts,
                 collections: collectionsRes.data || [],
                 attributes: categoriesRes.data || [],
                 generatedTags: [userQuery]
             });
         }
 
-        // --- BRANCH B: SEMANTIC SEARCH (AI / RAG) ---
+        // --- BRANCH B: SEMANTIC SEARCH ---
 
         let searchContext = userQuery;
         if (Object.keys(attributes).length > 0) {
@@ -99,7 +102,7 @@ export async function POST(request) {
         const validCollections = collectionCandidates.data || [];
         const validAttributes = categoryCandidates.data || [];
 
-        // Construct Prompt
+        // ... (Prompt Construction & AI Generation Code - SAME AS BEFORE) ...
         const collectionList = validCollections
             .map(c => `ID: ${c.id}, Name: "${c.name}"`)
             .join('\n');
@@ -139,49 +142,58 @@ export async function POST(request) {
 
         const result = await model.generateContent(systemInstruction);
         const text = result.response.text();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        const cleanedText = jsonMatch ? jsonMatch[0] : text;
+        const cleanedText = (text.match(/\{[\s\S]*\}/) || [text])[0];
 
         let aiResponse = {searchTags: [userQuery], collectionIds: [], attributeIds: []};
-
         try {
-            const parsed = JSON.parse(cleanedText);
-            if (parsed.searchTags) aiResponse.searchTags = parsed.searchTags;
-            if (parsed.collectionIds) aiResponse.collectionIds = parsed.collectionIds;
-            if (parsed.attributeIds) aiResponse.attributeIds = parsed.attributeIds;
+            aiResponse = JSON.parse(cleanedText);
         } catch (e) {
-            console.error("AI Parse Error:", e);
+            console.error(e);
         }
 
         const {searchTags, collectionIds, attributeIds} = aiResponse;
 
-        // Fetch Final Data
+        // Fetch Final Data (Using the SQL function which we patched to filter Active products)
         const {data: products} = await supabase
             .rpc('search_products_by_tags', {tag_names: searchTags || []})
             .select('*, product_variants(*, inventory_levels(*))')
             .limit(limits.products);
 
+        // [SECURITY] MASK INVENTORY FOR SEMANTIC SEARCH
+        const maskedSemanticProducts = (products || []).map(p => ({
+            ...p,
+            product_variants: p.product_variants.map(v => {
+                const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+                const {inventory_levels, ...safeVariant} = v;
+                return {
+                    ...safeVariant,
+                    in_stock: realStock > 0,
+                    low_stock: realStock > 0 && realStock <= 10,
+                    stock_display: realStock > 10 ? 10 : realStock
+                };
+            })
+        }));
+
         let matchedCollections = [];
-        if (collectionIds && collectionIds.length > 0) {
+        if (collectionIds?.length) {
             const {data} = await supabase.from('collections').select('*').in('id', collectionIds).limit(limits.collections);
             matchedCollections = data || [];
         }
 
         let matchedAttributes = [];
-        if (attributeIds && attributeIds.length > 0) {
+        if (attributeIds?.length) {
             const {data} = await supabase.from('categories').select('*').in('id', attributeIds).limit(limits.attributes);
             matchedAttributes = data || [];
         }
 
         return NextResponse.json({
-            products: products || [],
+            products: maskedSemanticProducts, // Return masked data
             collections: matchedCollections,
             attributes: matchedAttributes,
             generatedTags: searchTags
         });
 
     } catch (error) {
-        console.error('Recommendation API error:', error);
         return NextResponse.json({error: 'Failed to get recommendations.'}, {status: 500});
     }
 }

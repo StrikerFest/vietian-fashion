@@ -65,7 +65,7 @@ export async function GET(request, context) {
                 )
             `, { count: 'exact' })
             .in('id', productIds)
-            .eq('status', 'active') // <--- SECURITY PATCH ADDED HERE
+            .eq('status', 'active') // [SECURITY PATCH 1] Status Filter
             .is('deleted_at', null);
 
         if (sortBy === 'name-asc') productQuery = productQuery.order('name', { ascending: true });
@@ -77,6 +77,7 @@ export async function GET(request, context) {
         const { data: products, error, count } = await productQuery;
         if (error) throw error;
 
+        // --- DATA TRANSFORMATION & MASKING ---
         const formattedData = products.map(p => ({
             ...p,
             product_variants: p.product_variants.map(v => {
@@ -84,7 +85,18 @@ export async function GET(request, context) {
                 v.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) attributes[va.attribute_value.parent.name] = va.attribute_value.name;
                 });
-                return { ...v, attributes };
+
+                // [SECURITY PATCH 2] INVENTORY MASKING
+                const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+                const { inventory_levels, ...safeVariant } = v;
+
+                return {
+                    ...safeVariant,
+                    attributes,
+                    in_stock: realStock > 0,
+                    low_stock: realStock > 0 && realStock <= 10,
+                    stock_display: realStock > 10 ? 10 : realStock
+                };
             })
         }));
 

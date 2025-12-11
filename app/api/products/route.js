@@ -1,17 +1,28 @@
 // app/api/products/route.js
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'; // Switch to dynamic client
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
 
-    // --- 1. SETUP AUTH ---
-    // We use the dynamic client to check permissions securely
+    // --- AUTH & SCOPE SETUP ---
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const scope = searchParams.get('scope'); // 'admin' or null
 
-    // --- 2. PARSE PARAMS ---
+    // Default: Public View (Active Only)
+    let statusFilter = ['active'];
+
+    // Admin View: Check Session
+    if (scope === 'admin') {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            statusFilter = ['active', 'draft', 'archived'];
+        }
+    }
+    // ---------------------------
+
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
@@ -19,23 +30,18 @@ export async function GET(request) {
     const sort = searchParams.get('sort') || 'created_at-desc';
     const collectionId = searchParams.get('collection_id');
     const categoryId = searchParams.get('category_id');
-    const scope = searchParams.get('scope'); // 'admin' or undefined
+
+    const reservedParams = ['page', 'limit', 'search', 'sort', 'collection_id', 'category_id', 'scope'];
+    const attributeFilters = {};
+
+    searchParams.forEach((value, key) => {
+        if (!reservedParams.includes(key)) {
+            if (!attributeFilters[key]) attributeFilters[key] = [];
+            attributeFilters[key].push(value);
+        }
+    });
 
     try {
-        // --- 3. DETERMINE VISIBILITY ---
-        // Default: Public View (Active Only)
-        let statusFilter = ['active'];
-
-        // If 'admin' scope is requested, verify session
-        if (scope === 'admin') {
-            const { data: { session } } = await supabase.auth.getSession();
-            // In a real app, check role too: if (session?.user?.role === 'admin')
-            if (session) {
-                statusFilter = ['active', 'draft', 'archived'];
-            }
-        }
-
-        // --- 4. BUILD QUERY ---
         let query = supabase
             .from('products')
             .select(`
@@ -54,7 +60,7 @@ export async function GET(request) {
                 )
             `, { count: 'exact' })
             .is('deleted_at', null)
-            .in('status', statusFilter); // <--- VITAL SECURITY FILTER
+            .in('status', statusFilter); // <--- STATUS FILTER APPLIED
 
         if (search) query = query.ilike('name', `%${search}%`);
 
@@ -67,15 +73,6 @@ export async function GET(request) {
             const { data: linked } = await supabase.from('product_categories').select('product_id').eq('category_id', categoryId);
             query = query.in('id', linked?.map(p => p.product_id) || []);
         }
-
-        // Handle Attributes...
-        const attributeFilters = {};
-        searchParams.forEach((value, key) => {
-            if (!['page', 'limit', 'search', 'sort', 'collection_id', 'category_id', 'scope'].includes(key)) {
-                if (!attributeFilters[key]) attributeFilters[key] = [];
-                attributeFilters[key].push(value);
-            }
-        });
 
         if (Object.keys(attributeFilters).length > 0) {
             for (const [key, values] of Object.entries(attributeFilters)) {
@@ -94,8 +91,7 @@ export async function GET(request) {
             }
         }
 
-        // Sorting
-        switch (sortOption) {
+        switch (sort) {
             case 'position-desc': query = query.order('position', { ascending: false }); break;
             case 'name-asc': query = query.order('name', { ascending: true }); break;
             case 'name-desc': query = query.order('name', { ascending: false }); break;
@@ -107,6 +103,7 @@ export async function GET(request) {
         const { data, error, count } = await query;
         if (error) throw error;
 
+        // --- DATA TRANSFORMATION & MASKING ---
         const formattedData = data.map(product => ({
             ...product,
             catalog_categories: product.product_categories?.map(pc => pc.categories).filter(c => c.type === 'catalog') || [],
@@ -114,11 +111,10 @@ export async function GET(request) {
 
             product_variants: product.product_variants.map(v => {
                 const attributes = {};
-                const attribute_value_ids = []; // <--- ADDED THIS for Admin Form
+                const attribute_value_ids = [];
 
                 v.variant_attributes?.forEach(va => {
                     if (va.attribute_value) {
-                        // Store ID for Admin Form re-hydration
                         attribute_value_ids.push(va.attribute_value.id);
 
                         if (va.attribute_value.parent?.name) {
@@ -126,11 +122,28 @@ export async function GET(request) {
                         }
                     }
                 });
-                return { ...v, attributes, attribute_value_ids };
+
+                // [SECURITY PATCH] INVENTORY MASKING
+                const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+
+                // Destructure to remove 'inventory_levels' from the result
+                const { inventory_levels, ...safeVariant } = v;
+
+                return {
+                    ...safeVariant,
+                    attributes,
+                    attribute_value_ids,
+                    // Calculated UI Signals
+                    in_stock: realStock > 0,
+                    low_stock: realStock > 0 && realStock <= 10,
+                    // Fuzzy Stock: Never reveal more than 10
+                    stock_display: realStock > 10 ? 10 : realStock
+                };
             }),
             product_categories: undefined
         }));
 
+        // Price Sort adjustment (if needed logic remains here)
         if (sort === 'price-asc' || sort === 'price-desc') {
             formattedData.sort((a, b) => {
                 const pA = a.product_variants?.[0]?.price || 0;
@@ -148,17 +161,31 @@ export async function GET(request) {
     }
 }
 
-// POST remains correct as previously provided
 export async function POST(request) {
+    // Note: Use standard supabase client for inserts if using service role,
+    // or dynamic client if checking user auth. Assuming existing logic is fine.
+    // ... (Your existing POST logic handles creation) ...
+    // For brevity, I'm returning the existing POST handler as is,
+    // but ensure you import 'supabase' if you use the static client here.
+
+    // RE-IMPORT STATIC CLIENT FOR POST IF NEEDED, OR REFACTOR TO DYNAMIC
+    // Ideally, consistency suggests using dynamic client here too.
     const {
         name, description, image_url, seo_title, seo_description, variants,
-        attribute_ids = [], category_id, collection_ids = [], position = 0
+        attribute_ids = [], category_id, collection_ids = [], position = 0, status // Accept status
     } = await request.json();
+
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     let newId = null;
     try {
         const { data: product, error: pErr } = await supabase.from('products')
-            .insert([{ name, description, image_url, seo_title, seo_description, position }]).select().single();
+            .insert([{
+                name, description, image_url, seo_title, seo_description, position,
+                status: status || 'draft' // Default to draft if not specified
+            }]).select().single();
+
         if (pErr) throw pErr;
         newId = product.id;
 
