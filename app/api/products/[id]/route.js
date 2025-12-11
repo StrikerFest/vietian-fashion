@@ -55,23 +55,32 @@ export async function PUT(request, context) {
     const { id } = await context.params;
     const numericProductId = parseInt(id);
 
+    // FIX: Destructure 'status' and 'image_url' from request body
     const {
-        name, description, seo_title, seo_description, variants,
+        name, description, status, image_url, seo_title, seo_description, variants,
         attribute_ids = [], category_id, collection_ids = [], position
     } = await request.json();
 
     try {
         // 1. Update Product
-        const updateData = { name, description, seo_title, seo_description };
+        // FIX: Add 'status' and 'image_url' to the update object
+        const updateData = { name, description, status, image_url, seo_title, seo_description };
+
         if (position !== undefined) updateData.position = parseInt(position);
-        await supabase.from('products').update(updateData).eq('id', numericProductId);
+
+        const { error: updateError } = await supabase
+            .from('products')
+            .update(updateData)
+            .eq('id', numericProductId);
+
+        if (updateError) throw updateError;
 
         // 2. Sync Variants
         for (const v of variants) {
-            // Upsert Variant (Removed: size, color)
+            // Upsert Variant
             const { data: upsertedVar, error: vErr } = await supabase.from('product_variants')
                 .upsert({
-                    id: v.id, // Include ID if updating
+                    id: v.id, // Include ID if updating existing variant
                     product_id: numericProductId,
                     sku: v.sku,
                     price: v.price
@@ -99,20 +108,24 @@ export async function PUT(request, context) {
             }
         }
 
-        // 3. Sync Taxonomy
+        // 3. Sync Taxonomy (Collections & Categories)
         await supabase.from('product_collections').delete().eq('product_id', numericProductId);
         await supabase.from('product_categories').delete().eq('product_id', numericProductId);
 
         if (collection_ids.length) await supabase.from('product_collections').insert(collection_ids.map(cid => ({ product_id: numericProductId, collection_id: cid })));
 
         const cats = [];
+        // Add Main Catalog Category
         if (category_id) cats.push({ product_id: numericProductId, category_id });
+        // Add Global Attribute Categories
         attribute_ids.forEach(aid => { if (parseInt(aid) !== parseInt(category_id)) cats.push({ product_id: numericProductId, category_id: aid }); });
+
         if (cats.length) await supabase.from('product_categories').insert(cats);
 
         return NextResponse.json({ message: 'Updated successfully' });
 
     } catch (error) {
+        console.error("Update failed:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

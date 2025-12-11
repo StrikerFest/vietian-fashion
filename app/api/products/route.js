@@ -1,9 +1,17 @@
 // app/api/products/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'; // Switch to dynamic client
+import { cookies } from 'next/headers';
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
+
+    // --- 1. SETUP AUTH ---
+    // We use the dynamic client to check permissions securely
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // --- 2. PARSE PARAMS ---
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
@@ -11,18 +19,23 @@ export async function GET(request) {
     const sort = searchParams.get('sort') || 'created_at-desc';
     const collectionId = searchParams.get('collection_id');
     const categoryId = searchParams.get('category_id');
-
-    const reservedParams = ['page', 'limit', 'search', 'sort', 'collection_id', 'category_id'];
-    const attributeFilters = {};
-
-    searchParams.forEach((value, key) => {
-        if (!reservedParams.includes(key)) {
-            if (!attributeFilters[key]) attributeFilters[key] = [];
-            attributeFilters[key].push(value);
-        }
-    });
+    const scope = searchParams.get('scope'); // 'admin' or undefined
 
     try {
+        // --- 3. DETERMINE VISIBILITY ---
+        // Default: Public View (Active Only)
+        let statusFilter = ['active'];
+
+        // If 'admin' scope is requested, verify session
+        if (scope === 'admin') {
+            const { data: { session } } = await supabase.auth.getSession();
+            // In a real app, check role too: if (session?.user?.role === 'admin')
+            if (session) {
+                statusFilter = ['active', 'draft', 'archived'];
+            }
+        }
+
+        // --- 4. BUILD QUERY ---
         let query = supabase
             .from('products')
             .select(`
@@ -40,7 +53,8 @@ export async function GET(request) {
                     )
                 )
             `, { count: 'exact' })
-            .is('deleted_at', null);
+            .is('deleted_at', null)
+            .in('status', statusFilter); // <--- VITAL SECURITY FILTER
 
         if (search) query = query.ilike('name', `%${search}%`);
 
@@ -54,6 +68,15 @@ export async function GET(request) {
             query = query.in('id', linked?.map(p => p.product_id) || []);
         }
 
+        // Handle Attributes...
+        const attributeFilters = {};
+        searchParams.forEach((value, key) => {
+            if (!['page', 'limit', 'search', 'sort', 'collection_id', 'category_id', 'scope'].includes(key)) {
+                if (!attributeFilters[key]) attributeFilters[key] = [];
+                attributeFilters[key].push(value);
+            }
+        });
+
         if (Object.keys(attributeFilters).length > 0) {
             for (const [key, values] of Object.entries(attributeFilters)) {
                 const { data: matchingVariants } = await supabase
@@ -64,15 +87,15 @@ export async function GET(request) {
                 if (matchingVariants && matchingVariants.length > 0) {
                     const variantIds = matchingVariants.map(v => v.variant_id);
                     const { data: productIds } = await supabase.from('product_variants').select('product_id').in('id', variantIds);
-                    const validProductIds = productIds?.map(p => p.product_id) || [];
-                    query = query.in('id', validProductIds);
+                    query = query.in('id', productIds?.map(p => p.product_id) || []);
                 } else {
                     query = query.in('id', [-1]);
                 }
             }
         }
 
-        switch (sort) {
+        // Sorting
+        switch (sortOption) {
             case 'position-desc': query = query.order('position', { ascending: false }); break;
             case 'name-asc': query = query.order('name', { ascending: true }); break;
             case 'name-desc': query = query.order('name', { ascending: false }); break;

@@ -9,7 +9,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 export async function POST(request) {
     try {
         const body = await request.json();
-        const mode = body.mode || 'semantic'; // 'keyword' or 'semantic'
+        const mode = body.mode || 'semantic';
 
         // 1. Parse Input Query
         let userQuery = "";
@@ -30,7 +30,6 @@ export async function POST(request) {
         if (mode === 'keyword') {
             const searchTerm = `%${userQuery}%`;
 
-            // Parallel DB queries for Collections, Categories, and Products
             const [collectionsRes, categoriesRes, productsRes] = await Promise.all([
                 // 1. Search Collections
                 supabase.from('collections')
@@ -48,6 +47,7 @@ export async function POST(request) {
                 supabase.from('products')
                     .select('*, product_variants(*, inventory_levels(*))')
                     .or(`name.ilike.${searchTerm},description.ilike.${searchTerm}`)
+                    .eq('status', 'active') // <--- SECURITY PATCH ADDED HERE
                     .is('deleted_at', null)
                     .limit(20)
             ]);
@@ -56,12 +56,11 @@ export async function POST(request) {
                 products: productsRes.data || [],
                 collections: collectionsRes.data || [],
                 attributes: categoriesRes.data || [],
-                generatedTags: [userQuery] // Just echo back the query
+                generatedTags: [userQuery]
             });
         }
 
         // --- BRANCH B: SEMANTIC SEARCH (AI / RAG) ---
-        // (This is your original logic preserved)
 
         let searchContext = userQuery;
         if (Object.keys(attributes).length > 0) {

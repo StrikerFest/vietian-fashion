@@ -96,6 +96,7 @@ export async function GET(request, context) {
                 )
             `, { count: 'exact' })
             .in('id', productIds)
+            .eq('status', 'active') // <--- SECURITY PATCH ADDED HERE
             .is('deleted_at', null);
 
         if (sortBy === 'name-asc') productQuery = productQuery.order('name', { ascending: true });
