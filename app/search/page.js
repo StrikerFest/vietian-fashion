@@ -1,8 +1,8 @@
 // app/search/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import {useState, useEffect} from 'react';
+import {useSearchParams} from 'next/navigation';
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 import QuickViewModal from '@/components/QuickViewModal';
@@ -11,34 +11,38 @@ export default function SearchPage() {
     const searchParams = useSearchParams();
 
     // State
-    const [results, setResults] = useState({ products: [], collections: [], attributes: [] });
+    const [results, setResults] = useState({products: [], collections: [], attributes: []});
     const [isLoading, setIsLoading] = useState(true);
     const [quickViewProductId, setQuickViewProductId] = useState(null);
 
     // Parse Query
     const queryText = searchParams.get('q') || '';
     const rawAttrs = searchParams.get('attrs');
+    const mode = searchParams.get('mode') || 'semantic'; // Default to semantic if missing
 
     useEffect(() => {
         const performSearch = async () => {
             setIsLoading(true);
             try {
-                // Reconstruct payload
-                let payload = {};
-                if (rawAttrs) {
+                // Construct Payload
+                let payload = {
+                    query: queryText,
+                    mode: mode // <--- Pass the mode to backend
+                };
+
+                // Handle AI attributes if in semantic mode
+                if (rawAttrs && mode === 'semantic') {
                     try {
-                        const attributes = JSON.parse(rawAttrs);
-                        payload = { generalPrompt: queryText, attributes };
+                        payload.attributes = JSON.parse(rawAttrs);
+                        payload.generalPrompt = queryText;
                     } catch (e) {
-                        payload = { query: queryText };
+                        console.error("Error parsing attributes", e);
                     }
-                } else {
-                    payload = { query: queryText };
                 }
 
                 const res = await fetch('/api/recommendations', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
 
@@ -62,16 +66,15 @@ export default function SearchPage() {
         } else {
             setIsLoading(false);
         }
-    }, [queryText, rawAttrs]);
+    }, [queryText, rawAttrs, mode]);
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-7xl mx-auto">
-
                 <div className="mb-8">
                     <Link href="/" className="text-sm text-gray-400 hover:text-white">&larr; Back Home</Link>
                     <h1 className="text-3xl font-bold mt-2">
-                        Results for <span className="text-indigo-400">{`"${queryText || 'Style Search'}"`}</span>
+                        {mode === 'keyword' ? 'Keyword Results' : 'AI Suggestions'} for <span className="text-indigo-400">{`"${queryText}"`}</span>
                     </h1>
                 </div>
 
@@ -81,7 +84,7 @@ export default function SearchPage() {
                     </div>
                 ) : (
                     <>
-                        {/* Semantic Suggestions (Collections/Categories) */}
+                        {/* Suggestions Grid (Collections/Categories) */}
                         {(results.collections.length > 0 || results.attributes.length > 0) && (
                             <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {results.collections.map(c => (
@@ -112,14 +115,13 @@ export default function SearchPage() {
                             </div>
                         ) : (
                             <div className="text-center py-20 bg-gray-800/50 rounded-lg border border-dashed border-gray-700">
-                                <p className="text-gray-400">No direct product matches found.</p>
-                                <p className="text-sm text-gray-500 mt-2">Try browsing the collections above or refining your search.</p>
+                                <p className="text-gray-400">No direct matches found.</p>
+                                <p className="text-sm text-gray-500 mt-2">Try adjusting your search terms.</p>
                             </div>
                         )}
                     </>
                 )}
             </div>
-
             <QuickViewModal
                 productId={quickViewProductId}
                 onClose={() => setQuickViewProductId(null)}
