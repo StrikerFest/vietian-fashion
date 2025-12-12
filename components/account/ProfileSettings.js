@@ -27,9 +27,9 @@ export default function ProfileSettings() {
             // For example:
             // await fetch('/api/account/profile', { method: 'PUT', body: JSON.stringify({ firstName, lastName }) });
 
-            addToast('Profile updated successfully! (Demo)', 'success');
+            addToast('Cập nhật hồ sơ thành công! (Demo)', 'success');
         } catch (error) {
-            addToast(`Error updating profile: ${error.message}`, 'error');
+            addToast(`Lỗi cập nhật hồ sơ: ${error.message}`, 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -43,20 +43,20 @@ export default function ProfileSettings() {
         });
 
         if (error) {
-            addToast(`Error initiating password change: ${error.message}`, 'error');
+            addToast(`Lỗi khởi tạo đổi mật khẩu: ${error.message}`, 'error');
         } else {
-            addToast('Password change link sent! Check your email.', 'success');
+            addToast('Đã gửi liên kết đổi mật khẩu! Vui lòng kiểm tra email.', 'success');
         }
     };
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-            <h2 className="text-xl font-bold mb-4 text-white">Profile Settings</h2>
+            <h2 className="text-xl font-bold mb-4 text-white">Cài đặt hồ sơ</h2>
 
             <form onSubmit={handleUpdateProfile} className="space-y-4">
                 {/* Email (Read-only) */}
                 <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-400">Email</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-400">Email (Chỉ đọc)</label>
                     <input
                         type="email"
                         value={session.user.email}
@@ -68,7 +68,7 @@ export default function ProfileSettings() {
                 {/* Name fields (Placeholder) */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-300">First Name</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-300">Tên</label>
                         <input
                             type="text"
                             value={firstName}
@@ -77,7 +77,7 @@ export default function ProfileSettings() {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-300">Last Name</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-300">Họ</label>
                         <input
                             type="text"
                             value={lastName}
@@ -92,17 +92,17 @@ export default function ProfileSettings() {
                     disabled={isSubmitting}
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded disabled:bg-gray-600 transition-colors"
                 >
-                    {isSubmitting ? 'Saving...' : 'Update Profile'}
+                    {isSubmitting ? 'Đang lưu...' : 'Cập nhật hồ sơ'}
                 </button>
             </form>
 
             <div className="pt-4 mt-4 border-t border-gray-700">
-                <p className="text-sm font-bold text-gray-400 mb-2">Security</p>
+                <p className="text-sm font-bold text-gray-400 mb-2">Bảo mật</p>
                 <button
                     onClick={handleChangePassword}
                     className="w-full text-left text-sm text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
                 >
-                    Request Password Change Email
+                    Yêu cầu email đổi mật khẩu
                 </button>
             </div>
         </div>

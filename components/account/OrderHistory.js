@@ -22,7 +22,7 @@ export default function OrderHistory({ orders, isLoading }) {
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg h-fit border border-gray-700 shadow-md">
-            <h2 className="text-2xl font-bold mb-6 text-white">My Order History</h2>
+            <h2 className="text-2xl font-bold mb-6 text-white">Lịch sử đơn hàng</h2>
 
             {isLoading ? (
                 <div className="flex justify-center py-8">
@@ -30,8 +30,8 @@ export default function OrderHistory({ orders, isLoading }) {
                 </div>
             ) : orders.length === 0 ? (
                 <div className="text-center text-gray-400 py-12 border-2 border-dashed border-gray-700 rounded-lg">
-                    <p className="mb-4">You have not placed any orders yet.</p>
-                    <Link href="/products" className="inline-block bg-gray-700 hover:bg-indigo-600 text-white px-4 py-2 rounded-md transition-colors text-sm font-semibold">Start Shopping</Link>
+                    <p className="mb-4">Bạn chưa có đơn hàng nào.</p>
+                    <Link href="/products" className="inline-block bg-gray-700 hover:bg-indigo-600 text-white px-4 py-2 rounded-md transition-colors text-sm font-semibold">Bắt đầu mua sắm</Link>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -40,10 +40,10 @@ export default function OrderHistory({ orders, isLoading }) {
                             <div className="flex flex-wrap justify-between items-start mb-4 gap-4">
                                 <div>
                                     <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                        Order <Link href={`/order-confirmation/${order.id}`} className="font-mono text-indigo-400 hover:underline">#{order.id}</Link>
+                                        Đơn hàng <Link href={`/order-confirmation/${order.id}`} className="font-mono text-indigo-400 hover:underline">#{order.id}</Link>
                                     </h3>
                                     <p className="text-xs text-gray-400 mt-1">
-                                        Placed on {new Date(order.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                        Ngày đặt: {new Date(order.created_at).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })}
                                     </p>
                                 </div>
                                 <OrderStatusBadge status={order.status} />
@@ -55,7 +55,7 @@ export default function OrderHistory({ orders, isLoading }) {
                                     <div key={idx} className="flex flex-col border-b border-gray-700/50 last:border-0 pb-2 last:pb-0 mb-2 last:mb-0">
                                         <div className="flex justify-between text-gray-300">
                                             <span className="font-medium">
-                                                {item.product_variants?.products?.name || 'Unknown Product'}
+                                                {item.product_variants?.products?.name || 'Sản phẩm không xác định'}
                                             </span>
                                             <span className="text-gray-500">x{item.quantity}</span>
                                         </div>
@@ -80,12 +80,12 @@ export default function OrderHistory({ orders, isLoading }) {
                                     </div>
                                 ))}
                                 {order.order_items.length > 3 && (
-                                    <p className="text-xs text-indigo-400 font-medium pt-1 text-center">+{order.order_items.length - 3} more items...</p>
+                                    <p className="text-xs text-indigo-400 font-medium pt-1 text-center">+{order.order_items.length - 3} sản phẩm khác...</p>
                                 )}
                             </div>
 
                             <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
-                                <Link href={`/order-confirmation/${order.id}`} className="text-sm text-gray-400 hover:text-white transition-colors">View Full Invoice</Link>
+                                <Link href={`/order-confirmation/${order.id}`} className="text-sm text-gray-400 hover:text-white transition-colors">Xem hóa đơn đầy đủ</Link>
                                 <p className="font-bold text-lg text-white">${order.total_amount.toFixed(2)}</p>
                             </div>
                         </div>

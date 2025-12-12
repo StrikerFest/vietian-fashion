@@ -14,14 +14,14 @@ export default function WishlistGrid({ items, isLoading }) {
         window.location.href = `/products/${product.id}`;
     };
 
-    if (isLoading) return <div className="text-center py-10 text-gray-400">Loading wishlist...</div>;
+    if (isLoading) return <div className="text-center py-10 text-gray-400">Đang tải danh sách yêu thích...</div>;
 
     if (items.length === 0) {
         return (
             <div className="text-center py-16 bg-gray-800 rounded-lg border border-gray-700 border-dashed">
-                <p className="text-gray-400 mb-4">Your wishlist is empty.</p>
+                <p className="text-gray-400 mb-4">Danh sách yêu thích của bạn đang trống.</p>
                 <Link href="/products" className="inline-block bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition-colors">
-                    Go Shopping
+                    Đi mua sắm
                 </Link>
             </div>
         );
@@ -43,7 +43,7 @@ export default function WishlistGrid({ items, isLoading }) {
                         <button
                             onClick={() => toggleWishlist(product.id)}
                             className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-full hover:bg-red-600 transition-colors z-10"
-                            title="Remove"
+                            title="Xóa"
                         >
                             &times;
                         </button>
@@ -57,7 +57,7 @@ export default function WishlistGrid({ items, isLoading }) {
                             href={`/products/${product.id}`}
                             className="mt-auto block w-full text-center bg-gray-700 hover:bg-indigo-600 text-white py-2 rounded transition-colors text-sm font-bold"
                         >
-                            View Options
+                            Xem chi tiết
                         </Link>
                     </div>
                 </div>

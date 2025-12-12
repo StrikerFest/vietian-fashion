@@ -34,7 +34,7 @@ function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
                 <h3 className="text-2xl font-bold text-white">{title}</h3>
                 {viewAllLink && (
                     <Link href={viewAllLink} className="text-indigo-400 hover:text-indigo-300 text-sm font-medium">
-                        View All &rarr;
+                        Xem tất cả &rarr;
                     </Link>
                 )}
             </div>
@@ -72,7 +72,7 @@ export default function FeedSection({ layoutOrder, onQuickView }) {
                         <ProductRow
                             key={row.id}
                             {...commonProps}
-                            title={row.title || 'Collection'}
+                            title={row.title || 'Bộ sưu tập'}
                             fetchUrl={`/api/products?collection_id=${row.target_id}&limit=8&sort=position-desc`}
                             viewAllLink={`/products?collection_id=${row.target_id}`}
                         />
@@ -83,7 +83,7 @@ export default function FeedSection({ layoutOrder, onQuickView }) {
                         <ProductRow
                             key={row.id}
                             {...commonProps}
-                            title={row.title || 'Category'}
+                            title={row.title || 'Danh mục'}
                             fetchUrl={`/api/products?category_id=${row.target_id}&limit=8&sort=position-desc`}
                             viewAllLink={`/products?category_id=${row.target_id}`}
                         />
@@ -94,7 +94,7 @@ export default function FeedSection({ layoutOrder, onQuickView }) {
                         <ProductRow
                             key={row.id}
                             {...commonProps}
-                            title={row.title || 'Featured'}
+                            title={row.title || 'Nổi bật'}
                             fetchUrl={`/api/products?limit=${row.limit || 8}&sort=position-desc`}
                             viewAllLink="/products"
                         />

@@ -42,9 +42,9 @@ export default function WishlistPage() {
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center gap-4 mb-8">
-                    <h1 className="text-3xl font-extrabold">My Wishlist</h1>
+                    <h1 className="text-3xl font-extrabold">Danh sách yêu thích</h1>
                     <span className="bg-gray-700 px-3 py-1 rounded-full text-sm font-medium text-gray-300">
-                        {items.length} items
+                        {items.length} sản phẩm
                     </span>
                 </div>
 

@@ -3,7 +3,7 @@
 
 export default function SupplierList({ suppliers, onEdit, onDelete }) {
     if (suppliers.length === 0) {
-        return <p className="text-gray-500 mt-4 text-center">No suppliers added yet.</p>;
+        return <p className="text-gray-500 mt-4 text-center">Chưa có nhà cung cấp nào được thêm.</p>;
     }
 
     return (
@@ -11,11 +11,11 @@ export default function SupplierList({ suppliers, onEdit, onDelete }) {
             <table className="w-full text-left">
                 <thead className="bg-gray-900 text-gray-300 border-b border-gray-700">
                 <tr>
-                    <th className="p-3">Name</th>
-                    <th className="p-3">Contact</th>
+                    <th className="p-3">Tên</th>
+                    <th className="p-3">Liên hệ</th>
                     <th className="p-3">Email</th>
-                    <th className="p-3">Phone</th>
-                    <th className="p-3 text-right">Actions</th>
+                    <th className="p-3">SĐT</th>
+                    <th className="p-3 text-right">Hành động</th>
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
@@ -30,13 +30,13 @@ export default function SupplierList({ suppliers, onEdit, onDelete }) {
                                 onClick={() => onEdit(supplier)}
                                 className="text-indigo-400 hover:text-indigo-300 font-semibold"
                             >
-                                Edit
+                                Sửa
                             </button>
                             <button
                                 onClick={() => onDelete(supplier.id)}
                                 className="text-red-500 hover:text-red-400 font-semibold"
                             >
-                                Delete
+                                Xóa
                             </button>
                         </td>
                     </tr>

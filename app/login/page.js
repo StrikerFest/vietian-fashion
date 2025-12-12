@@ -23,7 +23,7 @@ export default function LoginPage() {
 
     // --- NEW: Handler for Password Mismatch from AuthForm ---
     const handlePasswordMismatch = () => {
-        setMessage({ type: 'error', text: 'Error: Passwords do not match.' });
+        setMessage({ type: 'error', text: 'Lỗi: Mật khẩu không khớp.' });
     };
 
     const handleAuth = async (formData) => {
@@ -40,7 +40,7 @@ export default function LoginPage() {
             });
             error = signUpError;
             if (!error) {
-                setMessage({ type: 'success', text: 'Sign up successful! Please check your email to confirm.' });
+                setMessage({ type: 'success', text: 'Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.' });
             }
         } else {
             const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -57,17 +57,17 @@ export default function LoginPage() {
     };
 
     if (isAuthLoading || session) {
-        return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Redirecting...</p></div>;
+        return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Đang chuyển hướng...</p></div>;
     }
 
     return (
         <main className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
             <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700">
                 <h1 className="text-3xl font-bold text-center mb-2 text-white">
-                    {isSignUp ? 'Join Us' : 'Welcome Back'}
+                    {isSignUp ? 'Tham gia cùng chúng tôi' : 'Chào mừng trở lại'}
                 </h1>
                 <p className="text-gray-400 text-center mb-8 text-sm">
-                    {isSignUp ? 'Create an account to start shopping' : 'Sign in to access your account'}
+                    {isSignUp ? 'Tạo tài khoản để bắt đầu mua sắm' : 'Đăng nhập để truy cập tài khoản của bạn'}
                 </p>
 
                 <AuthTabs isSignUp={isSignUp} onChange={(val) => { setIsSignUp(val); setMessage({ type: '', text: '' }); }} />

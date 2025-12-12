@@ -79,18 +79,18 @@ export default function ProductDetailPage() {
     const handleAddToCart = () => {
         if (product && selectedVariant) {
             if (!areOptionsValid) {
-                addToast("Please fill in all required options.", 'error'); // --- FIXED: Replaced alert() ---
+                addToast("Vui lòng điền tất cả các tùy chọn bắt buộc.", 'error'); // --- FIXED: Replaced alert() ---
                 return;
             }
             addToCart(product, selectedVariant, customOptions);
         }
     };
 
-    if (isLoading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Loading product...</div>;
+    if (isLoading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Đang tải sản phẩm...</div>;
     if (!product) return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center gap-4">
-            <h1 className="text-2xl font-bold">Product not found</h1>
-            <Link href="/products" className="text-indigo-400 hover:underline">Back to Collection</Link>
+            <h1 className="text-2xl font-bold">Không tìm thấy sản phẩm</h1>
+            <Link href="/products" className="text-indigo-400 hover:underline">Quay lại bộ sưu tập</Link>
         </div>
     );
 
@@ -104,7 +104,7 @@ export default function ProductDetailPage() {
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-6xl mx-auto">
                 <nav className="text-sm text-gray-400 mb-8">
-                    <Link href="/products" className="hover:text-white">Products</Link>
+                    <Link href="/products" className="hover:text-white">Sản phẩm</Link>
                     <span className="mx-2">/</span>
                     <span className="text-white">{product.name}</span>
                 </nav>
@@ -121,7 +121,7 @@ export default function ProductDetailPage() {
                             </p>
                             {isOutOfStock && (
                                 <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs font-bold uppercase rounded border border-red-900/50">
-                                    Out of Stock
+                                    Hết hàng
                                 </span>
                             )}
                         </div>
@@ -155,13 +155,13 @@ export default function ProductDetailPage() {
                                         : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-lg hover:shadow-indigo-900/30 shadow-md'
                                 }`}
                             >
-                                {!selectedVariant ? 'Select an Option' : isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                                {!selectedVariant ? 'Chọn một tùy chọn' : isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ hàng'}
                             </button>
 
                             {selectedVariant && !isOutOfStock && (
                                 <p className="text-center text-xs text-green-400 mt-3 flex items-center justify-center gap-1">
                                     <span className="w-2 h-2 bg-green-500 rounded-full inline-block"></span>
-                                    In Stock ({stockOnHand} units ready to ship)
+                                    Còn hàng ({stockOnHand} sản phẩm sẵn sàng giao)
                                 </p>
                             )}
                         </div>

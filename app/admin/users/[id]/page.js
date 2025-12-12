@@ -25,11 +25,11 @@ export default function UserDetailsPage() {
                 const response = await fetch(`/api/admin/users/${id}`);
                 if (!response.ok) {
                     if (response.status === 404) {
-                        addToast("User not found", 'error'); // --- FIXED: Replaced alert() ---
+                        addToast("Không tìm thấy người dùng", 'error'); // --- FIXED: Replaced alert() ---
                         router.push('/admin/users');
                         return;
                     }
-                    throw new Error('Failed to load user');
+                    throw new Error('Tải thông tin người dùng thất bại');
                 }
                 const data = await response.json();
                 setUser(data);
@@ -46,7 +46,7 @@ export default function UserDetailsPage() {
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-900 text-white p-8 flex items-center justify-center">
-                <p className="text-gray-400">Loading profile...</p>
+                <p className="text-gray-400">Đang tải hồ sơ...</p>
             </div>
         );
     }
@@ -58,7 +58,7 @@ export default function UserDetailsPage() {
             {/* Header */}
             <div className="mb-8">
                 <Link href="/admin/users" className="text-gray-400 hover:text-white text-sm mb-4 inline-flex items-center transition-colors">
-                    &larr; Back to Customers
+                    &larr; Quay lại Khách hàng
                 </Link>
                 <div className="flex items-start justify-between">
                     <div>
@@ -68,7 +68,7 @@ export default function UserDetailsPage() {
                             <span className="text-gray-600">•</span>
                             <span className="text-gray-400">ID: {user.id}</span>
                             <span className="text-gray-600">•</span>
-                            <span className="text-gray-400">Joined {new Date(user.created_at).toLocaleDateString()}</span>
+                            <span className="text-gray-400">Tham gia ngày {new Date(user.created_at).toLocaleDateString('vi-VN')}</span>
                         </div>
                     </div>
                     {/* You could add User specific actions here like 'Reset Password' or 'Edit' in future */}

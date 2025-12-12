@@ -88,14 +88,14 @@ export default function CartPage() {
 
         if (session) {
             if (!selectedAddressId) {
-                addToast('Please select a shipping address.', 'error');
+                addToast('Vui lòng chọn địa chỉ giao hàng.', 'error');
                 return;
             }
             finalAddressId = selectedAddressId;
         } else {
             // Guest Checkout
             if (!isGuestAddressValid || !guestAddressData) {
-                addToast('Please fill in a complete shipping address.', 'error');
+                addToast('Vui lòng điền đầy đủ địa chỉ giao hàng.', 'error');
                 return;
             }
             finalGuestAddress = guestAddressData;
@@ -118,7 +118,7 @@ export default function CartPage() {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Checkout failed');
+                throw new Error(errorData.error || 'Thanh toán thất bại');
             }
 
             const data = await response.json();
@@ -129,7 +129,7 @@ export default function CartPage() {
             }
         } catch (error) {
             console.error('Checkout error:', error);
-            addToast(`Checkout Error: ${error.message}`, 'error');
+            addToast(`Lỗi thanh toán: ${error.message}`, 'error');
             setIsCheckingOut(false);
         }
     };
@@ -140,13 +140,13 @@ export default function CartPage() {
             <main className="min-h-screen bg-gray-900 text-white p-8 flex items-center justify-center">
                 <div className="text-center max-w-md">
                     <div className="mb-6 text-6xl">🛒</div>
-                    <h1 className="text-3xl font-bold mb-4">Your Cart is Empty</h1>
-                    <p className="text-gray-400 mb-8">{`Looks like you haven't found your perfect outfit yet.`}</p>
+                    <h1 className="text-3xl font-bold mb-4">Giỏ hàng của bạn đang trống</h1>
+                    <p className="text-gray-400 mb-8">{`Có vẻ như bạn chưa tìm thấy trang phục hoàn hảo cho mình.`}</p>
                     <Link
                         href="/products"
                         className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
                     >
-                        Start Shopping
+                        Bắt đầu mua sắm
                     </Link>
                 </div>
             </main>
@@ -162,8 +162,8 @@ export default function CartPage() {
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-6xl mx-auto">
                 <h1 className="text-3xl font-extrabold mb-8 flex items-center gap-3">
-                    Your Cart
-                    <span className="text-lg font-normal text-gray-500">({cartItems.length} items)</span>
+                    Giỏ hàng của bạn
+                    <span className="text-lg font-normal text-gray-500">({cartItems.length} món)</span>
                 </h1>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative">

@@ -182,15 +182,15 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     {/* Sidebar Filters */}
                     <aside className="md:col-span-1 bg-gray-800 p-6 rounded-lg self-start sticky top-24 border border-gray-700">
-                        <h2 className="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Filters</h2>
+                        <h2 className="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Bộ lọc</h2>
 
                         <div className="mb-6">
-                            <label htmlFor="sort" className="block text-sm font-medium mb-2 text-gray-400">Sort By</label>
+                            <label htmlFor="sort" className="block text-sm font-medium mb-2 text-gray-400">Sắp xếp theo</label>
                             <select id="sort" value={sortBy} onChange={handleSortChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
-                                <option value="">Default (Newest)</option>
-                                <option value="price-asc">Price: Low to High</option>
-                                <option value="price-desc">Price: High to Low</option>
-                                <option value="name-asc">Name: A to Z</option>
+                                <option value="">Mặc định (Mới nhất)</option>
+                                <option value="price-asc">Giá: Thấp đến Cao</option>
+                                <option value="price-desc">Giá: Cao đến Thấp</option>
+                                <option value="name-asc">Tên: A đến Z</option>
                             </select>
                         </div>
 
@@ -236,7 +236,7 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                         ))}
 
                         {attributeGroups.length === 0 && (
-                            <p className="text-xs text-gray-500 italic">No filters available.</p>
+                            <p className="text-xs text-gray-500 italic">Không có bộ lọc nào.</p>
                         )}
                     </aside>
 
@@ -266,8 +266,8 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                             </>
                         ) : (
                             <div className="text-center py-16 border-2 border-dashed border-gray-700 rounded-lg">
-                                <p className="text-gray-500 text-lg">No products match your filters.</p>
-                                <button onClick={() => { setSelectedFilters({}); setSortBy(''); updateQueryString(router, pathname, searchParams, {}); }} className="mt-4 text-indigo-400 hover:underline">Clear all filters</button>
+                                <p className="text-gray-500 text-lg">Không có sản phẩm nào phù hợp với bộ lọc của bạn.</p>
+                                <button onClick={() => { setSelectedFilters({}); setSortBy(''); updateQueryString(router, pathname, searchParams, {}); }} className="mt-4 text-indigo-400 hover:underline">Xóa tất cả bộ lọc</button>
                             </div>
                         )}
                     </div>

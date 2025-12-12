@@ -41,7 +41,7 @@ export default function UsersPage() {
             }
         } catch (error) {
             console.error("Failed to fetch users:", error);
-            addToast("Failed to load users.", 'error'); // --- FIXED ---
+            addToast("Không thể tải danh sách khách hàng.", 'error'); // --- FIXED ---
         } finally {
             setIsLoading(false);
         }
@@ -56,17 +56,17 @@ export default function UsersPage() {
     }, [fetchUsers]);
 
     const handleArchive = async (userId) => {
-        if (!confirm('Are you sure you want to archive this user? They will no longer be able to log in.')) return;
+        if (!confirm('Bạn có chắc chắn muốn lưu trữ người dùng này không? Họ sẽ không thể đăng nhập nữa.')) return;
 
         try {
             const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to archive user');
+                throw new Error(errorData.error || 'Lưu trữ người dùng thất bại');
             }
 
             fetchUsers(); // Reload to update list/counts
-            addToast('User archived successfully.', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Đã lưu trữ người dùng thành công.', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
             addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
@@ -80,14 +80,14 @@ export default function UsersPage() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            <h1 className="text-3xl font-bold mb-6">Customers</h1>
+            <h1 className="text-3xl font-bold mb-6">Khách hàng</h1>
 
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
                 <div className="flex justify-between items-center mb-6">
                     <div className="relative max-w-md w-full">
                         <input
                             type="text"
-                            placeholder="Search by name or email..."
+                            placeholder="Tìm kiếm theo tên hoặc email..."
                             value={searchQuery}
                             onChange={(e) => {
                                 setSearchQuery(e.target.value);
@@ -99,11 +99,11 @@ export default function UsersPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </div>
-                    <span className="text-sm text-gray-400 ml-4 whitespace-nowrap">Total Users: {totalItems}</span>
+                    <span className="text-sm text-gray-400 ml-4 whitespace-nowrap">Tổng người dùng: {totalItems}</span>
                 </div>
 
                 {isLoading ? (
-                    <div className="text-center py-12 text-gray-400">Loading customers...</div>
+                    <div className="text-center py-12 text-gray-400">Đang tải khách hàng...</div>
                 ) : (
                     <>
                         <UsersTable users={users} onArchive={handleArchive} />

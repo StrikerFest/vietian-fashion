@@ -77,7 +77,7 @@ export default function AdminProductsPage() {
             setCollections(await collectionsRes.json() || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
-            addToast("Failed to fetch products data.", 'error');
+            addToast("Không thể tải dữ liệu sản phẩm.", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -193,18 +193,18 @@ export default function AdminProductsPage() {
     };
 
     const handleDelete = async (productId) => {
-        if (!confirm('Are you sure you want to delete this product?')) return;
+        if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?')) return;
         try {
             const response = await fetch(`/api/products/${productId}`, {method: 'DELETE'});
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to archive product');
+                throw new Error(errorData.error || 'Lưu trữ sản phẩm thất bại');
             }
             fetchData();
             setSelectedProductIds(prev => prev.filter(id => id !== productId));
-            addToast('Product archived successfully!', 'success');
+            addToast('Sản phẩm đã được lưu trữ thành công!', 'success');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error');
+            addToast(`Lỗi: ${error.message}`, 'error');
         }
     };
 
@@ -238,7 +238,7 @@ export default function AdminProductsPage() {
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="flex justify-between items-start mb-6">
-                <h1 className="text-3xl font-bold">Manage Products</h1>
+                <h1 className="text-3xl font-bold">Quản lý Sản phẩm</h1>
 
                 {/* Header Actions */}
                 {!showForm && (
@@ -248,7 +248,7 @@ export default function AdminProductsPage() {
                             onClick={() => setIsImportModalOpen(true)}
                             className="bg-gray-800 hover:bg-gray-700 text-indigo-400 border border-indigo-500/30 font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
                         >
-                            <span className="text-xl">✨</span> AI Import
+                            <span className="text-xl">✨</span> Nhập từ AI
                         </button>
 
                         <button
@@ -258,7 +258,7 @@ export default function AdminProductsPage() {
                             }}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                         >
-                            + Add New Product
+                            + Thêm Sản phẩm mới
                         </button>
                     </div>
                 )}
@@ -297,7 +297,7 @@ export default function AdminProductsPage() {
                                     : 'text-gray-400 hover:text-white hover:bg-gray-800'
                             }`}
                         >
-                            Standard Products
+                            Sản phẩm tiêu chuẩn
                         </button>
                         <button
                             onClick={() => setActiveTab('generated')}
@@ -307,7 +307,7 @@ export default function AdminProductsPage() {
                                     : 'text-gray-400 hover:text-indigo-300 hover:bg-gray-800'
                             }`}
                         >
-                            <span>✨</span> AI Drafts
+                            <span>✨</span> Bản nháp AI
                             {/* Optional: Counter Badge could go here */}
                         </button>
                     </div>
@@ -339,13 +339,13 @@ export default function AdminProductsPage() {
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-semibold flex items-center gap-2">
                                 {activeTab === 'generated' ? (
-                                    <><span className="text-indigo-400">✨</span> Generated Drafts</>
+                                    <><span className="text-indigo-400">✨</span> Bản nháp được tạo</>
                                 ) : (
-                                    'Existing Products'
+                                    'Sản phẩm hiện có'
                                 )}
                             </h2>
                             <span className="text-sm text-gray-400">
-                                Showing {filteredAndSortedProducts.length} items
+                                Hiển thị {filteredAndSortedProducts.length} mục
                             </span>
                         </div>
 
@@ -367,11 +367,11 @@ export default function AdminProductsPage() {
                                                     className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                                                 />
                                             </th>
-                                            <th className="p-3 w-1/3">Product Name</th>
-                                            <th className="p-3">Variants</th>
-                                            <th className="p-3">Total Stock</th>
-                                            <th className="p-3">Category</th>
-                                            <th className="p-3 text-right">Actions</th>
+                                            <th className="p-3 w-1/3">Tên sản phẩm</th>
+                                            <th className="p-3">Biến thể</th>
+                                            <th className="p-3">Tổng tồn kho</th>
+                                            <th className="p-3">Danh mục</th>
+                                            <th className="p-3 text-right">Hành động</th>
                                         </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-700">
@@ -398,7 +398,7 @@ export default function AdminProductsPage() {
                                                                 {/* Status Badge */}
                                                                 {product.status === 'draft' && (
                                                                     <span className="inline-block mt-1 mr-2 px-1.5 py-0.5 rounded text-[10px] bg-gray-700 text-gray-300 border border-gray-600">
-                                                                        Draft
+                                                                        Nháp
                                                                     </span>
                                                                 )}
 
@@ -428,13 +428,13 @@ export default function AdminProductsPage() {
                                                             onClick={() => handleEdit(product)}
                                                             className="text-indigo-400 hover:text-indigo-300 font-semibold mr-3 transition-colors"
                                                         >
-                                                            {activeTab === 'generated' ? 'Review' : 'Edit'}
+                                                            {activeTab === 'generated' ? 'Duyệt' : 'Sửa'}
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(product.id)}
                                                             className="text-red-500 hover:text-red-400 font-semibold transition-colors"
                                                         >
-                                                            Delete
+                                                            Xóa
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -443,8 +443,8 @@ export default function AdminProductsPage() {
                                             <tr>
                                                 <td colSpan="6" className="p-8 text-center text-gray-500">
                                                     {activeTab === 'generated'
-                                                        ? "No AI generated drafts found. Click 'AI Import' to create some!"
-                                                        : "No products match your filters."}
+                                                        ? "Không tìm thấy bản nháp nào do AI tạo. Nhấn 'Nhập từ AI' để tạo!"
+                                                        : "Không có sản phẩm nào khớp với bộ lọc của bạn."}
                                                 </td>
                                             </tr>
                                         )}

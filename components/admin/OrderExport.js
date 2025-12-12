@@ -34,9 +34,9 @@ export default function OrderExport() {
             if (!response.ok) {
                 try {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to export orders.');
+                    throw new Error(errorData.error || 'Xuất đơn hàng thất bại.');
                 } catch (jsonError) {
-                    throw new Error(`Failed to export orders. Status: ${response.status}`);
+                    throw new Error(`Xuất đơn hàng thất bại. Trạng thái: ${response.status}`);
                 }
             }
             const blob = await response.blob();
@@ -50,7 +50,7 @@ export default function OrderExport() {
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Export failed:', error);
-            alert(`Error exporting orders: ${error.message}`);
+            alert(`Lỗi xuất đơn hàng: ${error.message}`);
         } finally {
             setIsExporting(false);
         }
@@ -58,11 +58,11 @@ export default function OrderExport() {
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg mb-8 border border-gray-700">
-            <h2 className="text-xl font-semibold mb-4">Export Orders</h2>
+            <h2 className="text-xl font-semibold mb-4">Xuất đơn hàng</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 {/* Start Date */}
                 <div>
-                    <label htmlFor="startDate" className="block text-sm font-medium mb-1 text-gray-400">Start Date</label>
+                    <label htmlFor="startDate" className="block text-sm font-medium mb-1 text-gray-400">Ngày bắt đầu</label>
                     <input
                         type="date"
                         id="startDate"
@@ -73,7 +73,7 @@ export default function OrderExport() {
                 </div>
                 {/* End Date */}
                 <div>
-                    <label htmlFor="endDate" className="block text-sm font-medium mb-1 text-gray-400">End Date</label>
+                    <label htmlFor="endDate" className="block text-sm font-medium mb-1 text-gray-400">Ngày kết thúc</label>
                     <input
                         type="date"
                         id="endDate"
@@ -85,19 +85,19 @@ export default function OrderExport() {
                 </div>
                 {/* Status Filter */}
                 <div>
-                    <label htmlFor="status" className="block text-sm font-medium mb-1 text-gray-400">Status</label>
+                    <label htmlFor="status" className="block text-sm font-medium mb-1 text-gray-400">Trạng thái</label>
                     <select
                         id="status"
                         value={status}
                         onChange={(e) => setStatus(e.target.value)}
                         className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
-                        <option value="">All Statuses</option>
-                        <option value="pending">Pending</option>
-                        <option value="paid">Paid</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="pending">Chờ xử lý</option>
+                        <option value="paid">Đã thanh toán</option>
+                        <option value="shipped">Đã vận chuyển</option>
+                        <option value="delivered">Đã giao hàng</option>
+                        <option value="cancelled">Đã hủy</option>
                     </select>
                 </div>
                 {/* Export Button */}
@@ -106,7 +106,7 @@ export default function OrderExport() {
                     disabled={isExporting}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                 >
-                    {isExporting ? 'Exporting...' : 'Export CSV'}
+                    {isExporting ? 'Đang xuất...' : 'Xuất CSV'}
                 </button>
             </div>
         </div>

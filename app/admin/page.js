@@ -47,24 +47,24 @@ export default function AdminDashboardPage() {
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="flex justify-between items-end mb-8">
-                <h1 className="text-3xl font-bold">Dashboard Overview</h1>
-                <p className="text-gray-400 text-sm">Last updated: {new Date().toLocaleTimeString()}</p>
+                <h1 className="text-3xl font-bold">Tổng quan bảng điều khiển</h1>
+                <p className="text-gray-400 text-sm">Cập nhật lần cuối: {new Date().toLocaleTimeString('vi-VN')}</p>
             </div>
 
             {/* 1. Key Metrics Row */}
             <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard
-                    title="Total Revenue"
+                    title="Tổng doanh thu"
                     value={isLoading ? '...' : `$${data.totalRevenue.toLocaleString()}`}
                     color="text-green-400"
                 />
                 <StatCard
-                    title="Total Orders"
+                    title="Tổng đơn hàng"
                     value={isLoading ? '...' : data.totalOrders}
                 />
                 {/* You can add Average Order Value here if you calculate it */}
                 <StatCard
-                    title="Avg. Order Value"
+                    title="Giá trị đơn trung bình"
                     value={isLoading ? '...' : `$${data.totalOrders > 0 ? (data.totalRevenue / data.totalOrders).toFixed(2) : '0.00'}`}
                     color="text-indigo-400"
                 />
@@ -89,19 +89,19 @@ export default function AdminDashboardPage() {
 
                 {/* Navigation Shortcuts */}
                 <div className="bg-gray-800 p-6 rounded-lg shadow-md">
-                    <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+                    <h3 className="text-lg font-semibold text-white mb-4">Tác vụ nhanh</h3>
                     <div className="grid grid-cols-2 gap-4">
                         <Link href="/admin/products" className="p-4 bg-gray-700 hover:bg-indigo-600 rounded transition-colors text-center">
-                            📦 Manage Products
+                            📦 Quản lý sản phẩm
                         </Link>
                         <Link href="/admin/orders" className="p-4 bg-gray-700 hover:bg-indigo-600 rounded transition-colors text-center">
-                            🚚 Process Orders
+                            🚚 Xử lý đơn hàng
                         </Link>
                         <Link href="/admin/discounts" className="p-4 bg-gray-700 hover:bg-indigo-600 rounded transition-colors text-center">
-                            🏷️ Create Discount
+                            🏷️ Tạo mã giảm giá
                         </Link>
                         <Link href="/admin/inventory" className="p-4 bg-gray-700 hover:bg-indigo-600 rounded transition-colors text-center">
-                            📋 Audit Inventory
+                            📋 Kiểm kê kho
                         </Link>
                     </div>
                 </div>

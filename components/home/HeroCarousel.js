@@ -51,7 +51,7 @@ export default function HeroCarousel({ banners }) {
                                 href={banner.link}
                                 className="px-8 py-3 bg-white text-gray-900 font-bold rounded-full hover:bg-gray-100 transition-colors shadow-xl"
                             >
-                                Shop Now
+                                Mua ngay
                             </Link>
                         )}
                     </div>

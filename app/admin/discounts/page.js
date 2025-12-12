@@ -37,7 +37,7 @@ export default function DiscountsPage() {
             }
         } catch (error) {
             console.error("Failed to fetch discounts:", error);
-            addToast("Failed to load discounts.", 'error');
+            addToast("Không thể tải danh sách mã giảm giá.", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -48,7 +48,7 @@ export default function DiscountsPage() {
     }, [fetchDiscounts]);
 
     const handleDelete = async (discountId) => {
-        if (!confirm('Are you sure you want to delete this discount?')) return;
+        if (!confirm('Bạn có chắc chắn muốn xóa mã giảm giá này không?')) return;
 
         try {
             const response = await fetch(`/api/discounts/${discountId}`, { method: 'DELETE' });
@@ -57,9 +57,9 @@ export default function DiscountsPage() {
                 throw new Error(errorData.error || 'Failed to delete discount');
             }
             fetchDiscounts(); // Reload
-            addToast('Discount archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Mã giảm giá đã được lưu trữ thành công!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Lỗi: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         }
     };
 
@@ -84,7 +84,7 @@ export default function DiscountsPage() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            <h1 className="text-3xl font-bold mb-6">Manage Discounts</h1>
+            <h1 className="text-3xl font-bold mb-6">Quản lý Mã giảm giá</h1>
 
             {!showForm && (
                 <div className="mb-6 flex justify-between items-center">
@@ -92,9 +92,9 @@ export default function DiscountsPage() {
                         onClick={() => { setEditingDiscount(null); setShowForm(true); }}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                     >
-                        + Add New Discount
+                        + Thêm Mã giảm giá Mới
                     </button>
-                    <span className="text-sm text-gray-400">Total: {totalItems}</span>
+                    <span className="text-sm text-gray-400">Tổng cộng: {totalItems}</span>
                 </div>
             )}
 
@@ -110,7 +110,7 @@ export default function DiscountsPage() {
                 ) : (
                     <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
                         {isLoading ? (
-                            <p className="text-gray-400 text-center">Loading discounts...</p>
+                            <p className="text-gray-400 text-center">Đang tải mã giảm giá...</p>
                         ) : (
                             <>
                                 <DiscountList

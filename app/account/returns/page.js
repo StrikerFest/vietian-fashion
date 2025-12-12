@@ -36,14 +36,14 @@ export default function CustomerReturnsPage() {
             <div className="max-w-4xl mx-auto">
                 <div className="mb-8">
                     <Link href="/account" className="text-gray-400 hover:text-white text-sm mb-4 inline-block">
-                        &larr; Back to Dashboard
+                        &larr; Quay lại Bảng điều khiển
                     </Link>
-                    <h1 className="text-3xl font-extrabold">My Returns</h1>
-                    <p className="text-gray-400 mt-1">Track the status of your return requests.</p>
+                    <h1 className="text-3xl font-extrabold">Đơn trả hàng của tôi</h1>
+                    <p className="text-gray-400 mt-1">Theo dõi trạng thái các yêu cầu trả hàng của bạn.</p>
                 </div>
 
                 {isLoading ? (
-                    <div className="text-center py-12 text-gray-500">Loading...</div>
+                    <div className="text-center py-12 text-gray-500">Đang tải...</div>
                 ) : (
                     <ReturnHistory returns={returns} />
                 )}

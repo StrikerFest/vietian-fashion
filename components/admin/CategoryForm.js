@@ -88,10 +88,10 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Operation failed');
+                throw new Error(error.error || 'Thao tác thất bại');
             }
 
-            onSuccess(initialData ? 'Category updated!' : 'Category created!');
+            onSuccess(initialData ? 'Cập nhật danh mục thành công!' : 'Tạo danh mục thành công!');
         } catch (error) {
             addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
@@ -102,21 +102,25 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
     return (
         <div className="bg-gray-800 p-6 rounded-lg mb-8 border border-gray-700 sticky top-6">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">{initialData ? 'Edit Category' : 'Add New Category'}</h2>
+                <h2 className="text-xl font-semibold">{initialData ? 'Sửa Danh mục' : 'Thêm Danh mục Mới'}</h2>
                 <button onClick={onCancel} className="text-gray-400 hover:text-white">&times;</button>
             </div>
 
             {/* Tabs */}
             <div className="flex border-b border-gray-700 mb-6">
-                {['general', 'settings', 'seo'].map((tab) => (
+                {[
+                    { key: 'general', label: 'Chung' },
+                    { key: 'settings', label: 'Cài đặt' },
+                    { key: 'seo', label: 'SEO' }
+                ].map((tab) => (
                     <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
                         className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${
-                            activeTab === tab ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-white'
+                            activeTab === tab.key ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-white'
                         }`}
                     >
-                        {tab}
+                        {tab.label}
                     </button>
                 ))}
             </div>
@@ -127,7 +131,7 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                 {activeTab === 'general' && (
                     <>
                         <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-300">Name</label>
+                            <label className="block text-sm font-medium mb-1 text-gray-300">Tên danh mục</label>
                             <input
                                 type="text"
                                 value={name}
@@ -137,7 +141,7 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-300">Description</label>
+                            <label className="block text-sm font-medium mb-1 text-gray-300">Mô tả</label>
                             <textarea
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
@@ -147,24 +151,24 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-300">Type</label>
+                                <label className="block text-sm font-medium mb-1 text-gray-300">Loại</label>
                                 <select
                                     value={type}
                                     onChange={(e) => { setType(e.target.value); setParentId(''); }}
                                     className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
                                 >
-                                    <option value="catalog">Catalog (Navigation)</option>
-                                    <option value="attribute">Attribute (Filter)</option>
+                                    <option value="catalog">Danh mục (Điều hướng)</option>
+                                    <option value="attribute">Thuộc tính (Bộ lọc)</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-300">Parent</label>
+                                <label className="block text-sm font-medium mb-1 text-gray-300">Danh mục cha</label>
                                 <select
                                     value={parentId}
                                     onChange={(e) => setParentId(e.target.value)}
                                     className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
                                 >
-                                    <option value="">-- Root (Top Level) --</option>
+                                    <option value="">-- Gốc (Cấp cao nhất) --</option>
                                     {eligibleParents.map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
@@ -178,7 +182,7 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                 {activeTab === 'settings' && (
                     <>
                         <div className="flex items-center justify-between p-3 bg-gray-900/50 rounded border border-gray-700">
-                            <label className="text-sm font-medium text-gray-300">Is Active?</label>
+                            <label className="text-sm font-medium text-gray-300">Kích hoạt?</label>
                             <div className="flex items-center">
                                 <input
                                     type="checkbox"
@@ -186,39 +190,39 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                                     onChange={(e) => setIsActive(e.target.checked)}
                                     className="h-5 w-5 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                                 />
-                                <span className="ml-2 text-xs text-gray-500">{isActive ? 'Visible' : 'Hidden'}</span>
+                                <span className="ml-2 text-xs text-gray-500">{isActive ? 'Hiển thị' : 'Ẩn'}</span>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-300">Sort Order</label>
+                                <label className="block text-sm font-medium mb-1 text-gray-300">Thứ tự sắp xếp</label>
                                 <input
                                     type="number"
                                     value={sortOrder}
                                     onChange={(e) => setSortOrder(e.target.value)}
                                     className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                    placeholder="0 (First)"
+                                    placeholder="0 (Đầu tiên)"
                                 />
                             </div>
 
                             {/* Show Style options only for Attributes */}
                             {type === 'attribute' ? (
                                 <div>
-                                    <label className="block text-sm font-medium mb-1 text-gray-300">Display Style</label>
+                                    <label className="block text-sm font-medium mb-1 text-gray-300">Kiểu hiển thị</label>
                                     <select
                                         value={displayStyle}
                                         onChange={(e) => setDisplayStyle(e.target.value)}
                                         className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
                                     >
-                                        <option value="list">List (Checkbox)</option>
-                                        <option value="pill">Pill (Button)</option>
-                                        <option value="swatch">Swatch (Color)</option>
+                                        <option value="list">Danh sách (Hộp kiểm)</option>
+                                        <option value="pill">Nút bấm (Pill)</option>
+                                        <option value="swatch">Mẫu màu (Swatch)</option>
                                     </select>
                                 </div>
                             ) : (
                                 <div className="opacity-50">
-                                    <label className="block text-sm font-medium mb-1 text-gray-500">Display Style</label>
+                                    <label className="block text-sm font-medium mb-1 text-gray-500">Kiểu hiển thị</label>
                                     <input disabled value="N/A" className="w-full bg-gray-800 p-2 rounded border border-gray-700 text-gray-500" />
                                 </div>
                             )}
@@ -227,7 +231,7 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                         {/* Show Value input only if relevant (e.g. Color Swatch) */}
                         {type === 'attribute' && displayStyle === 'swatch' && (
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-300">Swatch Color (Hex)</label>
+                                <label className="block text-sm font-medium mb-1 text-gray-300">Màu Swatch (Hex)</label>
                                 <div className="flex gap-2">
                                     <input
                                         type="color"
@@ -247,10 +251,10 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                         )}
 
                         <div className="pt-2 border-t border-gray-700 mt-2">
-                            <p className="text-xs text-gray-400 mb-2 uppercase font-bold">Schedule Visibility (Optional)</p>
+                            <p className="text-xs text-gray-400 mb-2 uppercase font-bold">Lên lịch hiển thị (Tùy chọn)</p>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs mb-1 text-gray-500">Start Date</label>
+                                    <label className="block text-xs mb-1 text-gray-500">Ngày bắt đầu</label>
                                     <input
                                         type="datetime-local"
                                         value={startDate}
@@ -259,7 +263,7 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs mb-1 text-gray-500">End Date</label>
+                                    <label className="block text-xs mb-1 text-gray-500">Ngày kết thúc</label>
                                     <input
                                         type="datetime-local"
                                         value={endDate}
@@ -277,23 +281,23 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                 {activeTab === 'seo' && (
                     <>
                         <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-300">SEO Title</label>
+                            <label className="block text-sm font-medium mb-1 text-gray-300">Tiêu đề SEO</label>
                             <input
                                 type="text"
                                 value={seoTitle}
                                 onChange={(e) => setSeoTitle(e.target.value)}
                                 className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                placeholder="Title tag..."
+                                placeholder="Thẻ tiêu đề..."
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-300">Meta Description</label>
+                            <label className="block text-sm font-medium mb-1 text-gray-300">Mô tả Meta</label>
                             <textarea
                                 value={seoDescription}
                                 onChange={(e) => setSeoDescription(e.target.value)}
                                 className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
                                 rows="3"
-                                placeholder="Meta description..."
+                                placeholder="Mô tả meta..."
                             ></textarea>
                         </div>
                     </>
@@ -306,14 +310,14 @@ export default function CategoryForm({ initialData, categories, onSuccess, onCan
                         onClick={onCancel}
                         className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors"
                     >
-                        Cancel
+                        Hủy
                     </button>
                     <button
                         type="submit"
                         disabled={isSubmitting}
                         className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-600"
                     >
-                        {isSubmitting ? 'Saving...' : (initialData ? 'Update' : 'Create')}
+                        {isSubmitting ? 'Đang lưu...' : (initialData ? 'Cập nhật' : 'Tạo mới')}
                     </button>
                 </div>
             </form>

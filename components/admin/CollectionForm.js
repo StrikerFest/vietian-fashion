@@ -48,12 +48,12 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Operation failed');
+                throw new Error(errorData.error || 'Thao tác thất bại');
             }
 
-            onSuccess(isEditing ? 'Collection updated!' : 'Collection created!');
+            onSuccess(isEditing ? 'Cập nhật bộ sưu tập thành công!' : 'Tạo bộ sưu tập thành công!');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Lỗi: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }
@@ -61,10 +61,10 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg mb-8 border border-gray-700">
-            <h2 className="text-xl font-semibold mb-4">{initialData ? 'Edit Collection' : 'Add New Collection'}</h2>
+            <h2 className="text-xl font-semibold mb-4">{initialData ? 'Sửa Bộ sưu tập' : 'Thêm Bộ sưu tập Mới'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label htmlFor="name" className="block text-sm font-medium mb-1">Collection Name</label>
+                    <label htmlFor="name" className="block text-sm font-medium mb-1">Tên bộ sưu tập</label>
                     <input
                         id="name"
                         type="text"
@@ -75,7 +75,7 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
                     />
                 </div>
                 <div>
-                    <label htmlFor="description" className="block text-sm font-medium mb-1">Description</label>
+                    <label htmlFor="description" className="block text-sm font-medium mb-1">Mô tả</label>
                     <textarea
                         id="description"
                         value={description}
@@ -93,30 +93,30 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
                         onChange={(e) => setIsFeatured(e.target.checked)}
                         className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                     />
-                    <label htmlFor="isFeatured" className="ml-2 block text-sm font-medium cursor-pointer">Feature on homepage</label>
+                    <label htmlFor="isFeatured" className="ml-2 block text-sm font-medium cursor-pointer">Hiển thị nổi bật trên trang chủ</label>
                 </div>
 
                 {/* SEO Section */}
                 <div className="pt-2 border-t border-gray-700">
-                    <p className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">SEO Settings</p>
+                    <p className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Cài đặt SEO</p>
                     <div className="mb-3">
-                        <label htmlFor="seoTitle" className="block text-xs font-medium mb-1 text-gray-300">SEO Title</label>
+                        <label htmlFor="seoTitle" className="block text-xs font-medium mb-1 text-gray-300">Tiêu đề SEO</label>
                         <input
                             id="seoTitle"
                             type="text"
                             value={seoTitle}
                             onChange={(e) => setSeoTitle(e.target.value)}
-                            placeholder="Max 60 chars"
+                            placeholder="Tối đa 60 ký tự"
                             className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm"
                         />
                     </div>
                     <div>
-                        <label htmlFor="seoDescription" className="block text-xs font-medium mb-1 text-gray-300">Meta Description</label>
+                        <label htmlFor="seoDescription" className="block text-xs font-medium mb-1 text-gray-300">Mô tả Meta</label>
                         <textarea
                             id="seoDescription"
                             value={seoDescription}
                             onChange={(e) => setSeoDescription(e.target.value)}
-                            placeholder="Max 160 chars"
+                            placeholder="Tối đa 160 ký tự"
                             className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm"
                             rows="2"
                         ></textarea>
@@ -129,14 +129,14 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
                         onClick={onCancel}
                         className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
                     >
-                        Cancel
+                        Hủy
                     </button>
                     <button
                         type="submit"
                         disabled={isSubmitting}
                         className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:bg-gray-600"
                     >
-                        {isSubmitting ? 'Saving...' : (initialData ? 'Update' : 'Create')}
+                        {isSubmitting ? 'Đang lưu...' : (initialData ? 'Cập nhật' : 'Tạo mới')}
                     </button>
                 </div>
             </form>

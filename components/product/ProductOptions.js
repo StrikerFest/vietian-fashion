@@ -23,7 +23,7 @@ export default function ProductOptions({ productId, variantId, onChange, setIsVa
                 setOptionSets(data || []);
             } catch (e) {
                 console.error(e);
-                addToast("Failed to load custom options.", 'error'); // --- FIXED: Replaced silent console error ---
+                addToast("Không thể tải các tùy chọn tùy chỉnh.", 'error'); // --- FIXED: Replaced silent console error ---
             } finally {
                 setLoading(false);
             }
@@ -103,7 +103,7 @@ export default function ProductOptions({ productId, variantId, onChange, setIsVa
                                     className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:ring-2 focus:ring-indigo-500"
                                     onChange={(e) => handleSelection(opt.id, e.target.value)}
                                     value={selections[opt.id] || ''}
-                                    placeholder={`Enter ${opt.label}`}
+                                    placeholder={`Nhập ${opt.label}`}
                                 />
                             )}
 
@@ -125,7 +125,7 @@ export default function ProductOptions({ productId, variantId, onChange, setIsVa
                                     onChange={(e) => handleSelection(opt.id, e.target.value)}
                                     value={selections[opt.id] || ''}
                                 >
-                                    <option value="">-- Select --</option>
+                                    <option value="">-- Chọn --</option>
                                     {opt.values.map((val, i) => (
                                         <option key={i} value={val.label}>
                                             {val.label} {val.price_modifier ? `(+$${val.price_modifier})` : ''}

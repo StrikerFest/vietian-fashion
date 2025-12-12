@@ -53,13 +53,13 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
         }));
 
         if (itemsToReturn.length === 0) {
-            setError('Please select at least one item to return.');
+            setError('Vui lòng chọn ít nhất một sản phẩm để trả.');
             setIsSubmitting(false);
             return;
         }
 
         if (!reason.trim()) {
-            setError('Please provide a reason for the return.');
+            setError('Vui lòng cung cấp lý do trả hàng.');
             setIsSubmitting(false);
             return;
         }
@@ -77,7 +77,7 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || 'Failed to submit return request.');
+                throw new Error(data.error || 'Gửi yêu cầu trả hàng thất bại.');
             }
 
             onSuccess();
@@ -93,7 +93,7 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-lg overflow-hidden border border-gray-700" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white">Request Return</h2>
+                    <h2 className="text-xl font-bold text-white">Yêu cầu trả hàng</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
                 </div>
 
@@ -105,7 +105,7 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Select Items to Return</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Chọn sản phẩm cần trả</label>
                         <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                             {order.order_items.map(item => (
                                 <div key={item.id} className="flex items-center justify-between bg-gray-900/50 p-3 rounded border border-gray-700">
@@ -126,7 +126,7 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
 
                                     {selectedItems[item.id] && (
                                         <div className="flex items-center gap-2">
-                                            <label className="text-xs text-gray-400">Qty:</label>
+                                            <label className="text-xs text-gray-400">SL:</label>
                                             <input
                                                 type="number"
                                                 min="1"
@@ -144,13 +144,13 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Reason for Return</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Lý do trả hàng</label>
                         <textarea
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
                             rows="3"
                             className="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                            placeholder="Wrong size, damaged, changed mind..."
+                            placeholder="Sai kích cỡ, hư hỏng, đổi ý..."
                             required
                         ></textarea>
                     </div>
@@ -161,14 +161,14 @@ export default function ReturnRequestModal({ isOpen, onClose, order, onSuccess }
                             onClick={onClose}
                             className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors"
                         >
-                            Cancel
+                            Hủy
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-indigo-800 disabled:cursor-not-allowed"
                         >
-                            {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                            {isSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu'}
                         </button>
                     </div>
                 </form>

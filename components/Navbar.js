@@ -119,7 +119,7 @@ export default function Navbar() {
                                 )}
                             </div>
                         ))}
-                        <Link href="/products" className="hover:text-indigo-400 font-medium text-sm whitespace-nowrap">All Products</Link>
+                        <Link href="/products" className="hover:text-indigo-400 font-medium text-sm whitespace-nowrap">Tất cả sản phẩm</Link>
                     </div>
 
                     {/* 3. Right Side: Search + Cart + Auth */}
@@ -146,7 +146,7 @@ export default function Navbar() {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         onBlur={() => !searchQuery && setIsSearchOpen(false)} // Auto-close if empty
-                                        placeholder="Search..."
+                                        placeholder="Tìm kiếm..."
                                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder-gray-400"
                                     />
                                     <button
@@ -180,12 +180,12 @@ export default function Navbar() {
                         <div className="hidden md:flex items-center gap-4 shrink-0">
                             {session ? (
                                 <>
-                                    <Link href="/account" className="text-sm hover:text-indigo-400 font-medium">Account</Link>
-                                    <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white">Logout</button>
+                                    <Link href="/account" className="text-sm hover:text-indigo-400 font-medium">Tài khoản</Link>
+                                    <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white">Đăng xuất</button>
                                 </>
                             ) : (
                                 <Link href="/login" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md text-sm transition-colors">
-                                    Login
+                                    Đăng nhập
                                 </Link>
                             )}
                         </div>
@@ -223,15 +223,15 @@ export default function Navbar() {
                             className="block px-2 py-1 font-medium text-indigo-400"
                             onClick={() => setIsMobileMenuOpen(false)}
                         >
-                            All Products
+                            Tất cả sản phẩm
                         </Link>
                     </div>
 
                     <div className="border-t border-gray-700 pt-4">
                         {session ? (
                             <div className="space-y-3 px-2">
-                                <Link href="/account" className="block text-gray-200" onClick={() => setIsMobileMenuOpen(false)}>My Account</Link>
-                                <button onClick={handleLogout} className="block text-gray-400">Logout</button>
+                                <Link href="/account" className="block text-gray-200" onClick={() => setIsMobileMenuOpen(false)}>Tài khoản của tôi</Link>
+                                <button onClick={handleLogout} className="block text-gray-400">Đăng xuất</button>
                             </div>
                         ) : (
                             <Link
@@ -239,7 +239,7 @@ export default function Navbar() {
                                 className="block w-full text-center bg-indigo-600 text-white py-2 rounded-md font-bold"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
-                                Login
+                                Đăng nhập
                             </Link>
                         )}
                     </div>

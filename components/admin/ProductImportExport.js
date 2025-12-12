@@ -13,7 +13,7 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
 
     const handleImportSubmit = async (e) => {
         e.preventDefault();
-        if (!importFile) return setMessage({ type: 'error', text: 'Select a CSV file.' });
+        if (!importFile) return setMessage({ type: 'error', text: 'Vui lòng chọn tệp CSV.' });
 
         setIsImporting(true);
         setMessage({ type: '', text: '' });
@@ -26,11 +26,11 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
                 body: formData,
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Import failed.');
+            if (!response.ok) throw new Error(data.error || 'Nhập dữ liệu thất bại.');
 
             setMessage({
                 type: 'success',
-                text: `Success! Created ${data.created_products} products, ${data.created_variants} variants.`
+                text: `Thành công! Đã tạo ${data.created_products} sản phẩm, ${data.created_variants} biến thể.`
             });
             setImportFile(null);
             // Reset file input
@@ -47,7 +47,7 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
 
     const handleExport = async (mode = 'all') => {
         if (mode === 'selected' && selectedProductIds.length === 0) {
-            addToast('Please select products to export.', 'info'); // --- FIXED: Replaced alert() ---
+            addToast('Vui lòng chọn sản phẩm để xuất.', 'info'); // --- FIXED: Replaced alert() ---
             return;
         }
 
@@ -61,7 +61,7 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
 
         try {
             const response = await fetch(exportUrl);
-            if (!response.ok) throw new Error('Export failed.');
+            if (!response.ok) throw new Error('Xuất dữ liệu thất bại.');
 
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -74,7 +74,7 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
-            addToast('Export successful. Download started.', 'success'); // --- NEW ---
+            addToast('Xuất thành công. Đang tải xuống.', 'success'); // --- NEW ---
         } catch (error) {
             addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
@@ -84,12 +84,12 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg mb-8 border border-gray-700">
-            <h2 className="text-xl font-semibold mb-4">Bulk Actions</h2>
+            <h2 className="text-xl font-semibold mb-4">Thao tác hàng loạt</h2>
 
             {/* Import Section */}
             <form onSubmit={handleImportSubmit} className="flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
                 <div className="flex-grow">
-                    <label htmlFor="importFile" className="block text-sm font-medium mb-1">Import CSV</label>
+                    <label htmlFor="importFile" className="block text-sm font-medium mb-1">Nhập CSV</label>
                     <input
                         type="file"
                         id="importFile"
@@ -103,7 +103,7 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
                     disabled={isImporting || !importFile}
                     className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-md disabled:bg-gray-600 whitespace-nowrap"
                 >
-                    {isImporting ? 'Importing...' : 'Upload & Import'}
+                    {isImporting ? 'Đang nhập...' : 'Tải lên & Nhập'}
                 </button>
             </form>
 
@@ -115,7 +115,7 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
 
             {/* Export Section */}
             <div className="pt-4 border-t border-gray-700">
-                <h3 className="text-sm font-semibold mb-3 text-gray-400">Export Tools</h3>
+                <h3 className="text-sm font-semibold mb-3 text-gray-400">Công cụ xuất</h3>
                 <div className="flex gap-3">
                     <button
                         type="button"
@@ -123,7 +123,7 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
                         disabled={isExporting || selectedProductIds.length === 0}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-600"
                     >
-                        {isExporting ? '...' : `Export Selected (${selectedProductIds.length})`}
+                        {isExporting ? '...' : `Xuất đã chọn (${selectedProductIds.length})`}
                     </button>
                     <button
                         type="button"
@@ -131,7 +131,7 @@ export default function ProductImportExport({ selectedProductIds, onImportSucces
                         disabled={isExporting}
                         className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md disabled:opacity-50"
                     >
-                        Export All
+                        Xuất tất cả
                     </button>
                 </div>
             </div>

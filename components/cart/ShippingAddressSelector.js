@@ -19,9 +19,9 @@ export default function ShippingAddressSelector({
                 <div className="flex items-start gap-4">
                     <div className="text-3xl">🔒</div>
                     <div>
-                        <h2 className="text-xl font-bold mb-2 text-yellow-500">Guest Checkout</h2>
+                        <h2 className="text-xl font-bold mb-2 text-yellow-500">Thanh toán khách vãng lai</h2>
                         <p className="text-gray-300 mb-4 text-sm">
-                            You are currently checking out as a guest. Sign in to save your address and track your order history.
+                            Bạn đang thanh toán với tư cách là khách. Đăng nhập để lưu địa chỉ và theo dõi lịch sử đơn hàng.
                         </p>
 
                         {/* --- RENDER GUEST ADDRESS FORM --- */}
@@ -32,7 +32,7 @@ export default function ShippingAddressSelector({
                             href="/login"
                             className="mt-4 inline-block bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors"
                         >
-                            Sign In / Sign Up
+                            Đăng nhập / Đăng ký
                         </Link>
                     </div>
                 </div>
@@ -44,25 +44,25 @@ export default function ShippingAddressSelector({
     return (
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-white">Shipping Address</h2>
+                <h2 className="text-xl font-bold text-white">Địa chỉ giao hàng</h2>
                 <button
                     onClick={onAddNew}
                     className="text-sm text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 transition-colors"
                 >
-                    <span>+</span> New Address
+                    <span>+</span> Địa chỉ mới
                 </button>
             </div>
 
             {isLoading ? (
-                <p className="text-gray-400 text-center py-4">Loading addresses...</p>
+                <p className="text-gray-400 text-center py-4">Đang tải địa chỉ...</p>
             ) : addresses.length === 0 ? (
                 <div className="text-center p-6 border-2 border-dashed border-gray-700 rounded-lg hover:border-gray-600 transition-colors">
-                    <p className="text-gray-400 mb-3">No addresses saved.</p>
+                    <p className="text-gray-400 mb-3">Chưa lưu địa chỉ nào.</p>
                     <button
                         onClick={onAddNew}
                         className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-md text-sm transition-colors"
                     >
-                        Add your first address
+                        Thêm địa chỉ đầu tiên của bạn
                     </button>
                 </div>
             ) : (

@@ -83,7 +83,7 @@ export default function QuickViewModal({ productId, onClose }) {
                 </button>
 
                 {isLoading || !product ? (
-                    <div className="p-8 text-center">Loading product...</div>
+                    <div className="p-8 text-center">Đang tải sản phẩm...</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
                         {/* Image Column */}
@@ -105,13 +105,13 @@ export default function QuickViewModal({ productId, onClose }) {
                             </p>
 
                             <p className="text-gray-400 mb-6 text-sm">
-                                {product.description?.substring(0, 150) || 'No description available.'}
+                                {product.description?.substring(0, 150) || 'Chưa có mô tả.'}
                                 {product.description?.length > 150 && '...'}
                             </p>
 
                             <div className="mb-6">
                                 <h3 className="text-sm font-medium text-gray-300 mb-2">
-                                    Select Variant: <span className="text-white font-semibold">{getVariantLabel(selectedVariant)}</span>
+                                    Chọn biến thể: <span className="text-white font-semibold">{getVariantLabel(selectedVariant)}</span>
                                 </h3>
                                 <div className="flex flex-wrap gap-2">
                                     {product.product_variants.map(variant => (
@@ -136,17 +136,17 @@ export default function QuickViewModal({ productId, onClose }) {
                                     disabled={isOutOfStock || !selectedVariant}
                                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
                                 >
-                                    {!selectedVariant ? 'Select a Variant' : isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                                    {!selectedVariant ? 'Chọn một biến thể' : isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}
                                 </button>
                                 {selectedVariant && !isOutOfStock && (
-                                    <p className="text-xs text-gray-400 text-center">{stockOnHand} in stock</p>
+                                    <p className="text-xs text-gray-400 text-center">{stockOnHand} trong kho</p>
                                 )}
 
                                 <Link
                                     href={`/products/${product.id}`}
                                     className="block text-center text-indigo-400 hover:text-indigo-300 font-semibold"
                                 >
-                                    View Full Details
+                                    Xem chi tiết đầy đủ
                                 </Link>
                             </div>
                         </div>

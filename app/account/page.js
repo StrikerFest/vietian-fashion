@@ -58,7 +58,7 @@ export default function AccountPage() {
 
     // Actions
     const handleDeleteAddress = async (addressId) => {
-        if (!confirm('Are you sure you want to delete this address?')) return;
+        if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này không?')) return;
 
         try {
             const response = await fetch(`/api/account/addresses/${addressId}`, {
@@ -70,7 +70,7 @@ export default function AccountPage() {
                 throw new Error(data.error || 'Failed to delete address');
             }
             fetchAddresses();
-            addToast('Address deleted successfully.', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Xóa địa chỉ thành công.', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
             addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
@@ -92,7 +92,7 @@ export default function AccountPage() {
             <main className="min-h-screen bg-gray-900 text-white p-8 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
-                    <p className="text-gray-400">Loading your account...</p>
+                    <p className="text-gray-400">Đang tải tài khoản của bạn...</p>
                 </div>
             </main>
         );
@@ -104,9 +104,9 @@ export default function AccountPage() {
                 {/* Welcome Header */}
                 <div className="mb-8 pb-6 border-b border-gray-800 flex flex-col md:flex-row justify-between md:items-end gap-4">
                     <div>
-                        <h1 className="text-4xl font-extrabold mb-2">My Account</h1>
+                        <h1 className="text-4xl font-extrabold mb-2">Tài khoản của tôi</h1>
                         <p className="text-lg text-gray-400">
-                            Welcome back, <span className="text-white font-medium">{session.user.email}</span>
+                            Chào mừng trở lại, <span className="text-white font-medium">{session.user.email}</span>
                         </p>
                     </div>
 
@@ -116,13 +116,13 @@ export default function AccountPage() {
                             href="/account/wishlist"
                             className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm font-semibold transition-colors"
                         >
-                            My Wishlist
+                            Danh sách yêu thích
                         </Link>
                         <Link
                             href="/account/returns"
                             className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm font-semibold transition-colors"
                         >
-                            My Returns
+                            Đơn trả hàng
                         </Link>
                     </div>
                 </div>

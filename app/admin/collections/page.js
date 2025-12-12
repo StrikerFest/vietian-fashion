@@ -43,7 +43,7 @@ export default function CollectionsPage() {
             }
         } catch (error) {
             console.error("Failed to fetch collections:", error);
-            addToast("Failed to load collections.", 'error'); // Fallback for fetch error
+            addToast("Không thể tải danh sách bộ sưu tập.", 'error'); // Fallback for fetch error
         } finally {
             setIsLoading(false);
         }
@@ -58,13 +58,13 @@ export default function CollectionsPage() {
     }, [fetchCollections]);
 
     const handleDelete = async (collectionId) => {
-        if (!confirm('Are you sure you want to delete this collection?')) return;
+        if (!confirm('Bạn có chắc chắn muốn xóa bộ sưu tập này không?')) return;
         try {
             const response = await fetch(`/api/collections/${collectionId}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to delete collection');
+            if (!response.ok) throw new Error('Xóa bộ sưu tập thất bại');
 
             fetchCollections(); // Reload
-            addToast('Collection archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Bộ sưu tập đã được lưu trữ thành công!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
             addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
@@ -91,7 +91,7 @@ export default function CollectionsPage() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            <h1 className="text-3xl font-bold mb-6">Manage Collections</h1>
+            <h1 className="text-3xl font-bold mb-6">Quản lý Bộ sưu tập</h1>
 
             {!showForm && (
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
@@ -99,13 +99,13 @@ export default function CollectionsPage() {
                         onClick={() => { setEditingCollection(null); setShowForm(true); }}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                     >
-                        + Add New Collection
+                        + Thêm Bộ sưu tập Mới
                     </button>
 
                     <div className="relative w-full sm:w-64">
                         <input
                             type="text"
-                            placeholder="Search..."
+                            placeholder="Tìm kiếm..."
                             value={searchQuery}
                             onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
                             className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-4 pl-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -127,7 +127,7 @@ export default function CollectionsPage() {
                 ) : (
                     <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
                         {isLoading ? (
-                            <p className="text-gray-400 text-center">Loading collections...</p>
+                            <p className="text-gray-400 text-center">Đang tải bộ sưu tập...</p>
                         ) : (
                             <>
                                 <CollectionList

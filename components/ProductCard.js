@@ -47,16 +47,16 @@ export default function ProductCard({ product, onQuickViewClick }) {
                     </p>
                 ) : (
                     <p className="mt-1 text-md text-gray-500">
-                        Unavailable
+                        Không có sẵn
                     </p>
                 )}
 
                 <button
                     onClick={handleQuickViewClick}
                     className="mt-auto w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors"
-                    aria-label={`Quick view for ${product.name}`}
+                    aria-label={`Xem nhanh ${product.name}`}
                 >
-                    Quick View
+                    Xem nhanh
                 </button>
             </div>
         </div>

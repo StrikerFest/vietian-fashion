@@ -71,20 +71,20 @@ export default function CartSummary({
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg sticky top-24 border border-gray-700 shadow-xl">
-            <h2 className="text-xl font-bold text-white mb-6">Order Summary</h2>
+            <h2 className="text-xl font-bold text-white mb-6">Tóm tắt đơn hàng</h2>
 
             {/* Discount Input */}
             <div className="mb-6 pb-6 border-b border-gray-700">
                 {!appliedDiscount ? (
                     <form onSubmit={handleApply}>
-                        <label htmlFor="discount-code" className="block text-xs font-medium mb-2 text-gray-400 uppercase tracking-wide">Discount Code</label>
+                        <label htmlFor="discount-code" className="block text-xs font-medium mb-2 text-gray-400 uppercase tracking-wide">Mã giảm giá</label>
                         <div className="flex gap-2">
                             <input
                                 type="text"
                                 id="discount-code"
                                 value={discountInput}
                                 onChange={(e) => setDiscountInput(e.target.value)}
-                                placeholder="e.g. SUMMER20"
+                                placeholder="VD: SUMMER20"
                                 className="flex-grow bg-gray-900 border border-gray-600 text-white text-sm rounded-md p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder-gray-600"
                                 disabled={isApplying}
                             />
@@ -93,21 +93,21 @@ export default function CartSummary({
                                 className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md text-sm disabled:opacity-50 transition-colors"
                                 disabled={isApplying || !discountInput}
                             >
-                                {isApplying ? '...' : 'Apply'}
+                                {isApplying ? '...' : 'Áp dụng'}
                             </button>
                         </div>
                     </form>
                 ) : (
                     <div className="bg-green-900/20 border border-green-800 rounded-md p-3 flex justify-between items-center">
                         <div>
-                            <span className="block text-xs text-green-400 font-bold uppercase">Discount Applied</span>
+                            <span className="block text-xs text-green-400 font-bold uppercase">Đã áp dụng mã</span>
                             <span className="font-mono text-white text-sm">{appliedDiscount.code}</span>
                         </div>
                         <button
                             onClick={handleRemove}
                             className="text-gray-400 hover:text-red-400 text-xs font-semibold transition-colors"
                         >
-                            Remove
+                            Xóa
                         </button>
                     </div>
                 )}
@@ -122,33 +122,33 @@ export default function CartSummary({
             {/* Calculations */}
             <div className="space-y-3 text-sm mb-6">
                 <div className="flex justify-between text-gray-400">
-                    <span>Subtotal</span>
+                    <span>Tạm tính</span>
                     <span>${subtotal.toFixed(2)}</span>
                 </div>
 
                 {appliedDiscount && (
                     <div className="flex justify-between text-green-400">
-                        <span>Discount</span>
+                        <span>Giảm giá</span>
                         <span>-${discountAmount.toFixed(2)}</span>
                     </div>
                 )}
 
                 <div className="flex justify-between text-gray-400">
-                    <span>Shipping</span>
+                    <span>Vận chuyển</span>
                     {shippingCost === 0 ? (
-                        <span className="text-green-400 font-medium">Free</span>
+                        <span className="text-green-400 font-medium">Miễn phí</span>
                     ) : (
                         <span className="text-white font-medium">${shippingCost.toFixed(2)}</span>
                     )}
                 </div>
 
                 <div className="flex justify-between text-gray-400">
-                    <span>Estimated Tax ({config.taxRate}%)</span>
+                    <span>Thuế ước tính ({config.taxRate}%)</span>
                     <span className="text-white font-medium">${taxAmount.toFixed(2)}</span>
                 </div>
 
                 <div className="border-t border-gray-700 pt-4 mt-4 flex justify-between items-end">
-                    <span className="text-white font-bold text-lg">Total</span>
+                    <span className="text-white font-bold text-lg">Tổng cộng</span>
                     <span className="text-2xl font-extrabold text-white">${finalTotal.toFixed(2)}</span>
                 </div>
             </div>
@@ -162,16 +162,16 @@ export default function CartSummary({
                 {isCheckingOut ? (
                     <span className="flex items-center justify-center gap-2">
                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                        Processing...
+                        Đang xử lý...
                     </span>
                 ) : (
-                    'Complete Purchase'
+                    'Hoàn tất thanh toán'
                 )}
             </button>
 
             {session && !hasSelectedAddress && (
                 <p className="text-xs text-red-400 text-center mt-3 bg-red-900/10 p-2 rounded border border-red-900/30">
-                    Please select a shipping address to continue.
+                    Vui lòng chọn địa chỉ giao hàng để tiếp tục.
                 </p>
             )}
         </div>

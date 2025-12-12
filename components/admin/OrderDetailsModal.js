@@ -23,13 +23,13 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
     if (!order) return null;
 
     const renderVariantLabel = (variant) => {
-        if (!variant) return 'Unknown Variant';
+        if (!variant) return 'Biến thể không xác định';
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             return Object.entries(variant.attributes)
                 .map(([key, val]) => `${val}`)
                 .join(' / ');
         }
-        return 'Standard';
+        return 'Tiêu chuẩn';
     };
 
     const getDiscountDetails = (ord) => {
@@ -45,10 +45,10 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
         if (discountInfo.type === 'percentage') {
             const discountValue = Math.min(Math.max(discountInfo.value, 0), 100);
             amount = (ord.subtotal * discountValue) / 100;
-            text = `Discount (${discountInfo.code} - ${discountValue}%)`;
+            text = `Giảm giá (${discountInfo.code} - ${discountValue}%)`;
         } else if (discountInfo.type === 'fixed') {
             amount = Math.min(discountInfo.value, ord.subtotal);
-            text = `Discount (${discountInfo.code} - $${Number(discountInfo.value).toFixed(2)})`;
+            text = `Giảm giá (${discountInfo.code} - $${Number(discountInfo.value).toFixed(2)})`;
         }
         amount = Math.max(0, amount);
         return { text, amount };
@@ -62,7 +62,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
     const handleSaveTracking = async () => {
         if (!shippingCarrier && !trackingNumber) {
-            addToast('Please enter Shipping Carrier or Tracking Number.', 'error');
+            addToast('Vui lòng nhập Đơn vị vận chuyển hoặc Mã vận đơn.', 'error');
             return;
         }
         setIsSavingTracking(true);
@@ -72,19 +72,19 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ shipping_carrier: shippingCarrier, tracking_number: trackingNumber }),
             });
-            if (!response.ok) throw new Error('Failed to update tracking info');
+            if (!response.ok) throw new Error('Cập nhật thông tin vận chuyển thất bại');
             const { order: updatedOrder } = await response.json();
             onUpdateOrder(updatedOrder);
-            addToast('Tracking information saved successfully!', 'success');
+            addToast('Đã lưu thông tin vận chuyển thành công!', 'success');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error');
+            addToast(`Lỗi: ${error.message}`, 'error');
         } finally {
             setIsSavingTracking(false);
         }
     };
 
     const handleConfirmPayment = async () => {
-        if (!confirm('Confirm that you have received the bank transfer for this order?')) return;
+        if (!confirm('Xác nhận rằng bạn đã nhận được chuyển khoản ngân hàng cho đơn hàng này?')) return;
         setIsConfirmingPayment(true);
         try {
             const response = await fetch(`/api/orders/${order.id}`, {
@@ -92,19 +92,19 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'paid' }),
             });
-            if (!response.ok) throw new Error('Failed to update order status');
+            if (!response.ok) throw new Error('Cập nhật trạng thái đơn hàng thất bại');
             const { order: updatedOrder } = await response.json();
             onUpdateOrder(updatedOrder);
-            addToast('Payment confirmed! Order marked as Paid.', 'success');
+            addToast('Đã xác nhận thanh toán! Đánh dấu đơn hàng là Đã thanh toán.', 'success');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error');
+            addToast(`Lỗi: ${error.message}`, 'error');
         } finally {
             setIsConfirmingPayment(false);
         }
     };
 
     const handleCancelOrder = async () => {
-        if (!confirm('Cancel order? This will restock items.')) return;
+        if (!confirm('Hủy đơn hàng? Hành động này sẽ hoàn lại kho.')) return;
         setIsCancelling(true);
         try {
             const response = await fetch(`/api/orders/${order.id}`, {
@@ -112,12 +112,12 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'cancelled' }),
             });
-            if (!response.ok) throw new Error('Failed to cancel order');
+            if (!response.ok) throw new Error('Hủy đơn hàng thất bại');
             const { order: updatedOrder } = await response.json();
             onUpdateOrder(updatedOrder);
-            addToast('Order cancelled successfully!', 'success');
+            addToast('Đã hủy đơn hàng thành công!', 'success');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error');
+            addToast(`Lỗi: ${error.message}`, 'error');
         } finally {
             setIsCancelling(false);
         }
@@ -128,7 +128,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
             <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-6 border-b border-gray-700 flex justify-between items-center sticky top-0 bg-gray-800 z-10">
-                    <h2 className="text-2xl font-bold text-white">Order #{order.id}</h2>
+                    <h2 className="text-2xl font-bold text-white">Đơn hàng #{order.id}</h2>
                     <div className="flex items-center gap-4">
                         <OrderStatusBadge status={order.status} />
                         <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
@@ -140,18 +140,18 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                     {order.status === 'pending' && (
                         <div className="bg-yellow-900/20 border border-yellow-700/50 p-4 rounded-lg">
                             <h3 className="text-yellow-500 font-bold text-sm uppercase mb-2 flex items-center gap-2">
-                                ⚠️ Payment Verification Needed
+                                ⚠️ Cần xác minh thanh toán
                             </h3>
                             <p className="text-sm text-gray-300 mb-3">
-                                Check your bank app for a transfer with these exact details:
+                                Kiểm tra ứng dụng ngân hàng của bạn để tìm giao dịch chuyển khoản với các chi tiết chính xác sau:
                             </p>
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div className="bg-gray-900 p-2 rounded border border-gray-700">
-                                    <span className="block text-xs text-gray-500">Expected Amount</span>
+                                    <span className="block text-xs text-gray-500">Số tiền mong đợi</span>
                                     <span className="font-mono text-white font-bold">${order.total_amount.toFixed(2)}</span>
                                 </div>
                                 <div className="bg-gray-900 p-2 rounded border border-gray-700">
-                                    <span className="block text-xs text-gray-500">Description / Memo</span>
+                                    <span className="block text-xs text-gray-500">Nội dung / Ghi chú</span>
                                     <span className="font-mono text-white font-bold">ORDER {order.id}</span>
                                 </div>
                             </div>
@@ -160,7 +160,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
                     {/* Order Items */}
                     <div>
-                        <h3 className="font-semibold mb-2 text-lg text-white">Order Items</h3>
+                        <h3 className="font-semibold mb-2 text-lg text-white">Sản phẩm trong đơn</h3>
                         <div className="space-y-2">
                             {order.order_items.map((item, idx) => (
                                 <div key={idx} className="flex justify-between items-start text-sm p-3 bg-gray-900/50 rounded border border-gray-700">
@@ -197,27 +197,27 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
                     {/* Payment Details */}
                     <div>
-                        <h3 className="font-semibold mb-2 text-lg text-white">Payment Details</h3>
+                        <h3 className="font-semibold mb-2 text-lg text-white">Chi tiết thanh toán</h3>
                         <div className="space-y-1 text-sm bg-gray-900/50 p-4 rounded border border-gray-700">
-                            <div className="flex justify-between"><span className="text-gray-400">Subtotal</span><span className="text-white">${order.subtotal?.toFixed(2) ?? '0.00'}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-400">Tạm tính</span><span className="text-white">${order.subtotal?.toFixed(2) ?? '0.00'}</span></div>
                             {discountDetails.text && <div className="flex justify-between text-green-400"><span>{discountDetails.text}</span><span>-${discountDetails.amount.toFixed(2)}</span></div>}
 
                             <div className="flex justify-between text-gray-400">
-                                <span>Shipping</span>
+                                <span>Vận chuyển</span>
                                 <span className="text-white">${Number(shippingCost).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-gray-400">
-                                <span>Tax</span>
+                                <span>Thuế</span>
                                 <span className="text-white">${Number(taxAmount).toFixed(2)}</span>
                             </div>
 
-                            <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between font-bold text-base text-white"><span>Grand Total</span><span>${order.total_amount.toFixed(2)}</span></div>
+                            <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between font-bold text-base text-white"><span>Tổng cộng</span><span>${order.total_amount.toFixed(2)}</span></div>
                         </div>
                     </div>
 
                     {/* Address */}
                     <div>
-                        <h3 className="font-semibold mb-2 text-lg text-white">Shipping Address</h3>
+                        <h3 className="font-semibold mb-2 text-lg text-white">Địa chỉ giao hàng</h3>
                         {order.addresses ? (
                             <div className="text-sm text-gray-300 bg-gray-900/50 p-4 rounded border border-gray-700">
                                 <p className="font-medium text-white mb-1">{order.addresses.address_line_1}</p>
@@ -225,16 +225,16 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                 <p>{order.addresses.city}, {order.addresses.state_province_region} {order.addresses.postal_code}</p>
                                 <p>{order.addresses.country}</p>
                             </div>
-                        ) : <p className="text-sm text-gray-500 italic">No address provided.</p>}
+                        ) : <p className="text-sm text-gray-500 italic">Không có địa chỉ nào được cung cấp.</p>}
                     </div>
 
                     {/* Tracking */}
                     {order.status !== 'cancelled' && order.status !== 'delivered' && (
                         <div className="bg-gray-900/50 p-4 rounded border border-gray-700 space-y-3">
-                            <h3 className="font-semibold text-white">Update Tracking</h3>
-                            <input type="text" value={shippingCarrier} onChange={e => setShippingCarrier(e.target.value)} placeholder="Carrier (e.g. FedEx)" className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" />
-                            <input type="text" value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} placeholder="Tracking Number" className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" />
-                            <button onClick={handleSaveTracking} disabled={isSavingTracking} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-sm w-full">{isSavingTracking ? 'Saving...' : 'Save Tracking'}</button>
+                            <h3 className="font-semibold text-white">Cập nhật vận chuyển</h3>
+                            <input type="text" value={shippingCarrier} onChange={e => setShippingCarrier(e.target.value)} placeholder="Đơn vị vận chuyển (VD: Viettel Post)" className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" />
+                            <input type="text" value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} placeholder="Mã vận đơn" className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" />
+                            <button onClick={handleSaveTracking} disabled={isSavingTracking} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-sm w-full">{isSavingTracking ? 'Đang lưu...' : 'Lưu vận chuyển'}</button>
                         </div>
                     )}
                 </div>
@@ -249,9 +249,9 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                 disabled={isConfirmingPayment}
                                 className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:bg-gray-600 text-sm flex items-center gap-2"
                             >
-                                {isConfirmingPayment ? 'Processing...' : (
+                                {isConfirmingPayment ? 'Đang xử lý...' : (
                                     <>
-                                        <span>✓</span> Confirm Payment
+                                        <span>✓</span> Xác nhận thanh toán
                                     </>
                                 )}
                             </button>
@@ -259,12 +259,12 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
                         {order.status !== 'cancelled' && order.status !== 'delivered' && (
                             <button onClick={handleCancelOrder} disabled={isCancelling} className="bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-800 font-semibold py-2 px-4 rounded disabled:opacity-50 text-sm">
-                                {isCancelling ? '...' : 'Cancel Order'}
+                                {isCancelling ? '...' : 'Hủy đơn hàng'}
                             </button>
                         )}
                     </div>
 
-                    <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded text-sm">Close</button>
+                    <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded text-sm">Đóng</button>
                 </div>
             </div>
         </div>

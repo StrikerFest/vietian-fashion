@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
             addToast(error.message, 'error');
             setMessage({ type: 'error', text: error.message });
         } else {
-            const successMsg = 'Password reset link sent! Check your email (and spam folder) for instructions.';
+            const successMsg = 'Đã gửi liên kết đặt lại mật khẩu! Vui lòng kiểm tra email (và thư mục spam).';
             addToast(successMsg, 'success');
             setMessage({ type: 'success', text: successMsg });
             setEmail('');
@@ -42,10 +42,10 @@ export default function ForgotPasswordPage() {
         <main className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
             <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700">
                 <h1 className="text-3xl font-bold text-center mb-2 text-white">
-                    Reset Password
+                    Đặt lại mật khẩu
                 </h1>
                 <p className="text-gray-400 text-center mb-8 text-sm">
-                    Enter your email to receive a password reset link.
+                    Nhập email của bạn để nhận liên kết đặt lại mật khẩu.
                 </p>
 
                 {message && (
@@ -58,7 +58,7 @@ export default function ForgotPasswordPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label htmlFor="email" className="block text-sm font-medium mb-1.5 text-gray-300">Email Address</label>
+                        <label htmlFor="email" className="block text-sm font-medium mb-1.5 text-gray-300">Địa chỉ Email</label>
                         <input
                             id="email"
                             type="email"
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
                             onChange={(e) => setEmail(e.target.value)}
                             required
                             className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                            placeholder="you@example.com"
+                            placeholder="ban@example.com"
                         />
                     </div>
 
@@ -78,15 +78,15 @@ export default function ForgotPasswordPage() {
                         {isLoading ? (
                             <span className="flex items-center justify-center gap-2">
                                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                Sending Link...
+                                Đang gửi...
                             </span>
-                        ) : 'Send Reset Link'}
+                        ) : 'Gửi liên kết đặt lại'}
                     </button>
                 </form>
 
                 <p className="mt-6 text-center text-sm text-gray-400">
                     <Link href="/login" className="text-indigo-400 hover:text-indigo-300 hover:underline">
-                        Back to Sign In
+                        Quay lại Đăng nhập
                     </Link>
                 </p>
             </div>

@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 
-export default function AuthForm({ isSignUp, onSubmit, isLoading, message, onPasswordMismatch }) { // --- MODIFIED: Added onPasswordMismatch ---
+export default function AuthForm({ isSignUp, onSubmit, isLoading, message, onPasswordMismatch }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -11,7 +11,7 @@ export default function AuthForm({ isSignUp, onSubmit, isLoading, message, onPas
     const handleSubmit = (e) => {
         e.preventDefault();
         if (isSignUp && password !== confirmPassword) {
-            onPasswordMismatch(); // --- FIXED: Replaced alert() ---
+            onPasswordMismatch();
             return;
         }
         onSubmit({ email, password });
@@ -20,7 +20,7 @@ export default function AuthForm({ isSignUp, onSubmit, isLoading, message, onPas
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-1.5 text-gray-300">Email Address</label>
+                <label htmlFor="email" className="block text-sm font-medium mb-1.5 text-gray-300">Địa chỉ Email</label>
                 <input
                     id="email"
                     type="email"
@@ -28,12 +28,12 @@ export default function AuthForm({ isSignUp, onSubmit, isLoading, message, onPas
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                    placeholder="you@example.com"
+                    placeholder="ban@example.com"
                 />
             </div>
 
             <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-1.5 text-gray-300">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium mb-1.5 text-gray-300">Mật khẩu</label>
                 <input
                     id="password"
                     type="password"
@@ -48,7 +48,7 @@ export default function AuthForm({ isSignUp, onSubmit, isLoading, message, onPas
 
             {isSignUp && (
                 <div className="animate-fade-in">
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium mb-1.5 text-gray-300">Confirm Password</label>
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium mb-1.5 text-gray-300">Xác nhận Mật khẩu</label>
                     <input
                         id="confirmPassword"
                         type="password"
@@ -78,10 +78,10 @@ export default function AuthForm({ isSignUp, onSubmit, isLoading, message, onPas
                 {isLoading ? (
                     <span className="flex items-center justify-center gap-2">
                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                        Processing...
+                        Đang xử lý...
                     </span>
                 ) : (
-                    isSignUp ? 'Create Account' : 'Sign In'
+                    isSignUp ? 'Tạo tài khoản' : 'Đăng nhập'
                 )}
             </button>
         </form>

@@ -56,10 +56,10 @@ export default function InventoryPage() {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || 'Adjustment failed');
+            throw new Error(errorData.error || 'Điều chỉnh thất bại');
         }
 
-        addToast('Inventory adjusted successfully.', 'success'); // --- FIXED: Replaced alert() ---
+        addToast('Điều chỉnh tồn kho thành công.', 'success'); // --- FIXED: Replaced alert() ---
         fetchLogs(); // Refresh logs to show new entry
         // Optionally refresh products to update local stock counts if needed
         fetch('/api/products').then(res => res.json()).then(data => setProducts(data || []));
@@ -73,7 +73,7 @@ export default function InventoryPage() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            <h1 className="text-3xl font-bold mb-8">Inventory Management</h1>
+            <h1 className="text-3xl font-bold mb-8">Quản lý Tồn kho</h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left: Adjustment Form */}
@@ -85,12 +85,12 @@ export default function InventoryPage() {
                 <div className="lg:col-span-2">
                     <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold">Audit Log</h2>
-                            <span className="text-sm text-gray-400">Total Entries: {totalItems}</span>
+                            <h2 className="text-xl font-semibold">Nhật ký kiểm kê</h2>
+                            <span className="text-sm text-gray-400">Tổng mục: {totalItems}</span>
                         </div>
 
                         {isLoadingLogs ? (
-                            <p className="text-center text-gray-400 py-8">Loading logs...</p>
+                            <p className="text-center text-gray-400 py-8">Đang tải nhật ký...</p>
                         ) : (
                             <>
                                 <InventoryLogList logs={logs} />

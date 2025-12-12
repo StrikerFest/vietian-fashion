@@ -24,7 +24,7 @@ export default function WishlistButton({ productId, className = "" }) {
             }
                 ${className}
             `}
-            title={active ? "Remove from Wishlist" : "Add to Wishlist"}
+            title={active ? "Xóa khỏi danh sách yêu thích" : "Thêm vào danh sách yêu thích"}
         >
             <svg
                 xmlns="http://www.w3.org/2000/svg"

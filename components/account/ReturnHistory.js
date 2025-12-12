@@ -27,9 +27,9 @@ export default function ReturnHistory({ returns }) {
     if (returns.length === 0) {
         return (
             <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700 border-dashed">
-                <p className="text-gray-400 mb-4">You have no return requests.</p>
+                <p className="text-gray-400 mb-4">Bạn không có yêu cầu trả hàng nào.</p>
                 <Link href="/account" className="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline">
-                    Back to Account
+                    Quay lại Tài khoản
                 </Link>
             </div>
         );
@@ -42,20 +42,20 @@ export default function ReturnHistory({ returns }) {
                     <div className="flex flex-wrap justify-between items-start mb-4 gap-4 border-b border-gray-700 pb-4">
                         <div>
                             <div className="flex items-center gap-3 mb-1">
-                                <span className="font-bold text-white text-lg">Return #{req.id}</span>
+                                <span className="font-bold text-white text-lg">Đơn trả hàng #{req.id}</span>
                                 <span className={`px-2 py-0.5 rounded text-xs font-bold border uppercase ${getStatusColor(req.status)}`}>
                                     {req.status}
                                 </span>
                             </div>
                             <p className="text-sm text-gray-400">
-                                Requested on {new Date(req.created_at).toLocaleDateString()} •
-                                For Order <Link href={`/order-confirmation/${req.order_id}`} className="text-indigo-400 hover:underline">#{req.order_id}</Link>
+                                Đã yêu cầu vào {new Date(req.created_at).toLocaleDateString()} •
+                                Cho đơn hàng <Link href={`/order-confirmation/${req.order_id}`} className="text-indigo-400 hover:underline">#{req.order_id}</Link>
                             </p>
                         </div>
                     </div>
 
                     <div className="mb-4 bg-gray-900/30 p-3 rounded text-sm">
-                        <span className="text-gray-500 font-semibold mr-2">Reason:</span>
+                        <span className="text-gray-500 font-semibold mr-2">Lý do:</span>
                         <span className="text-gray-300 italic">{`"${req.reason}"`}</span>
                     </div>
 
@@ -80,9 +80,9 @@ export default function ReturnHistory({ returns }) {
                                         )}
                                     </div>
                                     <div>
-                                        <p className="font-medium text-gray-200 text-sm">{product?.name || 'Unknown Item'}</p>
+                                        <p className="font-medium text-gray-200 text-sm">{product?.name || 'Sản phẩm không xác định'}</p>
                                         <p className="text-xs text-gray-500">
-                                            {renderVariantDetails(variant)} • Qty: {item.quantity}
+                                            {renderVariantDetails(variant)} • SL: {item.quantity}
                                         </p>
                                     </div>
                                 </div>

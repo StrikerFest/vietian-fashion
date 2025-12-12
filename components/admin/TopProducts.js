@@ -4,7 +4,7 @@ import Link from 'next/link';
 export default function TopProducts({ products }) {
     return (
         <div className="bg-gray-800 p-6 rounded-lg shadow-md h-full">
-            <h3 className="text-lg font-semibold text-white mb-4">🏆 Top Best Sellers</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">🏆 Sản phẩm bán chạy nhất</h3>
             <div className="space-y-4">
                 {products.map((product, index) => (
                     <div key={product.id} className="flex items-center justify-between border-b border-gray-700 pb-2 last:border-0">
@@ -14,15 +14,15 @@ export default function TopProducts({ products }) {
                                 <Link href={`/admin/products?search=${product.name}`} className="text-indigo-400 hover:text-indigo-300 font-medium">
                                     {product.name}
                                 </Link>
-                                <p className="text-xs text-gray-500">{product.sold} units sold</p>
+                                <p className="text-xs text-gray-500">{product.sold} đã bán</p>
                             </div>
                         </div>
                         <Link href={`/admin/products?edit=${product.id}`} className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded">
-                            Edit
+                            Sửa
                         </Link>
                     </div>
                 ))}
-                {products.length === 0 && <p className="text-gray-500 text-sm">No sales data yet.</p>}
+                {products.length === 0 && <p className="text-gray-500 text-sm">Chưa có dữ liệu bán hàng.</p>}
             </div>
         </div>
     );

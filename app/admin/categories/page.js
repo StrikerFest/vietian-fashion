@@ -22,7 +22,7 @@ export default function CategoriesPage() {
             setCategories(data || []);
         } catch (error) {
             console.error("Failed to fetch categories:", error);
-            addToast("Failed to load categories.", 'error');
+            addToast("Không thể tải danh mục.", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -33,13 +33,13 @@ export default function CategoriesPage() {
     }, []);
 
     const handleDelete = async (categoryId) => {
-        if (!confirm('Are you sure? This can only be done if it has no sub-categories or products.')) return;
+        if (!confirm('Bạn có chắc không? Hành động này chỉ có thể thực hiện nếu danh mục không có danh mục con hoặc sản phẩm.')) return;
         try {
             const response = await fetch(`/api/categories/${categoryId}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to archive category');
+            if (!response.ok) throw new Error('Lưu trữ danh mục thất bại');
 
             setCategories(prev => prev.filter(c => c.id !== categoryId));
-            addToast('Category archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Danh mục đã được lưu trữ thành công!', 'success'); // --- FIXED: Replaced alert() ---
         } catch (error) {
             addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
         }
@@ -59,7 +59,7 @@ export default function CategoriesPage() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            <h1 className="text-3xl font-bold mb-6">Manage Categories</h1>
+            <h1 className="text-3xl font-bold mb-6">Quản lý Danh mục</h1>
 
             {/* Actions Bar */}
             {!showForm && (
@@ -68,13 +68,13 @@ export default function CategoriesPage() {
                         onClick={() => { setEditingCategory(null); setShowForm(true); }}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                     >
-                        + Add New Category
+                        + Thêm Danh mục Mới
                     </button>
 
                     <div className="relative w-full sm:w-64">
                         <input
                             type="text"
-                            placeholder="Search categories..."
+                            placeholder="Tìm kiếm danh mục..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-4 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -97,7 +97,7 @@ export default function CategoriesPage() {
                 ) : (
                     <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
                         {isLoading ? (
-                            <p className="text-gray-400 text-center">Loading categories...</p>
+                            <p className="text-gray-400 text-center">Đang tải danh mục...</p>
                         ) : (
                             <CategoryList
                                 categories={categories}

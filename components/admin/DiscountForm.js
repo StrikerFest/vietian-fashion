@@ -31,15 +31,15 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
 
         // Validation
         if (!code || !type || value === '') {
-            addToast('Please fill in Code, Type, and Value.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Vui lòng điền Mã, Loại và Giá trị.', 'error'); // --- FIXED: Replaced alert() ---
             return;
         }
         if (type === 'percentage' && (parseFloat(value) < 0 || parseFloat(value) > 100)) {
-            addToast('Percentage value must be between 0 and 100.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Giá trị phần trăm phải từ 0 đến 100.', 'error'); // --- FIXED: Replaced alert() ---
             return;
         }
         if (type === 'fixed' && parseFloat(value) < 0) {
-            addToast('Fixed value cannot be negative.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Giá trị cố định không được là số âm.', 'error'); // --- FIXED: Replaced alert() ---
             return;
         }
 
@@ -66,12 +66,12 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Operation failed');
+                throw new Error(errorData.error || 'Thao tác thất bại');
             }
 
-            onSuccess(isEditing ? 'Discount updated!' : 'Discount created!');
+            onSuccess(isEditing ? 'Cập nhật mã giảm giá thành công!' : 'Tạo mã giảm giá thành công!');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Lỗi: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }
@@ -79,23 +79,23 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg mb-8 border border-gray-700">
-            <h2 className="text-xl font-semibold mb-4">{initialData ? 'Edit Discount' : 'Add New Discount'}</h2>
+            <h2 className="text-xl font-semibold mb-4">{initialData ? 'Sửa mã giảm giá' : 'Thêm mã giảm giá mới'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label htmlFor="code" className="block text-sm font-medium mb-1">Discount Code</label>
+                    <label htmlFor="code" className="block text-sm font-medium mb-1">Mã giảm giá</label>
                     <input
                         id="code"
                         type="text"
                         value={code}
                         onChange={(e) => setCode(e.target.value.toUpperCase())}
                         className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500"
-                        placeholder="e.g. SUMMER2025"
+                        placeholder="VD: SUMMER2025"
                         required
                     />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="type" className="block text-sm font-medium mb-1">Type</label>
+                        <label htmlFor="type" className="block text-sm font-medium mb-1">Loại</label>
                         <select
                             id="type"
                             value={type}
@@ -103,12 +103,12 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
                             className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500"
                             required
                         >
-                            <option value="percentage">Percentage (%)</option>
-                            <option value="fixed">Fixed Amount ($)</option>
+                            <option value="percentage">Phần trăm (%)</option>
+                            <option value="fixed">Số tiền cố định ($)</option>
                         </select>
                     </div>
                     <div>
-                        <label htmlFor="value" className="block text-sm font-medium mb-1">Value</label>
+                        <label htmlFor="value" className="block text-sm font-medium mb-1">Giá trị</label>
                         <input
                             id="value"
                             type="number"
@@ -123,7 +123,7 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="start_date" className="block text-sm font-medium mb-1">Start Date (Optional)</label>
+                        <label htmlFor="start_date" className="block text-sm font-medium mb-1">Ngày bắt đầu (Tùy chọn)</label>
                         <input
                             id="start_date"
                             type="datetime-local"
@@ -133,7 +133,7 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
                         />
                     </div>
                     <div>
-                        <label htmlFor="end_date" className="block text-sm font-medium mb-1">End Date (Optional)</label>
+                        <label htmlFor="end_date" className="block text-sm font-medium mb-1">Ngày kết thúc (Tùy chọn)</label>
                         <input
                             id="end_date"
                             type="datetime-local"
@@ -152,7 +152,7 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
                         onChange={(e) => setIsActive(e.target.checked)}
                         className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                     />
-                    <label htmlFor="is_active" className="ml-2 block text-sm font-medium cursor-pointer">Is Active</label>
+                    <label htmlFor="is_active" className="ml-2 block text-sm font-medium cursor-pointer">Kích hoạt</label>
                 </div>
                 <div className="flex gap-3 pt-2">
                     <button
@@ -160,14 +160,14 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
                         onClick={onCancel}
                         className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
                     >
-                        Cancel
+                        Hủy
                     </button>
                     <button
                         type="submit"
                         disabled={isSubmitting}
                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:bg-gray-600"
                     >
-                        {isSubmitting ? 'Saving...' : (initialData ? 'Update' : 'Save')}
+                        {isSubmitting ? 'Đang lưu...' : (initialData ? 'Cập nhật' : 'Lưu')}
                     </button>
                 </div>
             </form>

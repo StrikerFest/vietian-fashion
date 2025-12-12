@@ -70,7 +70,7 @@ export default function HeroSection() {
         <div className="relative bg-gray-800 border-b border-gray-700">
             <div className="relative max-w-4xl mx-auto py-12 px-4 text-center">
                 <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-6">
-                    Find Your Perfect Look
+                    Tìm Kiếm Phong Cách Hoàn Hảo Của Bạn
                 </h1>
 
                 {/* --- Mode Toggle Pill --- */}
@@ -92,7 +92,7 @@ export default function HeroSection() {
                                 searchMode === 'keyword' ? 'text-white' : 'text-gray-400 hover:text-white'
                             }`}
                         >
-                            Keyword Search
+                            Từ khóa
                         </button>
                         <button
                             onClick={() => {
@@ -103,7 +103,7 @@ export default function HeroSection() {
                                 searchMode === 'semantic' ? 'text-white' : 'text-gray-400 hover:text-white'
                             }`}
                         >
-                            AI Assistant
+                            Trợ lý AI
                         </button>
                     </div>
                 </div>
@@ -117,14 +117,14 @@ export default function HeroSection() {
                                 type="text"
                                 value={generalPrompt}
                                 onChange={(e) => setGeneralPrompt(e.target.value)}
-                                placeholder="Search by name (e.g., 'Summer Dress')..."
+                                placeholder="Tìm theo tên (ví dụ: 'Váy mùa hè')..."
                                 className="w-full bg-gray-900 border border-gray-600 text-white rounded-full py-3 pl-6 pr-32 shadow-inner focus:outline-none focus:border-indigo-500 transition-colors"
                             />
                             <button
                                 type="submit"
                                 className="absolute right-1.5 top-1.5 bottom-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 rounded-full transition-colors"
                             >
-                                Search
+                                Tìm kiếm
                             </button>
                         </form>
                     ) : (
@@ -135,13 +135,13 @@ export default function HeroSection() {
                                 className="w-full bg-gray-900 border border-indigo-500/50 text-gray-300 rounded-full py-3 pl-6 pr-32 shadow-inner cursor-pointer text-left hover:border-indigo-400 transition-colors flex items-center gap-2"
                             >
                                 <span className="text-indigo-400">✨</span>
-                                {generalPrompt || "Describe your ideal outfit..."}
+                                {generalPrompt || "Mô tả trang phục lý tưởng của bạn..."}
                             </div>
                             <button
                                 onClick={() => setIsModalOpen(true)}
                                 className="absolute right-1.5 top-1.5 bottom-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 rounded-full transition-colors"
                             >
-                                Describe
+                                Mô tả
                             </button>
                         </div>
                     )}
@@ -154,19 +154,19 @@ export default function HeroSection() {
                     <div className="bg-gray-800 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-700 overflow-hidden animate-fade-in-up">
                         <div className="p-6 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
                             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <span>✨</span> AI Style Finder
+                                <span>✨</span> Tìm Kiếm Phong Cách AI
                             </h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
                         </div>
                         <form onSubmit={handleModalSubmit} className="p-6 space-y-6">
                             <div>
                                 <label className="block text-sm font-semibold text-gray-300 mb-2">
-                                    Describe what you are looking for
+                                    Mô tả những gì bạn đang tìm kiếm
                                 </label>
                                 <textarea
                                     value={generalPrompt}
                                     onChange={(e) => setGeneralPrompt(e.target.value)}
-                                    placeholder="e.g. I need a classy outfit for a beach wedding, preferably something breathable..."
+                                    placeholder="Ví dụ: Tôi cần một bộ trang phục sang trọng cho đám cưới bãi biển, ưu tiên chất liệu thoáng mát..."
                                     className="w-full bg-gray-900 border border-gray-600 rounded-xl p-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none h-32 resize-none"
                                 ></textarea>
                             </div>
@@ -187,7 +187,7 @@ export default function HeroSection() {
                             )}
                             <div className="pt-2">
                                 <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg">
-                                    Find Matches
+                                    Tìm kết quả phù hợp
                                 </button>
                             </div>
                         </form>

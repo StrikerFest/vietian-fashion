@@ -33,11 +33,11 @@ export default function GuestAddressForm({ onChange, setIsValid }) {
     return (
         <div className="space-y-4">
             <p className="text-sm text-gray-400">
-                Please enter a shipping address to complete your guest order.
+                Vui lòng nhập địa chỉ giao hàng để hoàn tất đơn hàng.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-medium mb-1 text-gray-400">Address Line 1*</label>
+                    <label className="block text-xs font-medium mb-1 text-gray-400">Địa chỉ dòng 1*</label>
                     <input
                         type="text"
                         name="address_line_1"
@@ -48,7 +48,7 @@ export default function GuestAddressForm({ onChange, setIsValid }) {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium mb-1 text-gray-400">City*</label>
+                    <label className="block text-xs font-medium mb-1 text-gray-400">Thành phố*</label>
                     <input
                         type="text"
                         name="city"
@@ -59,7 +59,7 @@ export default function GuestAddressForm({ onChange, setIsValid }) {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium mb-1 text-gray-400">State/Region*</label>
+                    <label className="block text-xs font-medium mb-1 text-gray-400">Tỉnh/Thành*</label>
                     <input
                         type="text"
                         name="state_province_region"
@@ -70,7 +70,7 @@ export default function GuestAddressForm({ onChange, setIsValid }) {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium mb-1 text-gray-400">Postal Code*</label>
+                    <label className="block text-xs font-medium mb-1 text-gray-400">Mã bưu chính*</label>
                     <input
                         type="text"
                         name="postal_code"
@@ -81,7 +81,7 @@ export default function GuestAddressForm({ onChange, setIsValid }) {
                     />
                 </div>
                 <div className="md:col-span-2">
-                    <label className="block text-xs font-medium mb-1 text-gray-400">Country*</label>
+                    <label className="block text-xs font-medium mb-1 text-gray-400">Quốc gia*</label>
                     <input
                         type="text"
                         name="country"

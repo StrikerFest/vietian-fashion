@@ -22,7 +22,7 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
         const validImages = selected.filter(file => file.type.startsWith('image/'));
 
         if (validImages.length !== selected.length) {
-            addToast(`Skipped ${selected.length - validImages.length} non-image files.`, 'warning');
+            addToast(`Đã bỏ qua ${selected.length - validImages.length} tệp không phải hình ảnh.`, 'warning');
         }
 
         const newQueue = validImages.map(file => ({
@@ -54,7 +54,7 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
             if (queue.length === 0 && activeWorkers === 0) {
                 // ALL DONE
                 setIsProcessing(false);
-                addToast(`Batch complete! ${successCount} products generated.`, 'success');
+                addToast(`Hoàn tất! Đã tạo ${successCount} sản phẩm.`, 'success');
                 if (onComplete) onComplete();
                 return;
             }
@@ -80,16 +80,16 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
 
                 const data = await res.json();
 
-                if (!res.ok) throw new Error(data.error || 'Failed');
+                if (!res.ok) throw new Error(data.error || 'Thất bại');
 
                 // Success Logic
                 successCount++;
-                setLogs(prev => [`✅ Generated: ${data.product.name}`, ...prev]);
+                setLogs(prev => [`✅ Đã tạo: ${data.product.name}`, ...prev]);
                 setFiles(prev => prev.map(f => f.id === task.id ? { ...f, status: 'success' } : f));
 
             } catch (err) {
                 console.error(err);
-                setLogs(prev => [`❌ Failed: ${task.file.name} - ${err.message}`, ...prev]);
+                setLogs(prev => [`❌ Thất bại: ${task.file.name} - ${err.message}`, ...prev]);
                 setFiles(prev => prev.map(f => f.id === task.id ? { ...f, status: 'error' } : f));
             } finally {
                 activeWorkers--;
@@ -119,9 +119,9 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                 <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900">
                     <div>
                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <span className="text-yellow-400">✨</span> AI Drop Generator
+                            <span className="text-yellow-400">✨</span> Trình tạo sản phẩm AI
                         </h2>
-                        <p className="text-sm text-gray-400">Upload images to auto-generate draft products.</p>
+                        <p className="text-sm text-gray-400">Tải lên hình ảnh để tự động tạo bản nháp sản phẩm.</p>
                     </div>
                     {!isProcessing && (
                         <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
@@ -138,8 +138,8 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                             className="border-2 border-dashed border-gray-700 hover:border-indigo-500 hover:bg-gray-800/50 rounded-xl p-12 text-center cursor-pointer transition-all group"
                         >
                             <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">📸</div>
-                            <h3 className="text-lg font-medium text-white">Click or Drag images here</h3>
-                            <p className="text-sm text-gray-500 mt-2">Supports JPG, PNG, WEBP</p>
+                            <h3 className="text-lg font-medium text-white">Nhấp hoặc Kéo hình ảnh vào đây</h3>
+                            <p className="text-sm text-gray-500 mt-2">Hỗ trợ JPG, PNG, WEBP</p>
                             <input
                                 type="file"
                                 multiple
@@ -166,7 +166,7 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
 
                             {/* Status Logs (Mini Console) */}
                             <div className="bg-black/50 rounded-lg p-4 font-mono text-xs text-gray-300 h-32 overflow-y-auto border border-gray-800">
-                                {logs.length === 0 ? <span className="text-gray-600 opacity-50">Waiting to start...</span> : logs.map((log, i) => (
+                                {logs.length === 0 ? <span className="text-gray-600 opacity-50">Đang chờ bắt đầu...</span> : logs.map((log, i) => (
                                     <div key={i} className="mb-1">{log}</div>
                                 ))}
                             </div>
@@ -183,7 +183,7 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
 
                                         {/* Status Overlays */}
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                            {fileObj.status === 'pending' && <span className="text-xs text-gray-400 bg-black/50 px-2 py-1 rounded">Pending</span>}
+                                            {fileObj.status === 'pending' && <span className="text-xs text-gray-400 bg-black/50 px-2 py-1 rounded">Đợi</span>}
                                             {fileObj.status === 'processing' && <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"/>}
                                             {fileObj.status === 'success' && <span className="text-xl">✅</span>}
                                             {fileObj.status === 'error' && <span className="text-xl">❌</span>}
@@ -197,7 +197,7 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                                         onClick={() => fileInputRef.current?.click()}
                                         className="border border-dashed border-gray-600 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-gray-400"
                                     >
-                                        + Add
+                                        + Thêm
                                     </button>
                                 )}
                             </div>
@@ -212,7 +212,7 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                         disabled={isProcessing || files.length === 0}
                         className="text-sm text-gray-500 hover:text-white disabled:opacity-30"
                     >
-                        Clear All
+                        Xóa tất cả
                     </button>
 
                     <button
@@ -227,8 +227,8 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                         `}
                     >
                         {isProcessing
-                            ? `Generating (${progress.completed}/${progress.total})...`
-                            : `Generate ${files.length} Products`
+                            ? `Đang tạo (${progress.completed}/${progress.total})...`
+                            : `Tạo ${files.length} sản phẩm`
                         }
                     </button>
                 </div>

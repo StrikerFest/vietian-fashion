@@ -58,7 +58,7 @@ export default function ProductReviews({ productId }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (rating === 0) {
-            setMessage({ type: 'error', text: 'Please select a star rating.' });
+            setMessage({ type: 'error', text: 'Vui lòng chọn xếp hạng sao.' });
             return;
         }
         setIsSubmitting(true);
@@ -77,9 +77,9 @@ export default function ProductReviews({ productId }) {
             });
 
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Failed to submit review');
+            if (!response.ok) throw new Error(data.error || 'Gửi đánh giá thất bại');
 
-            setMessage({ type: 'success', text: 'Review submitted! Pending moderation.' });
+            setMessage({ type: 'success', text: 'Đã gửi đánh giá! Đang chờ kiểm duyệt.' });
             setRating(0);
             setComment('');
         } catch (error) {
@@ -91,25 +91,25 @@ export default function ProductReviews({ productId }) {
 
     return (
         <div className="mt-16 pt-10 border-t border-gray-700">
-            <h2 className="text-2xl font-bold mb-8 text-white">Customer Reviews</h2>
+            <h2 className="text-2xl font-bold mb-8 text-white">Đánh giá của khách hàng</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 {/* Review Form */}
                 <div className="bg-gray-800 p-6 rounded-lg h-fit border border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-white">Write a Review</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-white">Viết đánh giá</h3>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium mb-2 text-gray-400">Rating</label>
+                            <label className="block text-sm font-medium mb-2 text-gray-400">Xếp hạng</label>
                             <StarRatingInput rating={rating} setRating={setRating} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-2 text-gray-400">Comment</label>
+                            <label className="block text-sm font-medium mb-2 text-gray-400">Bình luận</label>
                             <textarea
                                 value={comment}
                                 onChange={(e) => setComment(e.target.value)}
                                 rows="4"
                                 className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                                placeholder="Share your thoughts..."
+                                placeholder="Chia sẻ suy nghĩ của bạn..."
                             ></textarea>
                         </div>
 
@@ -124,7 +124,7 @@ export default function ProductReviews({ productId }) {
                             disabled={isSubmitting}
                             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition-colors disabled:bg-gray-600"
                         >
-                            {isSubmitting ? 'Submitting...' : 'Submit Review'}
+                            {isSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}
                         </button>
                     </form>
                 </div>
@@ -132,10 +132,10 @@ export default function ProductReviews({ productId }) {
                 {/* Reviews List */}
                 <div className="space-y-6">
                     {isLoading ? (
-                        <p className="text-gray-400">Loading reviews...</p>
+                        <p className="text-gray-400">Đang tải đánh giá...</p>
                     ) : reviews.length === 0 ? (
                         <div className="text-center py-10 bg-gray-800/50 rounded-lg border border-gray-700 border-dashed">
-                            <p className="text-gray-400">No reviews yet. Be the first to share your thoughts!</p>
+                            <p className="text-gray-400">Chưa có đánh giá nào. Hãy là người đầu tiên chia sẻ suy nghĩ của bạn!</p>
                         </div>
                     ) : (
                         reviews.map(review => (
@@ -152,7 +152,7 @@ export default function ProductReviews({ productId }) {
                                     <span className="text-xs text-gray-500">{new Date(review.created_at).toLocaleDateString()}</span>
                                 </div>
                                 <p className="text-gray-300 text-sm leading-relaxed mt-3">
-                                    {review.comment || <span className="italic text-gray-600">No written comment.</span>}
+                                    {review.comment || <span className="italic text-gray-600">Không có bình luận bằng lời.</span>}
                                 </p>
                             </div>
                         ))

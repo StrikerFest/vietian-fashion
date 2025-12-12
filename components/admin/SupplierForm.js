@@ -43,12 +43,12 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }) {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Operation failed');
+                throw new Error(errorData.error || 'Thao tác thất bại');
             }
 
-            onSuccess(isEditing ? 'Supplier updated!' : 'Supplier created!');
+            onSuccess(isEditing ? 'Cập nhật nhà cung cấp thành công!' : 'Tạo nhà cung cấp thành công!');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Lỗi: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
         } finally {
             setIsSubmitting(false);
         }
@@ -56,10 +56,10 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }) {
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 sticky top-6">
-            <h2 className="text-xl font-semibold mb-4">{initialData ? 'Edit Supplier' : 'Add New Supplier'}</h2>
+            <h2 className="text-xl font-semibold mb-4">{initialData ? 'Sửa Nhà cung cấp' : 'Thêm Nhà cung cấp Mới'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label htmlFor="name" className="block text-sm font-medium mb-1">Supplier Name</label>
+                    <label htmlFor="name" className="block text-sm font-medium mb-1">Tên Nhà cung cấp</label>
                     <input
                         id="name"
                         type="text"
@@ -70,7 +70,7 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }) {
                     />
                 </div>
                 <div>
-                    <label htmlFor="contact" className="block text-sm font-medium mb-1">Contact Person</label>
+                    <label htmlFor="contact" className="block text-sm font-medium mb-1">Người liên hệ</label>
                     <input
                         id="contact"
                         type="text"
@@ -90,7 +90,7 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }) {
                     />
                 </div>
                 <div>
-                    <label htmlFor="phone" className="block text-sm font-medium mb-1">Phone</label>
+                    <label htmlFor="phone" className="block text-sm font-medium mb-1">Số điện thoại</label>
                     <input
                         id="phone"
                         type="tel"
@@ -106,7 +106,7 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }) {
                         disabled={isSubmitting}
                         className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:bg-gray-600"
                     >
-                        {isSubmitting ? 'Saving...' : (initialData ? 'Update' : 'Save')}
+                        {isSubmitting ? 'Đang lưu...' : (initialData ? 'Cập nhật' : 'Lưu')}
                     </button>
                     {initialData && (
                         <button
@@ -114,7 +114,7 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }) {
                             onClick={onCancel}
                             className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
                         >
-                            Cancel
+                            Hủy
                         </button>
                     )}
                 </div>

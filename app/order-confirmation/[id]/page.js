@@ -103,7 +103,7 @@ export default function OrderConfirmationPage() {
     }, [orderId]);
 
     const handleReturnSuccess = () => {
-        addToast("Return request submitted! We will review it shortly.", 'success');
+        addToast("Yêu cầu trả hàng đã được gửi! Chúng tôi sẽ xem xét sớm.", 'success');
     };
 
     if (isLoading) {
@@ -111,7 +111,7 @@ export default function OrderConfirmationPage() {
             <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-                    <p>Loading your order...</p>
+                    <p>Đang tải đơn hàng của bạn...</p>
                 </div>
             </div>
         );
@@ -120,10 +120,10 @@ export default function OrderConfirmationPage() {
     if (!order) {
         return (
             <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center text-center p-8">
-                <h1 className="text-4xl font-bold mb-4">Order Not Found</h1>
-                <p className="text-gray-400 mb-6">{`We couldn't find the order details. Please check your account for your order history.`}</p>
+                <h1 className="text-4xl font-bold mb-4">Không tìm thấy đơn hàng</h1>
+                <p className="text-gray-400 mb-6">{`Chúng tôi không tìm thấy chi tiết đơn hàng. Vui lòng kiểm tra tài khoản của bạn để xem lịch sử đơn hàng.`}</p>
                 <Link href="/" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                    Return to Homepage
+                    Quay lại Trang chủ
                 </Link>
             </div>
         );
@@ -136,13 +136,13 @@ export default function OrderConfirmationPage() {
             {order.status === 'delivered' && (
                 <div className="max-w-4xl mx-auto mt-8 text-center pt-8 border-t border-gray-800">
                     <p className="text-gray-400 text-sm mb-4">
-                        Need to return an item from this order?
+                        Cần trả lại một mặt hàng từ đơn hàng này?
                     </p>
                     <button
                         onClick={() => setIsReturnModalOpen(true)}
                         className="text-indigo-400 hover:text-indigo-300 font-semibold text-sm hover:underline transition-colors"
                     >
-                        Request a Return / Refund
+                        Yêu cầu Trả hàng / Hoàn tiền
                     </button>
                 </div>
             )}

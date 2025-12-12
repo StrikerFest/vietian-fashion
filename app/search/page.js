@@ -72,9 +72,9 @@ export default function SearchPage() {
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8">
-                    <Link href="/" className="text-sm text-gray-400 hover:text-white">&larr; Back Home</Link>
+                    <Link href="/" className="text-sm text-gray-400 hover:text-white">&larr; Quay lại Trang chủ</Link>
                     <h1 className="text-3xl font-bold mt-2">
-                        {mode === 'keyword' ? 'Keyword Results' : 'AI Suggestions'} for <span className="text-indigo-400">{`"${queryText}"`}</span>
+                        {mode === 'keyword' ? 'Kết quả từ khóa' : 'Gợi ý từ AI'} cho <span className="text-indigo-400">{`"${queryText}"`}</span>
                     </h1>
                 </div>
 
@@ -89,13 +89,13 @@ export default function SearchPage() {
                             <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {results.collections.map(c => (
                                     <Link key={c.id} href={`/collections/${c.slug}`} className="bg-gray-800 p-6 rounded-xl border border-indigo-500/30 hover:bg-gray-700 transition-colors block">
-                                        <span className="text-xs font-bold text-indigo-400 uppercase">Collection</span>
+                                        <span className="text-xs font-bold text-indigo-400 uppercase">Bộ sưu tập</span>
                                         <h3 className="text-xl font-bold text-white">{c.name}</h3>
                                     </Link>
                                 ))}
                                 {results.attributes.map(a => (
                                     <Link key={a.id} href={`/categories/${a.slug}`} className="bg-gray-800 p-6 rounded-xl border border-purple-500/30 hover:bg-gray-700 transition-colors block">
-                                        <span className="text-xs font-bold text-purple-400 uppercase">Category</span>
+                                        <span className="text-xs font-bold text-purple-400 uppercase">Danh mục</span>
                                         <h3 className="text-xl font-bold text-white">{a.name}</h3>
                                     </Link>
                                 ))}
@@ -115,8 +115,8 @@ export default function SearchPage() {
                             </div>
                         ) : (
                             <div className="text-center py-20 bg-gray-800/50 rounded-lg border border-dashed border-gray-700">
-                                <p className="text-gray-400">No direct matches found.</p>
-                                <p className="text-sm text-gray-500 mt-2">Try adjusting your search terms.</p>
+                                <p className="text-gray-400">Không tìm thấy kết quả phù hợp trực tiếp.</p>
+                                <p className="text-sm text-gray-500 mt-2">Hãy thử điều chỉnh từ khóa tìm kiếm của bạn.</p>
                             </div>
                         )}
                     </>

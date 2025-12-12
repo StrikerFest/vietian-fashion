@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
     if (isAuthLoading || session) {
         return (
             <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-                <p>Redirecting to admin dashboard...</p>
+                <p>Đang chuyển hướng đến trang quản trị...</p>
             </div>
         );
     }
@@ -61,7 +61,7 @@ export default function AdminLoginPage() {
         <main className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-8">
             <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow-xl">
                 <h1 className="text-3xl font-bold text-center mb-6">
-                    Admin Portal Login
+                    Đăng nhập Quản trị
                 </h1>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -79,7 +79,7 @@ export default function AdminLoginPage() {
                     </div>
 
                     <div>
-                        <label htmlFor="password" className="block text-sm font-medium mb-1">Password</label>
+                        <label htmlFor="password" className="block text-sm font-medium mb-1">Mật khẩu</label>
                         <input
                             id="password"
                             type="password"
@@ -104,7 +104,7 @@ export default function AdminLoginPage() {
                             disabled={isLoading}
                             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-md transition-colors disabled:bg-gray-500"
                         >
-                            {isLoading ? 'Signing In...' : 'Login'}
+                            {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
                         </button>
                     </div>
                 </form>

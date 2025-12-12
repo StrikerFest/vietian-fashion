@@ -12,7 +12,7 @@ export default function AuthTabs({ isSignUp, onChange }) {
                 }`}
                 onClick={() => onChange(false)}
             >
-                Login
+                Đăng nhập
             </button>
             <button
                 className={`flex-1 pb-4 text-center font-medium transition-colors ${
@@ -22,7 +22,7 @@ export default function AuthTabs({ isSignUp, onChange }) {
                 }`}
                 onClick={() => onChange(true)}
             >
-                Sign Up
+                Đăng ký
             </button>
         </div>
     );

@@ -12,13 +12,13 @@ const inter = Inter({ subsets: ["latin"] });
 
 // This metadata export will now work correctly
 export const metadata = {
-    title: "AI Fashion Store",
-    description: "Your next outfit, discovered by AI.",
+    title: "Cửa Hàng Thời Trang AI",
+    description: "Trang phục tiếp theo của bạn, được khám phá bởi AI.",
 };
 
 export default function RootLayout({ children }) {
     return (
-        <html lang="en">
+        <html lang="vi">
         <body className={inter.className}>
         {/* This <Providers> component is marked 'use client',
               but the RootLayout itself remains a Server Component,

@@ -17,10 +17,10 @@ export default function CollectionPage(props) {
     return (
         <ProductListingPage
             fetchUrl={fetchUrl}
-            pageType="Collection"
+            pageType="Bộ sưu tập"
             // Hardcode the fallback values instead of importing
-            defaultTitle="AI Fashion Store"
-            defaultDescription="Your next outfit, discovered by AI."
+            defaultTitle="Cửa hàng Thời trang AI"
+            defaultDescription="Trang phục tiếp theo của bạn, được khám phá bởi AI."
         />
     );
 }

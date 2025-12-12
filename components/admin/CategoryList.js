@@ -5,13 +5,13 @@ export default function CategoryList({ categories, searchQuery, onEdit, onDelete
 
     // Helper to check if item is currently active based on dates
     const getTimingStatus = (cat) => {
-        if (!cat.is_active) return { label: 'Inactive', color: 'bg-red-900 text-red-200' };
+        if (!cat.is_active) return { label: 'Không hoạt động', color: 'bg-red-900 text-red-200' };
 
         const now = new Date();
-        if (cat.start_date && new Date(cat.start_date) > now) return { label: 'Scheduled', color: 'bg-yellow-900 text-yellow-200' };
-        if (cat.end_date && new Date(cat.end_date) < now) return { label: 'Expired', color: 'bg-gray-700 text-gray-400' };
+        if (cat.start_date && new Date(cat.start_date) > now) return { label: 'Đã lên lịch', color: 'bg-yellow-900 text-yellow-200' };
+        if (cat.end_date && new Date(cat.end_date) < now) return { label: 'Hết hạn', color: 'bg-gray-700 text-gray-400' };
 
-        return { label: 'Live', color: 'bg-green-900 text-green-200' };
+        return { label: 'Hoạt động', color: 'bg-green-900 text-green-200' };
     };
 
     // Helper to render a single row
@@ -32,7 +32,7 @@ export default function CategoryList({ categories, searchQuery, onEdit, onDelete
                     <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
                         isCatalog ? 'bg-blue-900 text-blue-200' : 'bg-purple-900 text-purple-200'
                     }`}>
-                        {isCatalog ? 'Nav' : 'Filter'}
+                        {isCatalog ? 'Menu' : 'Bộ lọc'}
                     </span>
 
                     {/* Hierarchy Indicator */}
@@ -57,7 +57,7 @@ export default function CategoryList({ categories, searchQuery, onEdit, onDelete
 
                     <div className="flex gap-2 text-sm">
                         <button onClick={() => onEdit(category)} className="text-indigo-400 hover:text-indigo-300 font-semibold px-2">
-                            Edit
+                            Sửa
                         </button>
                         <button onClick={() => onDelete(category.id)} className="text-red-500 hover:text-red-400 font-semibold px-2">
                             &times;
@@ -87,20 +87,20 @@ export default function CategoryList({ categories, searchQuery, onEdit, onDelete
     // Flat Search Renderer
     const renderSearchResults = () => {
         const filtered = categories.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
-        if (filtered.length === 0) return <p className="text-gray-500 text-center mt-4">No matches found.</p>;
+        if (filtered.length === 0) return <p className="text-gray-500 text-center mt-4">Không tìm thấy kết quả.</p>;
         return filtered.map(category => <CategoryRow key={category.id} category={category} level={0} />);
     };
 
     if (categories.length === 0) {
-        return <p className="text-gray-500 mt-4 text-center">No categories found.</p>;
+        return <p className="text-gray-500 mt-4 text-center">Không tìm thấy danh mục nào.</p>;
     }
 
     return (
         <div className="space-y-1">
             {/* Optional Header Row to explain types if list is long */}
             <div className="flex justify-end mb-2 space-x-4 text-xs text-gray-500 px-2">
-                <span className="flex items-center"><span className="w-2 h-2 bg-blue-900 rounded-full mr-1"></span> Navigation</span>
-                <span className="flex items-center"><span className="w-2 h-2 bg-purple-900 rounded-full mr-1"></span> Filters</span>
+                <span className="flex items-center"><span className="w-2 h-2 bg-blue-900 rounded-full mr-1"></span> Điều hướng</span>
+                <span className="flex items-center"><span className="w-2 h-2 bg-purple-900 rounded-full mr-1"></span> Bộ lọc</span>
             </div>
 
             {searchQuery ? renderSearchResults() : renderTree()}

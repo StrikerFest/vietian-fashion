@@ -73,7 +73,7 @@ export default function Sidebar({ config }) {
             {/* Fallback if enabled but empty */}
             {widgets.length === 0 && (
                 <div className="p-4 border border-dashed border-gray-700 rounded-lg text-center text-gray-500 text-sm">
-                    Sidebar Active.<br/>Add widgets in Admin Settings.
+                    Thanh bên đang hoạt động.<br/>Thêm tiện ích trong Cài đặt quản trị.
                 </div>
             )}
         </aside>

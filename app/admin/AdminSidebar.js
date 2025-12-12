@@ -6,21 +6,21 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
 const adminLinks = [
-    { name: 'Dashboard', href: '/admin' },
-    { name: 'Products', href: '/admin/products' },
-    { name: 'Product Options', href: '/admin/options' }, // --- NEW LINK ---
-    { name: 'Orders', href: '/admin/orders' },
-    { name: 'Customers', href: '/admin/users' },
-    { name: 'Categories', href: '/admin/categories' },
-    { name: 'Collections', href: '/admin/collections' },
-    { name: 'Tags', href: '/admin/tags' },
-    { name: 'Discounts', href: '/admin/discounts' },
-    { name: 'Reviews', href: '/admin/reviews' },
-    { name: 'Returns', href: '/admin/returns' },
-    { name: 'Suppliers', href: '/admin/suppliers' },
-    { name: 'Purchase Orders', href: '/admin/purchase-orders' },
-    { name: 'Inventory Logs', href: '/admin/inventory' },
-    { name: 'Settings', href: '/admin/settings' },
+    { name: 'Bảng điều khiển', href: '/admin' },
+    { name: 'Sản phẩm', href: '/admin/products' },
+    { name: 'Tùy chọn sản phẩm', href: '/admin/options' }, // --- NEW LINK ---
+    { name: 'Đơn hàng', href: '/admin/orders' },
+    { name: 'Khách hàng', href: '/admin/users' },
+    { name: 'Danh mục', href: '/admin/categories' },
+    { name: 'Bộ sưu tập', href: '/admin/collections' },
+    { name: 'Thẻ / Thuộc tính', href: '/admin/tags' },
+    { name: 'Mã giảm giá', href: '/admin/discounts' },
+    { name: 'Đánh giá', href: '/admin/reviews' },
+    { name: 'Trả hàng', href: '/admin/returns' },
+    { name: 'Nhà cung cấp', href: '/admin/suppliers' },
+    { name: 'Đơn nhập hàng', href: '/admin/purchase-orders' },
+    { name: 'Nhật ký tồn kho', href: '/admin/inventory' },
+    { name: 'Cài đặt', href: '/admin/settings' },
 ];
 
 export default function AdminSidebar() {
@@ -37,7 +37,7 @@ export default function AdminSidebar() {
         <div className="w-64 h-screen bg-gray-800 text-white flex flex-col fixed top-0 left-0">
             <div className="p-4 border-b border-gray-700">
                 <Link href="/admin" className="text-xl font-bold">
-                    AI Store Admin
+                    Quản trị AI Store
                 </Link>
             </div>
 
@@ -71,14 +71,14 @@ export default function AdminSidebar() {
                             onClick={handleLogout}
                             className="w-full bg-gray-600 hover:bg-gray-500 text-white font-medium py-2 px-3 rounded-md text-sm"
                         >
-                            Logout
+                            Đăng xuất
                         </button>
                     </div>
                 ) : (
-                    <p className="text-sm text-gray-400">Not logged in.</p>
+                    <p className="text-sm text-gray-400">Chưa đăng nhập.</p>
                 )}
                 <Link href="/" className="mt-4 block text-center text-xs text-indigo-400 hover:text-indigo-300">
-                    &larr; Back to Storefront
+                    &larr; Về trang chủ
                 </Link>
             </div>
         </div>

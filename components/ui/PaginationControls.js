@@ -34,9 +34,9 @@ export default function PaginationControls({
             {/* Left: Info & Limit */}
             <div className="flex items-center gap-4 text-sm text-gray-400">
                 <span>
-                    Showing <span className="font-medium text-white">{(currentPage - 1) * limit + 1}</span> to{' '}
-                    <span className="font-medium text-white">{Math.min(currentPage * limit, totalItems)}</span> of{' '}
-                    <span className="font-medium text-white">{totalItems}</span> results
+                    Hiển thị <span className="font-medium text-white">{(currentPage - 1) * limit + 1}</span> đến{' '}
+                    <span className="font-medium text-white">{Math.min(currentPage * limit, totalItems)}</span> trong số{' '}
+                    <span className="font-medium text-white">{totalItems}</span> kết quả
                 </span>
 
                 {onLimitChange && (
@@ -46,10 +46,10 @@ export default function PaginationControls({
                         disabled={isLoading}
                         className="bg-gray-800 border border-gray-600 rounded px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500 text-white"
                     >
-                        <option value="12">12 / page</option>
-                        <option value="24">24 / page</option>
-                        <option value="48">48 / page</option>
-                        <option value="100">100 / page</option>
+                        <option value="12">12 / trang</option>
+                        <option value="24">24 / trang</option>
+                        <option value="48">48 / trang</option>
+                        <option value="100">100 / trang</option>
                     </select>
                 )}
             </div>
@@ -61,7 +61,7 @@ export default function PaginationControls({
                     disabled={currentPage === 1 || isLoading}
                     className="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                    &larr; Prev
+                    &larr; Trước
                 </button>
 
                 <div className="flex gap-1">
@@ -86,7 +86,7 @@ export default function PaginationControls({
                     disabled={currentPage === totalPages || isLoading}
                     className="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                    Next &rarr;
+                    Sau &rarr;
                 </button>
             </div>
         </div>

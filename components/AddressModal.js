@@ -45,11 +45,11 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
             if (!response.ok) {
                 const data = await response.json();
                 // Throw error to be caught below
-                throw new Error(data.error || 'Failed to add address');
+                throw new Error(data.error || 'Thêm địa chỉ thất bại');
             }
 
             // Success handling
-            addToast('New address saved successfully!', 'success'); // --- NEW ---
+            addToast('Đã lưu địa chỉ mới thành công!', 'success'); // --- NEW ---
 
             // Reset form and notify parent
             setFormData({
@@ -65,7 +65,7 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
             onClose();
         } catch (err) {
             setError(err.message);
-            addToast(`Error adding address: ${err.message}`, 'error'); // --- NEW ---
+            addToast(`Lỗi khi thêm địa chỉ: ${err.message}`, 'error'); // --- NEW ---
         } finally {
             setIsSubmitting(false);
         }
@@ -78,7 +78,7 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
                 onClick={e => e.stopPropagation()}
             >
                 <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold">Add New Address</h2>
+                    <h2 className="text-xl font-bold">Thêm địa chỉ mới</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
                 </div>
 
@@ -90,7 +90,7 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">Address Line 1</label>
+                        <label className="block text-sm font-medium mb-1">Địa chỉ dòng 1</label>
                         <input
                             type="text"
                             name="address_line_1"
@@ -98,25 +98,25 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
                             onChange={handleChange}
                             required
                             className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Street address, P.O. box"
+                            placeholder="Số nhà, tên đường..."
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">Address Line 2 (Optional)</label>
+                        <label className="block text-sm font-medium mb-1">Địa chỉ dòng 2 (Tùy chọn)</label>
                         <input
                             type="text"
                             name="address_line_2"
                             value={formData.address_line_2}
                             onChange={handleChange}
                             className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Apartment, suite, unit, etc."
+                            placeholder="Căn hộ, tòa nhà, v.v."
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1">City</label>
+                            <label className="block text-sm font-medium mb-1">Thành phố</label>
                             <input
                                 type="text"
                                 name="city"
@@ -127,7 +127,7 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">State/Region</label>
+                            <label className="block text-sm font-medium mb-1">Tỉnh/Thành</label>
                             <input
                                 type="text"
                                 name="state"
@@ -141,7 +141,7 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1">Postal Code</label>
+                            <label className="block text-sm font-medium mb-1">Mã bưu chính</label>
                             <input
                                 type="text"
                                 name="postal_code"
@@ -152,7 +152,7 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Country</label>
+                            <label className="block text-sm font-medium mb-1">Quốc gia</label>
                             <input
                                 type="text"
                                 name="country"
@@ -174,7 +174,7 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
                             className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                         />
                         <label htmlFor="is_default" className="ml-2 text-sm text-gray-300">
-                            Set as default shipping address
+                            Đặt làm địa chỉ giao hàng mặc định
                         </label>
                     </div>
 
@@ -184,14 +184,14 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
                             onClick={onClose}
                             className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-colors"
                         >
-                            Cancel
+                            Hủy
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
                             className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-indigo-800 disabled:cursor-not-allowed"
                         >
-                            {isSubmitting ? 'Saving...' : 'Save Address'}
+                            {isSubmitting ? 'Đang lưu...' : 'Lưu địa chỉ'}
                         </button>
                     </div>
                 </form>

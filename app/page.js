@@ -6,12 +6,12 @@ import HeroCarousel from '@/components/home/HeroCarousel';
 import HeroSection from '@/components/home/HeroSection';
 import FeedSection from '@/components/home/FeedSection';
 import Sidebar from '@/components/home/Sidebar';
-import QuickViewModal from '@/components/QuickViewModal'; // --- RESTORED ---
+import QuickViewModal from '@/components/QuickViewModal';
 
 export default function HomePage() {
     const [config, setConfig] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [quickViewProductId, setQuickViewProductId] = useState(null); // --- RESTORED ---
+    const [quickViewProductId, setQuickViewProductId] = useState(null);
 
     useEffect(() => {
         const loadConfig = async () => {
@@ -24,7 +24,7 @@ export default function HomePage() {
                     setConfig({
                         hero_banners: [],
                         layout_order: [
-                            { id: 1, type: 'featured_grid', title: 'Trending Now', limit: 8 }
+                            { id: 1, type: 'featured_grid', title: 'Xu hướng hiện nay', limit: 8 }
                         ],
                         sidebar: { enabled: false }
                     });

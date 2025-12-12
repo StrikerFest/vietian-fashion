@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export default function SalesChart({ data }) {
     return (
         <div className="bg-gray-800 p-6 rounded-lg shadow-md h-80">
-            <h3 className="text-lg font-semibold text-white mb-4">Revenue Trends (Last 30 Days)</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Xu hướng doanh thu (30 ngày qua)</h3>
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
