@@ -7,7 +7,7 @@ export async function GET(request, context) {
     const {slug} = params;
     const {searchParams} = new URL(request.url);
 
-    if (!slug || slug.length === 0) return NextResponse.json({error: 'Category required'}, {status: 400});
+    if (!slug || slug.length === 0) return NextResponse.json({error: 'Yêu cầu danh mục'}, {status: 400});
     const categorySlug = slug[slug.length - 1];
 
     const sortBy = searchParams.get('sort');
@@ -25,13 +25,13 @@ export async function GET(request, context) {
 
     try {
         const {data: category} = await supabase.from('categories').select('*').eq('slug', categorySlug).single();
-        if (!category) return NextResponse.json({error: 'Category not found'}, {status: 404});
+        if (!category) return NextResponse.json({error: 'Không tìm thấy danh mục'}, {status: 404});
 
         // [SECURITY PATCH 1] Time-Fencing
         const now = new Date();
-        if (!category.is_active) return NextResponse.json({error: 'Category inactive'}, {status: 404});
-        if (category.start_date && new Date(category.start_date) > now) return NextResponse.json({error: 'Category not started'}, {status: 404});
-        if (category.end_date && new Date(category.end_date) < now) return NextResponse.json({error: 'Category expired'}, {status: 404});
+        if (!category.is_active) return NextResponse.json({error: 'Danh mục không hoạt động'}, {status: 404});
+        if (category.start_date && new Date(category.start_date) > now) return NextResponse.json({error: 'Danh mục chưa bắt đầu'}, {status: 404});
+        if (category.end_date && new Date(category.end_date) < now) return NextResponse.json({error: 'Danh mục đã hết hạn'}, {status: 404});
 
         // 2. Find Linked Products
         let productIds = [];

@@ -7,7 +7,7 @@ export async function GET(request, context) {
     const { slug } = params;
     const { searchParams } = new URL(request.url);
 
-    if (!slug) return NextResponse.json({ error: 'Collection required' }, { status: 400 });
+    if (!slug) return NextResponse.json({ error: 'Yêu cầu bộ sưu tập' }, { status: 400 });
 
     const sortBy = searchParams.get('sort');
     const page = parseInt(searchParams.get('page') || '1');
@@ -24,7 +24,7 @@ export async function GET(request, context) {
 
     try {
         const { data: collection } = await supabase.from('collections').select('*').eq('slug', slug).single();
-        if (!collection) return NextResponse.json({ error: 'Collection not found' }, { status: 404 });
+        if (!collection) return NextResponse.json({ error: 'Không tìm thấy bộ sưu tập' }, { status: 404 });
 
         const { data: links } = await supabase.from('product_collections').select('product_id').eq('collection_id', collection.id);
         let productIds = links?.map(l => l.product_id) || [];

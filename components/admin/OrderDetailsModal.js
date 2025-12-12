@@ -152,7 +152,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                 </div>
                                 <div className="bg-gray-900 p-2 rounded border border-gray-700">
                                     <span className="block text-xs text-gray-500">Nội dung / Ghi chú</span>
-                                    <span className="font-mono text-white font-bold">ORDER {order.id}</span>
+                                    <span className="font-mono text-white font-bold">ĐƠN HÀNG {order.id}</span>
                                 </div>
                             </div>
                         </div>

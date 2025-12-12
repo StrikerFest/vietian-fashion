@@ -39,7 +39,7 @@ export async function POST(request) {
     const {name} = await request.json();
 
     if (!name) {
-        return NextResponse.json({error: 'Tag Name is required'}, {status: 400});
+        return NextResponse.json({error: 'Yêu cầu Tên thẻ'}, {status: 400});
     }
 
     const tagName = name.toLowerCase().trim();
@@ -70,7 +70,7 @@ export async function POST(request) {
                 return NextResponse.json(restored);
             } else {
                 // Tag exists and is active
-                return NextResponse.json({error: 'Tag already exists.'}, {status: 409});
+                return NextResponse.json({error: 'Thẻ đã tồn tại.'}, {status: 409});
             }
         }
 
@@ -87,6 +87,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Error creating tag:', error);
-        return NextResponse.json({error: 'Failed to create tag.', details: error.message}, {status: 500});
+        return NextResponse.json({error: 'Tạo thẻ thất bại.', details: error.message}, {status: 500});
     }
 }

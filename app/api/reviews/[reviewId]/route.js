@@ -28,10 +28,10 @@ export async function PUT(request, context) {
             .single();
 
         if (error) throw error;
-        return NextResponse.json({ message: 'Review updated.', review: data });
+        return NextResponse.json({ message: 'Đã cập nhật đánh giá.', review: data });
 
     } catch (error) {
-        return NextResponse.json({ error: 'Failed to update review.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Cập nhật đánh giá thất bại.', details: error.message }, { status: 500 });
     }
 }
 
@@ -58,9 +58,9 @@ export async function DELETE(request, context) {
 
         if (error) throw error;
 
-        return NextResponse.json({ message: 'Review archived successfully.' });
+        return NextResponse.json({ message: 'Lưu trữ đánh giá thành công.' });
 
     } catch (error) {
-        return NextResponse.json({ error: 'Failed to archive review.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Lưu trữ đánh giá thất bại.', details: error.message }, { status: 500 });
     }
 }

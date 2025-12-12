@@ -35,10 +35,10 @@ export async function POST(request) {
         const formData = await request.formData();
         const file = formData.get('file');
 
-        if (!file) return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
+        if (!file) return NextResponse.json({ error: 'Không có tệp nào được cung cấp.' }, { status: 400 });
 
         const rows = await parseCsv(file);
-        if (!rows || rows.length === 0) return NextResponse.json({ error: 'CSV is empty.' }, { status: 400 });
+        if (!rows || rows.length === 0) return NextResponse.json({ error: 'Tệp CSV trống.' }, { status: 400 });
 
         // ... (The rest of your logic remains EXACTLY the same) ...
         // ... (1. Pre-fetch Taxonomy) ...
@@ -153,13 +153,13 @@ export async function POST(request) {
         }
 
         return NextResponse.json({
-            message: 'Import successful',
+            message: 'Nhập thành công',
             created_products: createdProductsCount,
             created_variants: createdVariantsCount,
         });
 
     } catch (error) {
         console.error('Bulk import error:', error);
-        return NextResponse.json({ error: 'Failed during import process.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi trong quá trình nhập.', details: error.message }, { status: 500 });
     }
 }

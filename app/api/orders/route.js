@@ -77,6 +77,6 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Error fetching orders:', error);
-        return NextResponse.json({error: 'Failed to fetch orders.', details: error.message}, {status: 500});
+        return NextResponse.json({error: 'Tải đơn hàng thất bại.', details: error.message}, {status: 500});
     }
 }

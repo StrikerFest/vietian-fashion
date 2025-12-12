@@ -11,7 +11,7 @@ export async function GET(request) {
     // [SECURITY PATCH] ADMIN ONLY ACCESS
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ error: 'Không được ủy quyền' }, { status: 401 });
     }
     // ------------------------------------
 
@@ -53,7 +53,7 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Error fetching reviews:', error);
-        return NextResponse.json({ error: 'Failed to fetch reviews.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Tải đánh giá thất bại.', details: error.message }, { status: 500 });
     }
 }
 
@@ -70,7 +70,7 @@ export async function POST(request) {
     const realUserId = session?.user?.id || null;
 
     if (!product_id || !rating) {
-        return NextResponse.json({ error: 'Product ID and Rating are required.' }, { status: 400 });
+        return NextResponse.json({ error: 'ID sản phẩm và Xếp hạng là bắt buộc.' }, { status: 400 });
     }
     const numericRating = Number(rating);
 
@@ -88,10 +88,10 @@ export async function POST(request) {
 
         if (insertError) throw insertError;
 
-        return NextResponse.json({ message: 'Review submitted successfully.', review: newReview }, { status: 201 });
+        return NextResponse.json({ message: 'Đã gửi đánh giá thành công.', review: newReview }, { status: 201 });
 
     } catch (error) {
         console.error('Error submitting review:', error);
-        return NextResponse.json({ error: 'Failed to submit review.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Gửi đánh giá thất bại.', details: error.message }, { status: 500 });
     }
 }

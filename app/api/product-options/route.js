@@ -8,7 +8,7 @@ export async function GET(request) {
     const variantId = searchParams.get('variantId'); // New parameter
 
     if (!productId) {
-        return NextResponse.json({ error: 'Product ID required' }, { status: 400 });
+        return NextResponse.json({ error: 'Yêu cầu ID sản phẩm' }, { status: 400 });
     }
 
     try {

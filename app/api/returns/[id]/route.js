@@ -17,13 +17,14 @@ export async function PUT(request, context) {
     }
     // ---------------------------
 
-    const {status, admin_notes} = await request.json();
+    const body = await request.json();
+    const {status, admin_notes} = body;
 
-    if (!id || isNaN(parseInt(id))) return NextResponse.json({error: 'Valid ID required.'}, {status: 400});
+    if (!id || isNaN(parseInt(id))) return NextResponse.json({error: 'Yêu cầu ID hợp lệ.'}, {status: 400});
     const numericRequestId = parseInt(id);
 
     if (!status || !['approved', 'rejected'].includes(status)) {
-        return NextResponse.json({error: 'Invalid status.'}, {status: 400});
+        return NextResponse.json({error: 'Trạng thái không hợp lệ.'}, {status: 400});
     }
 
     try {
@@ -55,7 +56,7 @@ export async function PUT(request, context) {
             responseData = approvedData;
         }
 
-        return NextResponse.json({message: `Return ${status} successfully.`, data: responseData});
+        return NextResponse.json({message: `Yêu cầu trả hàng ${status} thành công.`, data: responseData});
 
     } catch (error) {
         return NextResponse.json({error: error.message}, {status: 500});

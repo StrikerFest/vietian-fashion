@@ -22,7 +22,7 @@ export async function POST(request) {
 
     // Validate Input
     if (!cartItems || cartItems.length === 0) {
-        return NextResponse.json({error: 'Cart is empty.'}, {status: 400});
+        return NextResponse.json({error: 'Giỏ hàng trống.'}, {status: 400});
     }
 
     const finalUserId = authenticatedUserId;
@@ -33,7 +33,7 @@ export async function POST(request) {
         if (!finalUserId) {
             // --- GUEST CHECKOUT ---
             if (!guestAddressData) {
-                return NextResponse.json({error: 'Guest checkout requires address data.'}, {status: 400});
+                return NextResponse.json({error: 'Thanh toán khách vãng lai yêu cầu dữ liệu địa chỉ.'}, {status: 400});
             }
 
             // Create new address record for this guest order
@@ -52,13 +52,13 @@ export async function POST(request) {
                 .select('id')
                 .single();
 
-            if (addressError) throw new Error(`Failed to create guest address: ${addressError.message}`);
+            if (addressError) throw new Error(`Tạo địa chỉ khách vãng lai thất bại: ${addressError.message}`);
             finalAddressId = newAddress.id;
 
         } else {
             // --- AUTHENTICATED CHECKOUT ---
             if (!finalAddressId) {
-                return NextResponse.json({error: 'User must select an address.'}, {status: 400});
+                return NextResponse.json({error: 'Người dùng phải chọn một địa chỉ.'}, {status: 400});
             }
 
             // [SECURITY PATCH] Verify Address Ownership
@@ -70,7 +70,7 @@ export async function POST(request) {
                 .single();
 
             if (!addressCheck || addressCheck.user_id !== finalUserId) {
-                return NextResponse.json({error: 'Invalid or unauthorized shipping address.'}, {status: 403});
+                return NextResponse.json({error: 'Địa chỉ giao hàng không hợp lệ hoặc không được ủy quyền.'}, {status: 403});
             }
         }
 
@@ -84,7 +84,7 @@ export async function POST(request) {
             .select('variant_id, on_hand, committed')
             .in('variant_id', variantIds);
 
-        if (inventoryError) throw new Error('Could not verify stock levels.');
+        if (inventoryError) throw new Error('Không thể xác minh mức tồn kho.');
 
         const inventoryMap = new Map(inventoryLevels.map(i => [i.variant_id, i]));
 
@@ -93,7 +93,7 @@ export async function POST(request) {
             const availableStock = (inventory?.on_hand || 0) - (inventory?.committed || 0);
 
             if (!inventory || availableStock < item.quantity) {
-                return NextResponse.json({error: `Not enough stock for ${item.productName}. Only ${availableStock} available.`}, {status: 400});
+                return NextResponse.json({error: `Không đủ tồn kho cho ${item.productName}. Chỉ còn ${availableStock} sản phẩm.`}, {status: 400});
             }
 
             // Recalculate price on server side
@@ -261,6 +261,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Checkout error:', error);
-        return NextResponse.json({error: 'Checkout failed.', details: error.message}, {status: 500});
+        return NextResponse.json({error: 'Thanh toán thất bại.', details: error.message}, {status: 500});
     }
 }

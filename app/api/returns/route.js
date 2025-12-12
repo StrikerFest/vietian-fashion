@@ -68,7 +68,7 @@ export async function POST(request) {
         const {order_id, items, reason} = body;
 
         if (!order_id || !items || items.length === 0 || !reason) {
-            return NextResponse.json({error: 'Missing required fields.'}, {status: 400});
+            return NextResponse.json({error: 'Thiếu các trường bắt buộc.'}, {status: 400});
         }
 
         // Verify ownership
@@ -80,7 +80,7 @@ export async function POST(request) {
             .single();
 
         if (orderError || !order) {
-            return NextResponse.json({error: 'Order not found or access denied.'}, {status: 404});
+            return NextResponse.json({error: 'Không tìm thấy đơn hàng hoặc quyền truy cập bị từ chối.'}, {status: 404});
         }
 
         // Create Request
@@ -114,7 +114,7 @@ export async function POST(request) {
             throw itemsError;
         }
 
-        return NextResponse.json({success: true, message: 'Return requested.'});
+        return NextResponse.json({success: true, message: 'Yêu cầu trả hàng đã được gửi.'});
     } catch (error) {
         return NextResponse.json({error: error.message}, {status: 500});
     }

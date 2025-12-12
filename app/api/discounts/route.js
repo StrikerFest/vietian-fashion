@@ -65,7 +65,7 @@ export async function POST(request) {
     const { code, type, value, start_date, end_date, is_active } = await request.json();
 
     if (!code || !type || value === undefined || value === null) {
-        return NextResponse.json({ error: 'Code, Type, and Value are required' }, { status: 400 });
+        return NextResponse.json({ error: 'Yêu cầu Mã, Loại và Giá trị' }, { status: 400 });
     }
 
     const upperCode = code.toUpperCase();
@@ -100,7 +100,7 @@ export async function POST(request) {
                 if (restoreError) throw restoreError;
                 return NextResponse.json(restored);
             } else {
-                return NextResponse.json({ error: 'A discount with this code already exists.' }, { status: 409 });
+                return NextResponse.json({ error: 'Mã giảm giá đã tồn tại.' }, { status: 409 });
             }
         }
 
@@ -123,6 +123,6 @@ export async function POST(request) {
         return NextResponse.json(data);
 
     } catch (error) {
-        return NextResponse.json({ error: 'Failed to create discount.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Tạo mã giảm giá thất bại.', details: error.message }, { status: 500 });
     }
 }

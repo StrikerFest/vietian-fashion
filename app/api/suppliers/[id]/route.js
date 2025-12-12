@@ -44,7 +44,7 @@ export async function PUT(request, context) {
         if (error) {
             // Preserve your specific duplicate name check
             if (error.code === '23505') {
-                return NextResponse.json({ error: 'A supplier with this name already exists.' }, { status: 409 });
+                return NextResponse.json({ error: 'Nhà cung cấp với tên này đã tồn tại.' }, { status: 409 });
             }
             throw error;
         }
@@ -53,7 +53,7 @@ export async function PUT(request, context) {
 
     } catch (error) {
         console.error(`Error updating supplier ${numericSupplierId}:`, error);
-        return NextResponse.json({ error: 'Failed to update supplier.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Cập nhật nhà cung cấp thất bại.', details: error.message }, { status: 500 });
     }
 }
 
@@ -85,10 +85,10 @@ export async function DELETE(request, context) {
 
         if (error) throw error;
 
-        return NextResponse.json({ message: 'Supplier archived successfully.' });
+        return NextResponse.json({ message: 'Lưu trữ nhà cung cấp thành công.' });
 
     } catch (error) {
         console.error(`Error archiving supplier ${numericSupplierId}:`, error);
-        return NextResponse.json({ error: 'Failed to archive supplier.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Lưu trữ nhà cung cấp thất bại.', details: error.message }, { status: 500 });
     }
 }

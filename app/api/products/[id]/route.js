@@ -32,14 +32,14 @@ export async function GET(request, context) {
         .is('deleted_at', null)
         .single();
 
-    if (error || !data) return NextResponse.json({error: 'Product not found.'}, {status: 404});
+    if (error || !data) return NextResponse.json({error: 'Không tìm thấy sản phẩm.'}, {status: 404});
 
     // --- SECURITY CHECK: DRAFT VISIBILITY ---
     if (data.status !== 'active') {
         const {data: {session}} = await supabase.auth.getSession();
         if (!session) {
             // Allow 404 to mask existence of draft
-            return NextResponse.json({error: 'Product not found.'}, {status: 404});
+            return NextResponse.json({error: 'Không tìm thấy sản phẩm.'}, {status: 404});
         }
     }
 
@@ -149,7 +149,7 @@ export async function PUT(request, context) {
 
         if (cats.length) await supabase.from('product_categories').insert(cats);
 
-        return NextResponse.json({message: 'Updated successfully'});
+        return NextResponse.json({message: 'Cập nhật thành công.'});
 
     } catch (error) {
         return NextResponse.json({error: error.message}, {status: 500});
@@ -164,5 +164,5 @@ export async function DELETE(request, context) {
     if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
 
     await supabase.from('products').update({deleted_at: new Date().toISOString()}).eq('id', parseInt(id));
-    return NextResponse.json({message: 'Archived'});
+    return NextResponse.json({message: 'Đã lưu trữ.'});
 }

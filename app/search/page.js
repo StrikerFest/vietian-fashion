@@ -46,7 +46,7 @@ export default function SearchPage() {
                     body: JSON.stringify(payload)
                 });
 
-                if (!res.ok) throw new Error('Search failed');
+                if (!res.ok) throw new Error('Tìm kiếm thất bại');
                 const data = await res.json();
                 setResults({
                     products: data.products || [],

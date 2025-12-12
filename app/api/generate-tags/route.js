@@ -31,7 +31,7 @@ export async function POST(request) {
         const productDescription = formData.get('description');
 
         if (!imageFile) {
-            return NextResponse.json({error: 'No image file provided.'}, {status: 400});
+            return NextResponse.json({error: 'Không có tệp hình ảnh được cung cấp.'}, {status: 400});
         }
 
         // 1. Fetch Dynamic Attributes from Database

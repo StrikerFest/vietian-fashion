@@ -32,6 +32,6 @@ export async function GET() {
 
     } catch (error) {
         console.error('Error listing models:', error);
-        return NextResponse.json({ error: 'Failed to list models.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Tải danh sách mô hình thất bại.', details: error.message }, { status: 500 });
     }
 }

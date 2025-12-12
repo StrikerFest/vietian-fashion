@@ -6,7 +6,7 @@ export async function POST(request) {
     const { code } = await request.json();
 
     if (!code) {
-        return NextResponse.json({ error: 'Discount code is required.' }, { status: 400 });
+        return NextResponse.json({ error: 'Yêu cầu mã giảm giá.' }, { status: 400 });
     }
 
     const uppercaseCode = code.toUpperCase(); // Compare with uppercase code stored in DB
@@ -21,22 +21,22 @@ export async function POST(request) {
 
         if (error || !discount) {
             // Error occurred or no discount found with that code
-            return NextResponse.json({ error: 'Invalid discount code.' }, { status: 404 });
+            return NextResponse.json({ error: 'Mã giảm giá không hợp lệ.' }, { status: 404 });
         }
 
         // Check if the discount is active
         if (!discount.is_active) { //
-            return NextResponse.json({ error: 'This discount code is inactive.' }, { status: 400 });
+            return NextResponse.json({ error: 'Mã giảm giá này không hoạt động.' }, { status: 400 });
         }
 
         // Check start date (if it exists)
         if (discount.start_date && new Date(discount.start_date) > now) { //
-            return NextResponse.json({ error: 'This discount code is not yet active.' }, { status: 400 });
+            return NextResponse.json({ error: 'Mã giảm giá này chưa đến ngày kích hoạt.' }, { status: 400 });
         }
 
         // Check end date (if it exists)
         if (discount.end_date && new Date(discount.end_date) < now) { //
-            return NextResponse.json({ error: 'This discount code has expired.' }, { status: 400 });
+            return NextResponse.json({ error: 'Mã giảm giá này đã hết hạn.' }, { status: 400 });
         }
 
         // If all checks pass, the discount is valid

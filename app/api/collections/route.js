@@ -52,7 +52,7 @@ export async function POST(request) {
 
     const {name, description, is_featured, seo_title, seo_description} = await request.json();
 
-    if (!name) return NextResponse.json({error: 'Name is required'}, {status: 400});
+    if (!name) return NextResponse.json({error: 'Yêu cầu Tên'}, {status: 400});
 
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
@@ -84,7 +84,7 @@ export async function POST(request) {
                 if (restoreError) throw restoreError;
                 return NextResponse.json(restored);
             } else {
-                return NextResponse.json({error: 'Collection exists.'}, {status: 409});
+                return NextResponse.json({error: 'Bộ sưu tập đã tồn tại.'}, {status: 409});
             }
         }
 

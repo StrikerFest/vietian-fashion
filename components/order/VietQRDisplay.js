@@ -36,7 +36,7 @@ export default function VietQRDisplay({ order }) {
     const template = config.template || 'compact';
     const amount = Math.round(order.total_amount); // VietQR expects integers ideally, though float works often. Assuming currency handling.
     // If currency is USD, this might be small. If VND, it's large. For this demo, we assume the raw total_amount is correct.
-    const description = `ORDER ${order.id}`;
+    const description = `ĐƠN HÀNG ${order.id}`;
     const accountName = config.accountName;
 
     const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${amount}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent(accountName)}`;
@@ -49,7 +49,7 @@ export default function VietQRDisplay({ order }) {
             <div className="relative w-full aspect-square max-w-[300px] mx-auto mb-6">
                 <Image
                     src={qrUrl}
-                    alt="VietQR Payment Code"
+                    alt="Mã Thanh Toán VietQR"
                     fill
                     className="object-contain"
                     unoptimized // VietQR generates dynamic images

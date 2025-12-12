@@ -215,6 +215,6 @@ export async function POST(request) {
         return NextResponse.json(product);
     } catch (error) {
         if (newId) await supabase.from('products').delete().eq('id', newId);
-        return NextResponse.json({ error: 'Failed to create product.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Tạo sản phẩm thất bại.', details: error.message }, { status: 500 });
     }
 }

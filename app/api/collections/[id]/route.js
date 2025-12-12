@@ -28,7 +28,7 @@ export async function PUT(request, context) {
             .select().single();
 
         if (error) {
-            if (error.code === '23505') return NextResponse.json({ error: 'Exists.' }, { status: 409 });
+            if (error.code === '23505') return NextResponse.json({ error: 'Tồn tại.' }, { status: 409 });
             throw error;
         }
         return NextResponse.json(data);
@@ -57,7 +57,7 @@ export async function DELETE(request, context) {
             .eq('id', parseInt(id));
 
         if (error) throw error;
-        return NextResponse.json({ message: 'Collection archived.' });
+        return NextResponse.json({ message: 'Đã lưu trữ bộ sưu tập.' });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

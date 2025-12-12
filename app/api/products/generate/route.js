@@ -46,7 +46,7 @@ export async function POST(request) {
         const imageFile = formData.get('image');
 
         if (!imageFile) {
-            return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+            return NextResponse.json({ error: 'Không có hình ảnh được cung cấp' }, { status: 400 });
         }
 
         // --- C. UPLOAD IMAGE TO STORAGE ---
@@ -58,7 +58,7 @@ export async function POST(request) {
             .from('products')
             .upload(fileName, imageFile);
 
-        if (uploadError) throw new Error(`Storage Upload Failed: ${uploadError.message}`);
+        if (uploadError) throw new Error(`Tải lên Bộ nhớ thất bại: ${uploadError.message}`);
 
         const { data: { publicUrl } } = supabase.storage
             .from('products')
@@ -95,7 +95,7 @@ export async function POST(request) {
             aiData = JSON.parse(text);
         } catch (e) {
             console.error("JSON Parse Error:", text);
-            throw new Error("AI returned invalid JSON.");
+            throw new Error("AI trả về JSON không hợp lệ.");
         }
 
         // --- E. INTELLIGENT TAXONOMY SYNC ---
@@ -245,6 +245,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error("AI Generation Failed:", error);
-        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Lỗi máy chủ nội bộ' }, { status: 500 });
     }
 }

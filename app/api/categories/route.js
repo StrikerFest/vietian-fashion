@@ -40,7 +40,7 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Error fetching categories:', error);
-        return NextResponse.json({error: 'Failed to fetch categories.', details: error.message}, {status: 500});
+        return NextResponse.json({error: 'Tải danh mục thất bại.', details: error.message}, {status: 500});
     }
 }
 
@@ -62,7 +62,7 @@ export async function POST(request) {
         value, is_active = true, sort_order = 0, start_date, end_date, seo_title, seo_description
     } = body;
 
-    if (!name) return NextResponse.json({error: 'Name is required'}, {status: 400});
+    if (!name) return NextResponse.json({error: 'Yêu cầu Tên danh mục'}, {status: 400});
 
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
@@ -101,7 +101,7 @@ export async function POST(request) {
                 if (restoreError) throw restoreError;
                 return NextResponse.json(restored);
             } else {
-                return NextResponse.json({error: 'Category already exists.'}, {status: 409});
+                return NextResponse.json({error: 'Danh mục đã tồn tại.'}, {status: 409});
             }
         }
 

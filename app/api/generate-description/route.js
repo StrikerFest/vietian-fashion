@@ -23,7 +23,7 @@ export async function POST(request) {
         // to guide the AI, but for now, we'll rely on the image.
 
         if (!imageFile) {
-            return NextResponse.json({ error: 'No image file provided.' }, { status: 400 });
+            return NextResponse.json({ error: 'Không có tệp hình ảnh được cung cấp.' }, { status: 400 });
         }
 
         const buffer = Buffer.from(await imageFile.arrayBuffer());
@@ -52,6 +52,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Error generating description:', error);
-        return NextResponse.json({ error: 'Failed to generate description.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Tạo mô tả thất bại.', details: error.message }, { status: 500 });
     }
 }

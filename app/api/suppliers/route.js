@@ -41,7 +41,7 @@ export async function POST(request) {
     const {name, contact_person, email, phone} = await request.json();
 
     if (!name) {
-        return NextResponse.json({error: 'Supplier Name is required'}, {status: 400});
+        return NextResponse.json({error: 'Yêu cầu Tên nhà cung cấp'}, {status: 400});
     }
 
     try {
@@ -70,7 +70,7 @@ export async function POST(request) {
                 if (restoreError) throw restoreError;
                 return NextResponse.json(restored, {status: 200});
             } else {
-                return NextResponse.json({error: 'A supplier with this name already exists.'}, {status: 409});
+                return NextResponse.json({error: 'Nhà cung cấp với tên này đã tồn tại.'}, {status: 409});
             }
         }
 
@@ -85,6 +85,6 @@ export async function POST(request) {
         return NextResponse.json(data, {status: 201});
 
     } catch (error) {
-        return NextResponse.json({error: 'Failed to create supplier.', details: error.message}, {status: 500});
+        return NextResponse.json({error: 'Tạo nhà cung cấp thất bại.', details: error.message}, {status: 500});
     }
 }

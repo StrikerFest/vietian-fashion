@@ -22,7 +22,7 @@ export async function POST(request) {
         }
 
         if (!userQuery && Object.keys(attributes).length === 0) {
-            return NextResponse.json({error: 'Query is required.'}, {status: 400});
+            return NextResponse.json({error: 'Yêu cầu truy vấn.'}, {status: 400});
         }
 
         // --- BRANCH A: KEYWORD SEARCH ---
@@ -194,6 +194,6 @@ export async function POST(request) {
         });
 
     } catch (error) {
-        return NextResponse.json({error: 'Failed to get recommendations.'}, {status: 500});
+        return NextResponse.json({error: 'Lấy đề xuất thất bại.'}, {status: 500});
     }
 }

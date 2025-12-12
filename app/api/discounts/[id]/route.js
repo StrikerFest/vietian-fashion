@@ -43,20 +43,20 @@ export async function PUT(request, context) {
         if (error) {
             // Preserve your specific duplicate code check
             if (error.code === '23505') {
-                return NextResponse.json({ error: 'Code exists.' }, { status: 409 });
+                return NextResponse.json({ error: 'Mã giảm giá đã tồn tại.' }, { status: 409 });
             }
             throw error;
         }
 
         if (!data) {
-            return NextResponse.json({ error: 'Discount not found.' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy mã giảm giá.' }, { status: 404 });
         }
 
         return NextResponse.json(data);
 
     } catch (error) {
         console.error(`Error updating discount ${id}:`, error);
-        return NextResponse.json({ error: 'Failed to update discount.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Cập nhật mã giảm giá thất bại.', details: error.message }, { status: 500 });
     }
 }
 
@@ -84,10 +84,10 @@ export async function DELETE(request, context) {
 
         if (error) throw error;
 
-        return NextResponse.json({ message: 'Discount archived successfully.' });
+        return NextResponse.json({ message: 'Lưu trữ mã giảm giá thành công.' });
 
     } catch (error) {
         console.error(`Error archiving discount ${id}:`, error);
-        return NextResponse.json({ error: 'Failed to archive discount.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Lưu trữ mã giảm giá thất bại.', details: error.message }, { status: 500 });
     }
 }

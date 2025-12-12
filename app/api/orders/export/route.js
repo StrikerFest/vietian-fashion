@@ -51,7 +51,7 @@ export async function GET(request) {
         const {data: orders, error} = await query;
         if (error) throw error;
 
-        if (!orders || orders.length === 0) return new Response('No data', {status: 200});
+        if (!orders || orders.length === 0) return new Response('Không có dữ liệu', {status: 200});
 
         const flattenedData = [];
         for (const order of orders) {

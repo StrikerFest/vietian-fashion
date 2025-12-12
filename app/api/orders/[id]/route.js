@@ -109,7 +109,7 @@ export async function PUT(request, context) {
 
             // Prevent double cancellation
             if (['cancelled', 'refunded'].includes(order.status)) {
-                return NextResponse.json({error: 'Order is already cancelled/refunded.'}, {status: 400});
+                return NextResponse.json({error: 'Đơn hàng đã bị hủy/hoàn tiền.'}, {status: 400});
             }
 
             // Restock Inventory
