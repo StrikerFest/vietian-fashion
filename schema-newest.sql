@@ -406,6 +406,7 @@ BEGIN
             -- Match the AI-generated tags against Attribute names (case-insensitive)
             AND c.name ILIKE ANY(tag_names)
             AND p.deleted_at IS NULL
+            AND p.status = 'active' -- <--- SECURITY PATCH ADDED HERE
         GROUP BY
             p.id
         ORDER BY
