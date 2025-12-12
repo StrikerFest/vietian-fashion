@@ -29,9 +29,9 @@ export default function ReturnsPage() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            <h1 className="text-3xl font-bold mb-6">Manage Return Requests</h1>
+            <h1 className="text-3xl font-bold mb-6">Quản Lý Yêu Cầu Trả Hàng</h1>
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                {isLoading ? <p className="text-center text-gray-400">Loading...</p> : (
+                {isLoading ? <p className="text-center text-gray-400">Đang tải...</p> : (
                     <ReturnList requests={requests} onView={setSelectedRequest} />
                 )}
             </div>

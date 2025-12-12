@@ -9,7 +9,7 @@ export async function GET(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+    if (!id) return NextResponse.json({ error: 'Yêu cầu ID' }, { status: 400 });
 
     try {
         const { data, error } = await supabase
@@ -61,14 +61,10 @@ export async function GET(request, context) {
         return NextResponse.json(formatted);
 
     } catch (error) {
-        return NextResponse.json({ error: 'Failed to fetch details.' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải chi tiết đơn hàng.' }, { status: 500 });
     }
 }
 
-// PUT / DELETE Logic remains mostly the same,
-// just ensure any fetches inside them use dynamic logic if they display data.
-// But the updateInventory helper uses variant_id, which is safe.
-// ... (Include existing PUT and DELETE functions here as per previous file)
 export async function PUT(request, context) {
     const params = await context.params;
     const { id } = params;
@@ -87,7 +83,7 @@ export async function PUT(request, context) {
 
         if (fetchError) throw fetchError;
         if (currentPO.status === 'received' && status === 'received') {
-            return NextResponse.json({ error: 'Already received.' }, { status: 400 });
+            return NextResponse.json({ error: 'Đã nhận hàng rồi.' }, { status: 400 });
         }
 
         if (status === 'received') {
@@ -102,7 +98,7 @@ export async function PUT(request, context) {
                 await updateInventory(supabase, {
                     variantId: item.variant_id,
                     quantityChange: item.quantity,
-                    reason: `Purchase Order #${id} received`,
+                    reason: `Đã nhận đơn nhập hàng #${id}`,
                     userId: session?.user?.id || null
                 });
             }
@@ -129,11 +125,11 @@ export async function DELETE(request, context) {
 
     try {
         const { data: po } = await supabase.from('purchase_orders').select('status').eq('id', id).single();
-        if (po?.status === 'received') return NextResponse.json({ error: 'Cannot delete received order' }, { status: 400 });
+        if (po?.status === 'received') return NextResponse.json({ error: 'Không thể xóa đơn hàng đã nhận' }, { status: 400 });
 
         const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
         if (error) throw error;
-        return NextResponse.json({ message: 'Deleted' });
+        return NextResponse.json({ message: 'Đã xóa' });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

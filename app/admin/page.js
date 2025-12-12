@@ -7,7 +7,6 @@ import SalesChart from '@/components/admin/SalesChart';
 import TopProducts from '@/components/admin/TopProducts';
 import LowStockAlert from '@/components/admin/LowStockAlert';
 
-// Helper component for displaying stats (unchanged)
 function StatCard({ title, value, color = "text-white" }) {
     return (
         <div className="block p-6 bg-gray-800 rounded-lg shadow-md">
@@ -62,7 +61,6 @@ export default function AdminDashboardPage() {
                     title="Tổng đơn hàng"
                     value={isLoading ? '...' : data.totalOrders}
                 />
-                {/* You can add Average Order Value here if you calculate it */}
                 <StatCard
                     title="Giá trị đơn trung bình"
                     value={isLoading ? '...' : `$${data.totalOrders > 0 ? (data.totalRevenue / data.totalOrders).toFixed(2) : '0.00'}`}

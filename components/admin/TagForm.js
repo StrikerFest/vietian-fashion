@@ -2,10 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function TagForm({ initialData, onSuccess, onCancel }) {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,13 +35,13 @@ export default function TagForm({ initialData, onSuccess, onCancel }) {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Operation failed');
+                throw new Error(errorData.error || 'Thao tác thất bại');
             }
 
-            onSuccess(isEditing ? 'Tag updated!' : 'Tag created!');
+            onSuccess(isEditing ? 'Cập nhật thẻ thành công!' : 'Tạo thẻ thành công!');
             setName('');
         } catch (error) {
-            addToast(`Error: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Lỗi: ${error.message}`, 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -49,17 +49,17 @@ export default function TagForm({ initialData, onSuccess, onCancel }) {
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 sticky top-6">
-            <h2 className="text-xl font-semibold mb-4">{initialData ? 'Edit Tag' : 'Add New Tag'}</h2>
+            <h2 className="text-xl font-semibold mb-4">{initialData ? 'Sửa Thẻ' : 'Thêm Thẻ Mới'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label htmlFor="name" className="block text-sm font-medium mb-1">Tag Name</label>
+                    <label htmlFor="name" className="block text-sm font-medium mb-1">Tên thẻ</label>
                     <input
                         id="name"
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500"
-                        placeholder="e.g. vintage, cotton"
+                        placeholder="vd: vintage, cotton"
                         required
                     />
                 </div>
@@ -69,7 +69,7 @@ export default function TagForm({ initialData, onSuccess, onCancel }) {
                         disabled={isSubmitting}
                         className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:bg-gray-600"
                     >
-                        {isSubmitting ? 'Saving...' : (initialData ? 'Update' : 'Create')}
+                        {isSubmitting ? 'Đang lưu...' : (initialData ? 'Cập nhật' : 'Tạo mới')}
                     </button>
                     {initialData && (
                         <button
@@ -77,7 +77,7 @@ export default function TagForm({ initialData, onSuccess, onCancel }) {
                             onClick={onCancel}
                             className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
                         >
-                            Cancel
+                            Hủy
                         </button>
                     )}
                 </div>

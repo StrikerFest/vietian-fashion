@@ -7,7 +7,7 @@ export async function GET(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    if (!id) return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    if (!id) return NextResponse.json({ error: 'Yêu cầu ID người dùng' }, { status: 400 });
 
     try {
         const { data: user, error } = await supabase
@@ -25,7 +25,7 @@ export async function GET(request, context) {
             .single();
 
         if (error) throw error;
-        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        if (!user) return NextResponse.json({ error: 'Không tìm thấy người dùng' }, { status: 404 });
 
         // Sort orders by date descending (latest first)
         if (user.orders) {
@@ -36,7 +36,7 @@ export async function GET(request, context) {
 
     } catch (error) {
         console.error('Error fetching user details:', error);
-        return NextResponse.json({ error: 'Failed to fetch user details.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải chi tiết người dùng.', details: error.message }, { status: 500 });
     }
 }
 
@@ -45,7 +45,7 @@ export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    if (!id) return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    if (!id) return NextResponse.json({ error: 'Yêu cầu ID người dùng' }, { status: 400 });
 
     try {
         // Soft Delete
@@ -56,10 +56,10 @@ export async function DELETE(request, context) {
 
         if (error) throw error;
 
-        return NextResponse.json({ message: 'User archived successfully.' });
+        return NextResponse.json({ message: 'Lưu trữ người dùng thành công.' });
 
     } catch (error) {
         console.error('Error archiving user:', error);
-        return NextResponse.json({ error: 'Failed to archive user.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Lưu trữ người dùng thất bại.', details: error.message }, { status: 500 });
     }
 }

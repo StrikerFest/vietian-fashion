@@ -10,7 +10,7 @@ export async function GET() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         // 1. Basic Stats
@@ -32,7 +32,7 @@ export async function GET() {
         revenueData.forEach(order => {
             const date = new Date(order.created_at);
             if (date >= thirtyDaysAgo) {
-                const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const dateStr = date.toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' });
                 salesByDate[dateStr] = (salesByDate[dateStr] || 0) + order.total_amount;
             }
         });
@@ -54,7 +54,7 @@ export async function GET() {
 
         const productSales = {};
         bestSellers.forEach(item => {
-            const pName = item.product_variants?.products?.name || 'Unknown';
+            const pName = item.product_variants?.products?.name || 'Không xác định';
             const pId = item.product_variants?.product_id;
             if (!productSales[pId]) productSales[pId] = { name: pName, id: pId, sold: 0 };
             productSales[pId].sold += item.quantity;
@@ -64,7 +64,7 @@ export async function GET() {
             .sort((a, b) => b.sold - a.sold)
             .slice(0, 5);
 
-        // 4. Low Stock Alerts (FIXED: Removed size/color columns)
+        // 4. Low Stock Alerts
         const { data: lowStockData } = await supabase
             .from('inventory_levels')
             .select(`
@@ -97,7 +97,7 @@ export async function GET() {
             return {
                 id: v.products.id,
                 name: v.products.name,
-                variant: variantLabel || 'Standard',
+                variant: variantLabel || 'Tiêu chuẩn',
                 stock: item.on_hand
             };
         });
@@ -112,6 +112,6 @@ export async function GET() {
 
     } catch (error) {
         console.error('Error fetching analytics:', error);
-        return NextResponse.json({ error: 'Failed to fetch analytics.' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải phân tích.' }, { status: 500 });
     }
 }

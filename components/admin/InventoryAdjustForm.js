@@ -2,10 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function InventoryAdjustForm({ products, onAdjust }) {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [selectedProductId, setSelectedProductId] = useState('');
     const [selectedVariantId, setSelectedVariantId] = useState('');
     const [adjustmentQty, setAdjustmentQty] = useState('');
@@ -30,37 +30,35 @@ export default function InventoryAdjustForm({ products, onAdjust }) {
         }
     };
 
-    // Helper to generate a label for the dropdown
     const getVariantLabel = (v) => {
         let details = '';
         if (v.attributes && Object.keys(v.attributes).length > 0) {
             details = Object.values(v.attributes).join(' / ');
         }
 
-        return `${v.sku}${details ? ` - ${details}` : ''} (Stock: ${v.inventory_levels?.[0]?.on_hand ?? 0})`;
+        return `${v.sku}${details ? ` - ${details}` : ''} (Kho: ${v.inventory_levels?.[0]?.on_hand ?? 0})`;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!selectedVariantId || !adjustmentQty || !reason) {
-            addToast('Fill all fields: Product, Variant, Quantity, and Reason.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Vui lòng điền tất cả: Sản phẩm, Biến thể, Số lượng và Lý do.', 'error');
             return;
         }
         if (parseInt(adjustmentQty) === 0) {
-            addToast('Quantity change cannot be 0.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Số lượng thay đổi không thể bằng 0.', 'error');
             return;
         }
 
-        if (!confirm(`Adjust stock by ${adjustmentQty}?`)) return;
+        if (!confirm(`Điều chỉnh tồn kho ${adjustmentQty}?`)) return;
 
         setIsSubmitting(true);
         try {
             await onAdjust({ variant_id: selectedVariantId, quantity_change: adjustmentQty, reason });
-            // The success toast is handled by the calling page (app/admin/inventory/page.js)
             setAdjustmentQty('');
             setReason('');
         } catch(e) {
-            addToast(e.message, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(e.message, 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -68,19 +66,19 @@ export default function InventoryAdjustForm({ products, onAdjust }) {
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 sticky top-6">
-            <h2 className="text-xl font-semibold mb-4 text-white">Manual Adjustment</h2>
-            <p className="text-sm text-gray-400 mb-4">Correct stock counts or account for damage.</p>
+            <h2 className="text-xl font-semibold mb-4 text-white">Điều chỉnh thủ công</h2>
+            <p className="text-sm text-gray-400 mb-4">Sửa lại số lượng tồn kho hoặc ghi nhận hư hỏng.</p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-300">Product</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Sản phẩm</label>
                     <select value={selectedProductId} onChange={handleProductChange} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm text-white">
-                        <option value="">-- Select Product --</option>
+                        <option value="">-- Chọn sản phẩm --</option>
                         {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-300">Variant</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Biến thể</label>
                     <select
                         value={selectedVariantId}
                         onChange={(e) => setSelectedVariantId(e.target.value)}
@@ -95,15 +93,15 @@ export default function InventoryAdjustForm({ products, onAdjust }) {
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-300">Quantity Change</label>
-                    <input type="number" placeholder="+5 or -2" value={adjustmentQty} onChange={(e) => setAdjustmentQty(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm text-white" />
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Thay đổi số lượng</label>
+                    <input type="number" placeholder="+5 hoặc -2" value={adjustmentQty} onChange={(e) => setAdjustmentQty(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm text-white" />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-300">Reason</label>
-                    <input type="text" placeholder="e.g. Damaged" value={reason} onChange={(e) => setReason(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm text-white" />
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Lý do</label>
+                    <input type="text" placeholder="vd: Hàng hỏng, Kiểm kê lại" value={reason} onChange={(e) => setReason(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-sm text-white" />
                 </div>
                 <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded disabled:bg-gray-600">
-                    {isSubmitting ? 'Updating...' : 'Update Stock'}
+                    {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật Kho'}
                 </button>
             </form>
         </div>

@@ -66,6 +66,6 @@ export async function GET(request) {
         });
     } catch (error) {
         console.error('Error fetching inventory logs:', error);
-        return NextResponse.json({ error: 'Failed to fetch logs.' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải nhật ký tồn kho.' }, { status: 500 });
     }
 }

@@ -4,10 +4,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import PurchaseOrderList from '@/components/admin/PurchaseOrderList';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function PurchaseOrdersPage() {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -19,7 +19,7 @@ export default function PurchaseOrdersPage() {
             setOrders(data || []);
         } catch (error) {
             console.error(error);
-            addToast("Failed to load purchase orders.", 'error');
+            addToast("Không thể tải danh sách đơn nhập hàng.", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -30,45 +30,45 @@ export default function PurchaseOrdersPage() {
     }, []);
 
     const handleStatusChange = async (id, newStatus) => {
-        if (newStatus === 'received' && !confirm("Marking as 'Received' will update inventory. Continue?")) return;
+        if (newStatus === 'received' && !confirm("Đánh dấu là 'Đã nhận' sẽ cập nhật tồn kho. Tiếp tục?")) return;
         try {
             const res = await fetch(`/api/admin/purchase-orders/${id}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ status: newStatus })
             });
-            if(!res.ok) throw new Error('Failed to update status');
+            if(!res.ok) throw new Error('Cập nhật trạng thái thất bại');
             fetchOrders();
-            addToast(`Purchase Order #${id} marked as ${newStatus}!`, 'success'); // --- FIXED: Replaced alert() ---
+            addToast(`Đơn nhập hàng #${id} đã được đánh dấu là ${newStatus}!`, 'success');
         } catch (e) {
-            addToast(e.message, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(e.message, 'error');
         }
     };
 
     const handleDelete = async (id) => {
-        if(!confirm("Delete this order?")) return;
+        if(!confirm("Xóa đơn hàng này?")) return;
         try {
             const res = await fetch(`/api/admin/purchase-orders/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete');
+            if (!res.ok) throw new Error('Xóa thất bại');
             setOrders(prev => prev.filter(o => o.id !== id));
-            addToast(`Purchase Order #${id} archived.`, 'success'); // --- FIXED: Replaced alert() ---
+            addToast(`Đơn nhập hàng #${id} đã được lưu trữ.`, 'success');
         } catch (e) {
-            addToast(e.message, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(e.message, 'error');
         }
     };
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold">Purchase Orders</h1>
+                <h1 className="text-3xl font-bold">Đơn Nhập Hàng</h1>
                 <Link href="/admin/purchase-orders/create" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                    + Create Purchase Order
+                    + Tạo Đơn Nhập Hàng
                 </Link>
             </div>
 
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
                 {isLoading ? (
-                    <p className="text-gray-400 text-center">Loading orders...</p>
+                    <p className="text-gray-400 text-center">Đang tải đơn hàng...</p>
                 ) : (
                     <PurchaseOrderList
                         orders={orders}

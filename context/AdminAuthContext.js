@@ -26,7 +26,7 @@ export function AdminAuthProvider({ children }) {
             setUserRole(role);
             return role;
         } catch (err) {
-            console.error("Role verification failed:", err);
+            console.error("Xác minh vai trò thất bại:", err);
             setUserRole(null);
             return null;
         }
@@ -43,7 +43,7 @@ export function AdminAuthProvider({ children }) {
                     await verifyRole(currentSession);
                 }
             } catch (error) {
-                console.error("Admin Auth Init Error:", error);
+                console.error("Lỗi khởi tạo Auth Admin:", error);
             } finally {
                 setIsLoading(false);
             }
@@ -78,7 +78,7 @@ export function AdminAuthProvider({ children }) {
         });
 
         if (loginError) throw new Error(loginError.message);
-        if (!loginData.user) throw new Error("Login failed, user not found.");
+        if (!loginData.user) throw new Error("Đăng nhập thất bại, không tìm thấy người dùng.");
 
         // 2. Verify Admin Role Immediately
         // We do this explicitly here to prevent non-admins from even entering the session state
@@ -87,7 +87,7 @@ export function AdminAuthProvider({ children }) {
 
         if (role !== 'admin') {
             await supabase.auth.signOut();
-            throw new Error("Access Denied: You are not an authorized administrator.");
+            throw new Error("Truy cập bị từ chối: Bạn không phải là quản trị viên được ủy quyền.");
         }
 
         return { success: true };
@@ -118,7 +118,7 @@ export function AdminAuthProvider({ children }) {
 export function useAdminAuth() {
     const context = useContext(AdminAuthContext);
     if (context === undefined) {
-        throw new Error('useAdminAuth must be used within an AdminAuthProvider');
+        throw new Error('useAdminAuth phải được sử dụng trong AdminAuthProvider');
     }
     return context;
 }

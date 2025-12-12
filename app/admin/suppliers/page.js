@@ -4,10 +4,10 @@
 import { useState, useEffect } from 'react';
 import SupplierForm from '@/components/admin/SupplierForm';
 import SupplierList from '@/components/admin/SupplierList';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function SuppliersPage() {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [suppliers, setSuppliers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingSupplier, setEditingSupplier] = useState(null);
@@ -21,7 +21,7 @@ export default function SuppliersPage() {
             setSuppliers(data || []);
         } catch (error) {
             console.error("Failed to fetch suppliers:", error);
-            addToast("Không thể tải danh sách nhà cung cấp.", 'error'); // Fallback for fetch error
+            addToast("Không thể tải danh sách nhà cung cấp.", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -38,14 +38,14 @@ export default function SuppliersPage() {
             if (!response.ok) throw new Error('Failed to delete supplier');
 
             setSuppliers(prev => prev.filter(s => s.id !== supplierId));
-            addToast('Nhà cung cấp đã được lưu trữ thành công!', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Nhà cung cấp đã được lưu trữ thành công!', 'success');
         } catch (error) {
-            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(error.message, 'error');
         }
     };
 
     const handleFormSuccess = (message) => {
-        addToast(message, 'success'); // --- FIXED: Replaced alert() ---
+        addToast(message, 'success');
         setEditingSupplier(null);
         fetchSuppliers();
     };

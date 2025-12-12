@@ -43,7 +43,6 @@ export async function PUT(request, context) {
                 is_required: opt.is_required,
                 position: opt.position || index,
                 values: opt.values || [],
-                // --- NEW: Save the base price modifier ---
                 price_modifier: opt.price_modifier || 0
             }));
 
@@ -54,13 +53,13 @@ export async function PUT(request, context) {
             if (optError) throw optError;
         }
 
-        return NextResponse.json({ message: 'Updated successfully' });
+        return NextResponse.json({ message: 'Cập nhật thành công' });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
-// DELETE remains unchanged (soft delete on parent set cascades or is handled)
+// DELETE remains unchanged
 export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
@@ -72,7 +71,7 @@ export async function DELETE(request, context) {
             .eq('id', id);
 
         if (error) throw error;
-        return NextResponse.json({ message: 'Deleted successfully' });
+        return NextResponse.json({ message: 'Xóa thành công' });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

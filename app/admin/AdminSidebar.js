@@ -8,7 +8,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 const adminLinks = [
     { name: 'Bảng điều khiển', href: '/admin' },
     { name: 'Sản phẩm', href: '/admin/products' },
-    { name: 'Tùy chọn sản phẩm', href: '/admin/options' }, // --- NEW LINK ---
+    { name: 'Tùy chọn sản phẩm', href: '/admin/options' },
     { name: 'Đơn hàng', href: '/admin/orders' },
     { name: 'Khách hàng', href: '/admin/users' },
     { name: 'Danh mục', href: '/admin/categories' },

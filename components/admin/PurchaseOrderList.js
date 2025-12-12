@@ -15,7 +15,7 @@ export default function PurchaseOrderList({ orders, onStatusChange, onDelete }) 
     };
 
     if (orders.length === 0) {
-        return <p className="text-gray-500 mt-4 text-center">No purchase orders found.</p>;
+        return <p className="text-gray-500 mt-4 text-center">Không tìm thấy đơn nhập hàng nào.</p>;
     }
 
     return (
@@ -23,12 +23,12 @@ export default function PurchaseOrderList({ orders, onStatusChange, onDelete }) 
             <table className="w-full text-left">
                 <thead className="bg-gray-900 text-gray-300 border-b border-gray-700">
                 <tr>
-                    <th className="p-3">PO #</th>
-                    <th className="p-3">Date</th>
-                    <th className="p-3">Supplier</th>
-                    <th className="p-3">Exp. Date</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3 text-right">Actions</th>
+                    <th className="p-3">Mã PO</th>
+                    <th className="p-3">Ngày</th>
+                    <th className="p-3">Nhà cung cấp</th>
+                    <th className="p-3">Ngày dự kiến</th>
+                    <th className="p-3">Trạng thái</th>
+                    <th className="p-3 text-right">Hành động</th>
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
@@ -42,20 +42,23 @@ export default function PurchaseOrderList({ orders, onStatusChange, onDelete }) 
                         </td>
                         <td className="p-3">
                                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(po.status)}`}>
-                                    {po.status}
+                                    {po.status === 'draft' ? 'Nháp' :
+                                        po.status === 'ordered' ? 'Đã đặt' :
+                                            po.status === 'received' ? 'Đã nhận' :
+                                                po.status === 'cancelled' ? 'Đã hủy' : po.status}
                                 </span>
                         </td>
                         <td className="p-3 text-right space-x-3">
                             {po.status === 'draft' && (
-                                <button onClick={() => onStatusChange(po.id, 'ordered')} className="text-blue-400 hover:text-blue-300 font-semibold">Mark Ordered</button>
+                                <button onClick={() => onStatusChange(po.id, 'ordered')} className="text-blue-400 hover:text-blue-300 font-semibold">Đặt hàng</button>
                             )}
                             {po.status === 'ordered' && (
-                                <button onClick={() => onStatusChange(po.id, 'received')} className="text-green-400 hover:text-green-300 font-semibold">Receive Stock</button>
+                                <button onClick={() => onStatusChange(po.id, 'received')} className="text-green-400 hover:text-green-300 font-semibold">Nhập kho</button>
                             )}
                             {po.status !== 'received' && (
-                                <button onClick={() => onDelete(po.id)} className="text-red-500 hover:text-red-400 font-semibold">Delete</button>
+                                <button onClick={() => onDelete(po.id)} className="text-red-500 hover:text-red-400 font-semibold">Xóa</button>
                             )}
-                            {po.status === 'received' && <span className="text-gray-500 italic">Completed</span>}
+                            {po.status === 'received' && <span className="text-gray-500 italic">Hoàn tất</span>}
                         </td>
                     </tr>
                 ))}

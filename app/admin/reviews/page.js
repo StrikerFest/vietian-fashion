@@ -4,14 +4,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import ReviewList from '@/components/admin/ReviewList';
 import PaginationControls from '@/components/ui/PaginationControls';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function ReviewsPage() {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [reviews, setReviews] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // --- NEW: Pagination State ---
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(20);
     const [totalItems, setTotalItems] = useState(0);
@@ -34,7 +33,7 @@ export default function ReviewsPage() {
             }
         } catch (error) {
             console.error(error);
-            addToast(`Error fetching reviews: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Lỗi khi tải đánh giá: ${error.message}`, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -44,9 +43,8 @@ export default function ReviewsPage() {
         fetchReviews();
     }, [fetchReviews]);
 
-    // Handlers
     const handleApprove = async (reviewId) => {
-        if (!confirm('Are you sure you want to approve this review?')) return;
+        if (!confirm('Bạn có chắc chắn muốn duyệt đánh giá này?')) return;
         try {
             const response = await fetch(`/api/reviews/${reviewId}`, {
                 method: 'PUT',
@@ -55,25 +53,23 @@ export default function ReviewsPage() {
             });
             if (!response.ok) throw new Error('Failed to approve review');
 
-            // Optimistic update
             setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, is_approved: true } : r));
-            addToast('Review approved successfully!', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Duyệt đánh giá thành công!', 'success');
         } catch (error) {
-            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(error.message, 'error');
         }
     };
 
     const handleDelete = async (reviewId) => {
-        if (!confirm('Are you sure you want to delete this review?')) return;
+        if (!confirm('Bạn có chắc chắn muốn xóa đánh giá này?')) return;
         try {
             const response = await fetch(`/api/reviews/${reviewId}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Failed to delete review');
 
             setReviews(prev => prev.filter(r => r.id !== reviewId));
-            // Ideally refetch to update counts, but this is fine for now
-            addToast('Review archived successfully!', 'success'); // --- FIXED: Replaced alert() ---
+            addToast('Đánh giá đã được lưu trữ thành công!', 'success');
         } catch (error) {
-            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(error.message, 'error');
         }
     };
 
@@ -85,15 +81,15 @@ export default function ReviewsPage() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            <h1 className="text-3xl font-bold mb-6">Moderate Reviews</h1>
+            <h1 className="text-3xl font-bold mb-6">Kiểm Duyệt Đánh Giá</h1>
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">All Reviews</h2>
-                    <span className="text-sm text-gray-400">Total: {totalItems}</span>
+                    <h2 className="text-xl font-semibold">Tất cả đánh giá</h2>
+                    <span className="text-sm text-gray-400">Tổng: {totalItems}</span>
                 </div>
 
                 {isLoading ? (
-                    <p className="text-gray-400 text-center py-8">Loading reviews...</p>
+                    <p className="text-gray-400 text-center py-8">Đang tải đánh giá...</p>
                 ) : (
                     <>
                         <ReviewList

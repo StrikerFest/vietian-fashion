@@ -82,7 +82,7 @@ export function CartProvider({ children }) {
             }];
         });
 
-        addToast(`${product.name} added to cart`, 'success');
+        addToast(`Đã thêm ${product.name} vào giỏ hàng`, 'success');
     };
 
     const removeFromCart = (uniqueId) => {
@@ -107,9 +107,8 @@ export function CartProvider({ children }) {
         setDiscountCodeInput('');
     };
 
-    // ... [Discount logic remains unchanged] ...
     const applyDiscountCode = async (code) => {
-        if (!code) return { success: false, message: 'Please enter a code.' };
+        if (!code) return { success: false, message: 'Vui lòng nhập mã.' };
         try {
             const response = await fetch('/api/validate-discount', {
                 method: 'POST',
@@ -117,21 +116,21 @@ export function CartProvider({ children }) {
                 body: JSON.stringify({ code: code.trim().toUpperCase() }),
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Failed to validate code.');
+            if (!response.ok) throw new Error(data.error || 'Xác thực mã thất bại.');
             setAppliedDiscount(data.discount);
             setDiscountCodeInput(data.discount.code);
-            addToast(`Discount ${data.discount.code} applied!`, 'success');
-            return { success: true, message: 'Discount applied!' };
+            addToast(`Đã áp dụng mã ${data.discount.code}!`, 'success');
+            return { success: true, message: 'Áp dụng mã thành công!' };
         } catch (error) {
             setAppliedDiscount(null);
-            return { success: false, message: error.message || 'Invalid discount code.' };
+            return { success: false, message: error.message || 'Mã giảm giá không hợp lệ.' };
         }
     };
 
     const removeDiscountCode = () => {
         setAppliedDiscount(null);
         setDiscountCodeInput('');
-        addToast('Discount removed', 'info');
+        addToast('Đã xóa mã giảm giá', 'info');
     };
 
     // ... [Totals calculation logic remains unchanged] ...

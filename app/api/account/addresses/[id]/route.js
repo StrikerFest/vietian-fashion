@@ -13,21 +13,21 @@ export async function DELETE(request, context) {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
-        // --- NEW: Soft Delete ---
+        // --- Soft Delete ---
         const { error } = await supabase
             .from('addresses')
             .update({ deleted_at: new Date().toISOString() })
             .eq('id', id)
-            .eq('user_id', session.user.id); // Security check
+            .eq('user_id', session.user.id);
 
         if (error) throw error;
 
-        return NextResponse.json({ message: 'Address deleted successfully' });
+        return NextResponse.json({ message: 'Xóa địa chỉ thành công' });
     } catch (error) {
         console.error('Error deleting address:', error);
-        return NextResponse.json({ error: 'Failed to delete address' }, { status: 500 });
+        return NextResponse.json({ error: 'Xóa địa chỉ thất bại' }, { status: 500 });
     }
 }

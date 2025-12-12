@@ -4,11 +4,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PurchaseOrderBuilder from '@/components/admin/PurchaseOrderBuilder';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function CreatePurchaseOrderPage() {
     const router = useRouter();
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -24,7 +24,7 @@ export default function CreatePurchaseOrderPage() {
                 setProducts(await prodRes.json() || []);
             } catch (error) {
                 console.error("Failed to load data", error);
-                addToast("Failed to load necessary data for PO creation.", 'error');
+                addToast("Không thể tải dữ liệu cần thiết để tạo đơn hàng.", 'error');
             } finally {
                 setIsLoading(false);
             }
@@ -49,18 +49,18 @@ export default function CreatePurchaseOrderPage() {
                 throw new Error(err.error || 'Failed to create order');
             }
 
-            addToast('Purchase Order created successfully!', 'success'); // --- NEW ---
+            addToast('Tạo đơn nhập hàng thành công!', 'success');
             router.push('/admin/purchase-orders');
         } catch (error) {
-            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(error.message, 'error');
         }
     };
 
-    if (isLoading) return <div className="min-h-screen bg-gray-900 text-white p-8 flex justify-center">Loading...</div>;
+    if (isLoading) return <div className="min-h-screen bg-gray-900 text-white p-8 flex justify-center">Đang tải...</div>;
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            <h1 className="text-3xl font-bold mb-8">Create Purchase Order</h1>
+            <h1 className="text-3xl font-bold mb-8">Tạo Đơn Nhập Hàng</h1>
             <PurchaseOrderBuilder
                 suppliers={suppliers}
                 products={products}

@@ -6,15 +6,14 @@ import OrderExport from '@/components/admin/OrderExport';
 import OrderDetailsModal from '@/components/admin/OrderDetailsModal';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import PaginationControls from '@/components/ui/PaginationControls';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function OrdersPage() {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
 
-    // --- NEW: Pagination State ---
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(20);
     const [totalItems, setTotalItems] = useState(0);
@@ -37,7 +36,7 @@ export default function OrdersPage() {
             }
         } catch (error) {
             console.error(error);
-            addToast('Không thể tải danh sách đơn hàng.', 'error'); // --- FIXED ---
+            addToast('Không thể tải danh sách đơn hàng.', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -47,7 +46,6 @@ export default function OrdersPage() {
         fetchOrders();
     }, [fetchOrders]);
 
-    // Handlers
     const handleUpdateOrder = (updatedOrder) => {
         setOrders(prevOrders =>
             prevOrders.map(o => (o.id === updatedOrder.id ? updatedOrder : o))
@@ -55,7 +53,6 @@ export default function OrdersPage() {
         setSelectedOrder(updatedOrder);
     };
 
-    // --- NEW: Pagination Handlers ---
     const handlePageChange = (newPage) => setPage(newPage);
     const handleLimitChange = (newLimit) => {
         setLimit(newLimit);

@@ -1,3 +1,4 @@
+// components/admin/TopProducts.js
 'use client';
 import Link from 'next/link';
 

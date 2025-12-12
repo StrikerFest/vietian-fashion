@@ -4,10 +4,10 @@
 import { useState, useEffect } from 'react';
 import OptionSetList from '@/components/admin/OptionSetList';
 import OptionSetForm from '@/components/admin/OptionSetForm';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function ProductOptionsPage() {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [sets, setSets] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [view, setView] = useState('list'); // 'list', 'form'
@@ -21,7 +21,7 @@ export default function ProductOptionsPage() {
             setSets(data || []);
         } catch (error) {
             console.error(error);
-            addToast("Failed to load option sets.", 'error'); // Fallback for fetch error
+            addToast("Không thể tải các bộ tùy chọn.", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -32,22 +32,21 @@ export default function ProductOptionsPage() {
     }, []);
 
     const handleDelete = async (id) => {
-        if(!confirm("Delete this option set?")) return;
+        if(!confirm("Xóa bộ tùy chọn này?")) return;
         await fetch(`/api/admin/option-sets/${id}`, { method: 'DELETE' });
         fetchSets();
-        addToast("Option set archived successfully.", 'success'); // --- FIXED: Replaced alert() ---
+        addToast("Bộ tùy chọn đã được lưu trữ thành công.", 'success');
     };
 
     const handleDuplicate = async (set) => {
-        if(!confirm(`Duplicate "${set.title}"?`)) return;
+        if(!confirm(`Sao chép "${set.title}"?`)) return;
 
-        // Prepare payload for create endpoint
         const payload = {
-            title: `${set.title} (Copy)`,
+            title: `${set.title} (Sao chép)`,
             priority: set.priority,
-            is_active: false, // Default to inactive
+            is_active: false,
             rules: set.rules,
-            options: set.product_options // The API expects 'options', database has 'product_options'
+            options: set.product_options
         };
 
         try {
@@ -57,19 +56,19 @@ export default function ProductOptionsPage() {
                 body: JSON.stringify(payload)
             });
             if(res.ok) {
-                addToast("Option set duplicated successfully!", 'success'); // --- FIXED: Replaced alert() ---
+                addToast("Sao chép bộ tùy chọn thành công!", 'success');
                 fetchSets();
             } else {
                 const err = await res.json();
-                throw new Error(err.error || 'Failed to duplicate');
+                throw new Error(err.error || 'Sao chép thất bại');
             }
         } catch(e) {
-            addToast(e.message, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(e.message, 'error');
         }
     };
 
     const handleSuccess = (msg) => {
-        addToast(msg, 'success'); // --- FIXED: Replaced alert() ---
+        addToast(msg, 'success');
         setView('list');
         setEditingSet(null);
         fetchSets();
@@ -78,19 +77,19 @@ export default function ProductOptionsPage() {
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold">Product Options</h1>
+                <h1 className="text-3xl font-bold">Tùy Chọn Sản Phẩm</h1>
                 {view === 'list' && (
                     <button
                         onClick={() => { setEditingSet(null); setView('form'); }}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                     >
-                        + New Option Set
+                        + Bộ Tùy Chọn Mới
                     </button>
                 )}
             </div>
 
             {view === 'list' ? (
-                isLoading ? <p className="text-gray-400">Loading...</p> : (
+                isLoading ? <p className="text-gray-400">Đang tải...</p> : (
                     <OptionSetList
                         optionSets={sets}
                         onEdit={(s) => { setEditingSet(s); setView('form'); }}

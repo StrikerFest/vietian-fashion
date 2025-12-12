@@ -7,11 +7,9 @@ import { useToast } from '@/context/ToastContext';
 export default function RecommendationSettings() {
     const { addToast } = useToast();
 
-    // Attribute Config State
     const [availableAttributes, setAvailableAttributes] = useState([]);
     const [selectedAttributes, setSelectedAttributes] = useState([]);
 
-    // Limits State
     const [limits, setLimits] = useState({
         products: 8,
         collections: 2,
@@ -21,18 +19,14 @@ export default function RecommendationSettings() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Load Data
     useEffect(() => {
         const init = async () => {
             try {
-                // 1. Fetch Attributes from DB
                 const catRes = await fetch('/api/categories?type=attribute');
                 const allCategories = await catRes.json();
-                // Filter to only get "Root" attributes (e.g. Color, Material)
                 const rootAttributes = allCategories.filter(c => !c.parent_id);
                 setAvailableAttributes(rootAttributes);
 
-                // 2. Fetch Settings
                 const [attrSettingRes, limitSettingRes] = await Promise.all([
                     fetch('/api/settings?key=ai_search_attributes'),
                     fetch('/api/settings?key=ai_search_limits')
@@ -54,7 +48,7 @@ export default function RecommendationSettings() {
 
             } catch (error) {
                 console.error("Failed to load settings:", error);
-                addToast("Failed to load configuration.", "error");
+                addToast("Không thể tải cấu hình.", "error");
             } finally {
                 setIsLoading(false);
             }
@@ -62,7 +56,6 @@ export default function RecommendationSettings() {
         init();
     }, [addToast]);
 
-    // Handlers
     const handleToggleAttribute = (name) => {
         setSelectedAttributes(prev =>
             prev.includes(name)
@@ -72,7 +65,6 @@ export default function RecommendationSettings() {
     };
 
     const handleLimitChange = (key, value) => {
-        // Ensure it's a number and not negative
         const numValue = Math.max(0, parseInt(value) || 0);
         setLimits(prev => ({ ...prev, [key]: numValue }));
     };
@@ -80,7 +72,6 @@ export default function RecommendationSettings() {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            // Save Attributes Config
             const attrReq = fetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -91,7 +82,6 @@ export default function RecommendationSettings() {
                 })
             });
 
-            // Save Limits Config
             const limitReq = fetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -104,25 +94,25 @@ export default function RecommendationSettings() {
 
             await Promise.all([attrReq, limitReq]);
 
-            addToast("Configuration updated successfully!", "success");
+            addToast("Cập nhật cấu hình thành công!", "success");
         } catch (error) {
             console.error(error);
-            addToast("Failed to save settings.", "error");
+            addToast("Lưu cài đặt thất bại.", "error");
         } finally {
             setIsSaving(false);
         }
     };
 
-    if (isLoading) return <div className="text-gray-400 p-4 animate-pulse">Loading configuration...</div>;
+    if (isLoading) return <div className="text-gray-400 p-4 animate-pulse">Đang tải cấu hình...</div>;
 
     return (
         <div className="space-y-8">
 
             {/* Section 1: Attributes Selection */}
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-sm">
-                <h3 className="text-lg font-medium text-white mb-2">AI Search Prompt Fields</h3>
+                <h3 className="text-lg font-medium text-white mb-2">Trường nhập liệu tìm kiếm AI</h3>
                 <p className="text-sm text-gray-400 mb-6">
-                    Select which specific attributes customers can define when using the AI Search {`(e.g. "Season", "Material")`}.
+                    Chọn các thuộc tính cụ thể mà khách hàng có thể xác định khi sử dụng Tìm kiếm AI {`(ví dụ: "Mùa", "Chất liệu")`}.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -151,23 +141,23 @@ export default function RecommendationSettings() {
 
                 {availableAttributes.length === 0 && (
                     <div className="text-yellow-500 text-sm mt-2 bg-yellow-900/10 p-3 rounded border border-yellow-900/30">
-                        No attributes found. Go to <strong>Categories</strong> and create new categories with type {`"Attribute"`}.
+                        Không tìm thấy thuộc tính nào. Hãy vào <strong>Danh mục</strong> và tạo danh mục mới với loại {`"Thuộc tính"`}.
                     </div>
                 )}
             </div>
 
             {/* Section 2: Display Limits */}
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-sm">
-                <h3 className="text-lg font-medium text-white mb-2">Result Display Limits</h3>
+                <h3 className="text-lg font-medium text-white mb-2">Giới hạn hiển thị kết quả</h3>
                 <p className="text-sm text-gray-400 mb-6">
-                    Control the maximum number of recommendations shown to the customer.
+                    Kiểm soát số lượng gợi ý tối đa được hiển thị cho khách hàng.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Product Limit */}
                     <div className="bg-gray-900/30 p-4 rounded-lg border border-gray-700">
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                            Max Products
+                            Số sản phẩm tối đa
                         </label>
                         <input
                             type="number"
@@ -177,13 +167,13 @@ export default function RecommendationSettings() {
                             onChange={(e) => handleLimitChange('products', e.target.value)}
                             className="w-full bg-gray-800 border border-gray-600 rounded-md p-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono"
                         />
-                        <p className="text-xs text-gray-500 mt-2">Recommended: 4-12</p>
+                        <p className="text-xs text-gray-500 mt-2">Khuyên dùng: 4-12</p>
                     </div>
 
                     {/* Collection Limit */}
                     <div className="bg-gray-900/30 p-4 rounded-lg border border-gray-700">
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                            Max Collections
+                            Số bộ sưu tập tối đa
                         </label>
                         <input
                             type="number"
@@ -193,13 +183,13 @@ export default function RecommendationSettings() {
                             onChange={(e) => handleLimitChange('collections', e.target.value)}
                             className="w-full bg-gray-800 border border-gray-600 rounded-md p-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono"
                         />
-                        <p className="text-xs text-gray-500 mt-2">Recommended: 1-2</p>
+                        <p className="text-xs text-gray-500 mt-2">Khuyên dùng: 1-2</p>
                     </div>
 
                     {/* Attribute Limit */}
                     <div className="bg-gray-900/30 p-4 rounded-lg border border-gray-700">
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                            Max Categories
+                            Số danh mục tối đa
                         </label>
                         <input
                             type="number"
@@ -209,7 +199,7 @@ export default function RecommendationSettings() {
                             onChange={(e) => handleLimitChange('attributes', e.target.value)}
                             className="w-full bg-gray-800 border border-gray-600 rounded-md p-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono"
                         />
-                        <p className="text-xs text-gray-500 mt-2">Recommended: 1-2</p>
+                        <p className="text-xs text-gray-500 mt-2">Khuyên dùng: 1-2</p>
                     </div>
                 </div>
             </div>
@@ -221,7 +211,7 @@ export default function RecommendationSettings() {
                     disabled={isSaving}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-indigo-500/20 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                    {isSaving ? 'Saving Configuration...' : 'Save All Settings'}
+                    {isSaving ? 'Đang lưu cấu hình...' : 'Lưu tất cả cài đặt'}
                 </button>
             </div>
         </div>

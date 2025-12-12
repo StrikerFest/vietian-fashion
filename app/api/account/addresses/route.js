@@ -10,14 +10,14 @@ export async function GET(request) {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { data: addresses, error } = await supabase
             .from('addresses')
             .select('*')
             .eq('user_id', session.user.id)
-            .is('deleted_at', null) // --- NEW: Only active addresses ---
+            .is('deleted_at', null)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -25,24 +25,23 @@ export async function GET(request) {
         return NextResponse.json(addresses);
     } catch (error) {
         console.error('Error fetching addresses:', error);
-        return NextResponse.json({ error: 'Failed to fetch addresses' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải danh sách địa chỉ' }, { status: 500 });
     }
 }
 
-// POST (No change needed for create, just standard insert)
 export async function POST(request) {
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (!session) return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
 
         const body = await request.json();
         const { address_line_1, address_line_2, city, state, postal_code, country, is_default } = body;
 
         if (!address_line_1 || !city || !state || !postal_code || !country) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+            return NextResponse.json({ error: 'Thiếu thông tin bắt buộc' }, { status: 400 });
         }
 
         if (is_default) {
@@ -68,6 +67,6 @@ export async function POST(request) {
 
         return NextResponse.json(data, { status: 201 });
     } catch (error) {
-        return NextResponse.json({ error: 'Failed to create address' }, { status: 500 });
+        return NextResponse.json({ error: 'Tạo địa chỉ thất bại' }, { status: 500 });
     }
 }

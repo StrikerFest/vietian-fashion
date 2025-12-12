@@ -20,7 +20,7 @@ export async function POST(request) {
     const { name, type, subject, body_html } = await request.json();
 
     if (!name || !subject || !body_html) {
-        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        return NextResponse.json({ error: 'Thiếu thông tin bắt buộc' }, { status: 400 });
     }
 
     try {

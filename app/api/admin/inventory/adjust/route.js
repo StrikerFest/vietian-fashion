@@ -11,17 +11,17 @@ export async function POST(request) {
     try {
         // Check Auth
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (!session) return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
 
         const { variant_id, quantity_change, reason } = await request.json();
 
         if (!variant_id || !quantity_change || !reason) {
-            return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+            return NextResponse.json({ error: 'Thiếu các trường bắt buộc.' }, { status: 400 });
         }
 
         const change = parseInt(quantity_change);
         if (change === 0) {
-            return NextResponse.json({ error: 'Change cannot be zero.' }, { status: 400 });
+            return NextResponse.json({ error: 'Số lượng thay đổi không được bằng 0.' }, { status: 400 });
         }
 
         // Use the helper
@@ -32,7 +32,7 @@ export async function POST(request) {
             userId: session.user.id
         });
 
-        return NextResponse.json({ message: 'Inventory adjusted successfully.' });
+        return NextResponse.json({ message: 'Điều chỉnh tồn kho thành công.' });
 
     } catch (error) {
         console.error('Adjustment error:', error);

@@ -4,15 +4,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import UsersTable from '@/components/admin/UsersTable';
 import PaginationControls from '@/components/ui/PaginationControls';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function UsersPage() {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [users, setUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // --- NEW: Pagination State ---
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(20);
     const [totalItems, setTotalItems] = useState(0);
@@ -41,13 +40,12 @@ export default function UsersPage() {
             }
         } catch (error) {
             console.error("Failed to fetch users:", error);
-            addToast("Không thể tải danh sách khách hàng.", 'error'); // --- FIXED ---
+            addToast("Không thể tải danh sách khách hàng.", 'error');
         } finally {
             setIsLoading(false);
         }
     }, [page, limit, searchQuery, addToast]);
 
-    // Debounce search
     useEffect(() => {
         const timeout = setTimeout(() => {
             fetchUsers();
@@ -65,10 +63,10 @@ export default function UsersPage() {
                 throw new Error(errorData.error || 'Lưu trữ người dùng thất bại');
             }
 
-            fetchUsers(); // Reload to update list/counts
-            addToast('Đã lưu trữ người dùng thành công.', 'success'); // --- FIXED: Replaced alert() ---
+            fetchUsers();
+            addToast('Đã lưu trữ người dùng thành công.', 'success');
         } catch (error) {
-            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(error.message, 'error');
         }
     };
 
@@ -91,7 +89,7 @@ export default function UsersPage() {
                             value={searchQuery}
                             onChange={(e) => {
                                 setSearchQuery(e.target.value);
-                                setPage(1); // Reset page on search
+                                setPage(1);
                             }}
                             className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-4 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                         />

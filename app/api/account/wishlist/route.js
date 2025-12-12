@@ -9,7 +9,7 @@ export async function GET(request) {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (!session) return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
 
         // Fetch wishlist items with full product details
         const { data, error } = await supabase
@@ -44,7 +44,7 @@ export async function POST(request) {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (!session) return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
 
         const { product_id } = await request.json();
 
@@ -54,11 +54,11 @@ export async function POST(request) {
 
         if (error) {
             // Ignore duplicate key error (already in wishlist)
-            if (error.code === '23505') return NextResponse.json({ message: 'Already in wishlist' });
+            if (error.code === '23505') return NextResponse.json({ message: 'Sản phẩm đã có trong danh sách yêu thích' });
             throw error;
         }
 
-        return NextResponse.json({ message: 'Added to wishlist' });
+        return NextResponse.json({ message: 'Đã thêm vào danh sách yêu thích' });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
@@ -70,7 +70,7 @@ export async function DELETE(request) {
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (!session) return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
 
         const { searchParams } = new URL(request.url);
         const product_id = searchParams.get('productId');
@@ -83,7 +83,7 @@ export async function DELETE(request) {
 
         if (error) throw error;
 
-        return NextResponse.json({ message: 'Removed from wishlist' });
+        return NextResponse.json({ message: 'Đã xóa khỏi danh sách yêu thích' });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

@@ -10,7 +10,7 @@ export async function GET(request) {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         // Fetch Returns with Dynamic Attributes
@@ -73,6 +73,6 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Error fetching customer returns:', error);
-        return NextResponse.json({ error: 'Failed to fetch returns.' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi khi tải danh sách trả hàng.' }, { status: 500 });
     }
 }

@@ -2,10 +2,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation'; // --- NEW ---
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import QuickViewModal from '@/components/QuickViewModal';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW ---
+import PaginationControls from '@/components/ui/PaginationControls';
 
 export default function ProductsPage() {
     const router = useRouter();
@@ -15,7 +15,7 @@ export default function ProductsPage() {
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // --- NEW: Pagination State ---
+    // --- Pagination State ---
     const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
     const [limit, setLimit] = useState(parseInt(searchParams.get('limit') || '12'));
     const [totalItems, setTotalItems] = useState(0);
@@ -26,7 +26,7 @@ export default function ProductsPage() {
     const handleOpenQuickView = (productId) => setQuickViewProductId(productId);
     const handleCloseQuickView = () => setQuickViewProductId(null);
 
-    // --- NEW: Helper to update URL params ---
+    // --- Helper to update URL params ---
     const updateParams = (newPage, newLimit) => {
         const params = new URLSearchParams(searchParams.toString());
         params.set('page', newPage);
@@ -62,7 +62,7 @@ export default function ProductsPage() {
         fetchProducts();
     }, [fetchProducts]);
 
-    // --- NEW: Handlers ---
+    // --- Handlers ---
     const handlePageChange = (newPage) => {
         setPage(newPage);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -78,10 +78,10 @@ export default function ProductsPage() {
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-7xl mx-auto">
-                <h1 className="text-4xl font-extrabold text-center mb-12">Our Collection</h1>
+                <h1 className="text-4xl font-extrabold text-center mb-12">Bộ Sưu Tập Của Chúng Tôi</h1>
 
                 {isLoading && products.length === 0 ? (
-                    <p className="text-center">Loading our collection...</p>
+                    <p className="text-center">Đang tải bộ sưu tập...</p>
                 ) : (
                     <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
@@ -94,7 +94,7 @@ export default function ProductsPage() {
                             ))}
                         </div>
 
-                        {/* --- NEW: Pagination --- */}
+                        {/* --- Pagination --- */}
                         <PaginationControls
                             currentPage={page}
                             totalPages={totalPages}

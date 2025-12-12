@@ -3,11 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) {
     const router = useRouter();
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
 
     const [supplierId, setSupplierId] = useState('');
     const [expectedDate, setExpectedDate] = useState('');
@@ -37,7 +37,6 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
         }
     };
 
-    // --- NEW: Dynamic Label Helper ---
     const getVariantLabel = (v) => {
         let details = '';
         if (v.attributes && Object.keys(v.attributes).length > 0) {
@@ -48,7 +47,7 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
 
     const addItem = () => {
         if (!selectedProductId || !selectedVariantId || qty <= 0) {
-            addToast('Please select a product, variant, and quantity.', 'info');
+            addToast('Vui lòng chọn sản phẩm, biến thể và số lượng.', 'info');
             return;
         }
 
@@ -56,7 +55,7 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
         const variant = variantsMap[selectedProductId].find(v => v.id == selectedVariantId);
 
         if (items.find(i => i.variant_id === variant.id)) {
-            addToast('This variant is already in the order.', 'info'); // --- FIXED: Replaced alert() ---
+            addToast('Biến thể này đã có trong đơn hàng.', 'info');
             return;
         }
 
@@ -66,7 +65,6 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
             cost_price: parseFloat(cost),
             productName: product.name,
             sku: variant.sku,
-            // Use the helper to generate string details for the list view
             details: getVariantLabel(variant).replace(variant.sku, '').replace(' - ', '')
         }]);
         setQty(1);
@@ -80,11 +78,11 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!supplierId) {
-            addToast('Please select a supplier.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Vui lòng chọn nhà cung cấp.', 'error');
             return;
         }
         if (items.length === 0) {
-            addToast('Please add items to the order.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Vui lòng thêm sản phẩm vào đơn hàng.', 'error');
             return;
         }
 
@@ -97,18 +95,18 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
         <form onSubmit={handleSubmit} className="space-y-8">
             <div className="bg-gray-800 p-6 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-6 border border-gray-700">
                 <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-300">Supplier</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Nhà cung cấp</label>
                     <select
                         value={supplierId} onChange={(e) => setSupplierId(e.target.value)}
                         className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 text-white"
                         required
                     >
-                        <option value="">-- Select Supplier --</option>
+                        <option value="">-- Chọn Nhà cung cấp --</option>
                         {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-300">Expected Date</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Ngày dự kiến</label>
                     <input
                         type="date"
                         value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)}
@@ -118,21 +116,21 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
             </div>
 
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <h2 className="text-xl font-semibold mb-4 text-white">Order Items</h2>
+                <h2 className="text-xl font-semibold mb-4 text-white">Sản phẩm đặt hàng</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-6 bg-gray-900/50 p-4 rounded-md">
                     <div className="md:col-span-4">
-                        <label className="block text-xs font-medium mb-1 text-gray-400">Product</label>
+                        <label className="block text-xs font-medium mb-1 text-gray-400">Sản phẩm</label>
                         <select
                             value={selectedProductId} onChange={handleProductChange}
                             className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm text-white"
                         >
-                            <option value="">-- Select --</option>
+                            <option value="">-- Chọn --</option>
                             {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                     </div>
                     <div className="md:col-span-3">
-                        <label className="block text-xs font-medium mb-1 text-gray-400">Variant</label>
+                        <label className="block text-xs font-medium mb-1 text-gray-400">Biến thể</label>
                         <select
                             value={selectedVariantId} onChange={(e) => setSelectedVariantId(e.target.value)}
                             className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm disabled:opacity-50 text-white"
@@ -146,14 +144,14 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                         </select>
                     </div>
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-medium mb-1 text-gray-400">Qty</label>
+                        <label className="block text-xs font-medium mb-1 text-gray-400">SL</label>
                         <input
                             type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
                             className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm text-white"
                         />
                     </div>
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-medium mb-1 text-gray-400">Cost</label>
+                        <label className="block text-xs font-medium mb-1 text-gray-400">Giá vốn</label>
                         <input
                             type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)}
                             className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm text-white"
@@ -169,11 +167,11 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                 <table className="w-full text-left text-sm text-gray-300">
                     <thead className="bg-gray-900 text-gray-400">
                     <tr>
-                        <th className="p-2">Product</th>
+                        <th className="p-2">Sản phẩm</th>
                         <th className="p-2">SKU</th>
-                        <th className="p-2">Qty</th>
-                        <th className="p-2">Unit Cost</th>
-                        <th className="p-2">Total</th>
+                        <th className="p-2">SL</th>
+                        <th className="p-2">Giá đơn vị</th>
+                        <th className="p-2">Tổng</th>
                         <th className="p-2"></th>
                     </tr>
                     </thead>
@@ -190,15 +188,15 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                             </td>
                         </tr>
                     ))}
-                    {items.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-gray-500">No items added.</td></tr>}
+                    {items.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-gray-500">Chưa có sản phẩm nào được thêm.</td></tr>}
                     </tbody>
                 </table>
             </div>
 
             <div className="flex justify-end gap-4">
-                <button type="button" onClick={() => router.back()} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
+                <button type="button" onClick={() => router.back()} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg">Hủy</button>
                 <button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-600">
-                    {isSubmitting ? 'Saving...' : 'Save Order'}
+                    {isSubmitting ? 'Đang lưu...' : 'Lưu Đơn hàng'}
                 </button>
             </div>
         </form>

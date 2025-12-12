@@ -32,7 +32,7 @@ export async function GET() {
 export async function POST(request) {
     const { title, priority, is_active, rules, options } = await request.json();
 
-    if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+    if (!title) return NextResponse.json({ error: 'Tiêu đề là bắt buộc' }, { status: 400 });
 
     try {
         // 1. Create Set
@@ -58,7 +58,6 @@ export async function POST(request) {
                 is_required: opt.is_required || false,
                 position: opt.position || index,
                 values: opt.values || [],
-                // --- NEW: Save the base price modifier ---
                 price_modifier: opt.price_modifier || 0
             }));
 

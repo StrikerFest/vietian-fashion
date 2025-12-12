@@ -43,7 +43,7 @@ export function WishlistProvider({ children }) {
     // Actions
     const toggleWishlist = useCallback(async (productId) => {
         if (!session) {
-            addToast("Please login to save items.", "info");
+            addToast("Vui lòng đăng nhập để lưu sản phẩm.", "info");
             return;
         }
 
@@ -62,19 +62,19 @@ export function WishlistProvider({ children }) {
         try {
             if (isRemoving) {
                 await fetch(`/api/account/wishlist?productId=${id}`, { method: 'DELETE' });
-                addToast("Removed from wishlist", "info");
+                addToast("Đã xóa khỏi danh sách yêu thích", "info");
             } else {
                 await fetch('/api/account/wishlist', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ product_id: id })
                 });
-                addToast("Added to wishlist!", "success");
+                addToast("Đã thêm vào danh sách yêu thích!", "success");
             }
         } catch (error) {
             // Revert on error
             console.error(error);
-            addToast("Failed to update wishlist", "error");
+            addToast("Cập nhật danh sách yêu thích thất bại", "error");
             setWishlistIds(prev => {
                 const next = new Set(prev);
                 if (isRemoving) next.add(id);

@@ -6,8 +6,6 @@ import { generateEmbedding } from '@/utils/ai-server';
 async function processBatch(table, items) {
     let updated = 0;
     for (const item of items) {
-        // Construct a rich text representation for the embedding
-        // e.g. "Summer Vibes - A collection for beach and sun"
         const textToEmbed = `${item.name} ${item.description || ''}`;
 
         try {
@@ -30,7 +28,6 @@ async function processBatch(table, items) {
 export async function POST() {
     try {
         // 1. Fetch Collections without embeddings (or just fetch all to sync)
-        // In production, you might filter for embedding.is.null, but for MVP re-indexing all is safer
         const { data: collections } = await supabase
             .from('collections')
             .select('id, name, description');
@@ -46,7 +43,7 @@ export async function POST() {
         const categoriesUpdated = await processBatch('categories', categories || []);
 
         return NextResponse.json({
-            message: 'Embeddings updated successfully.',
+            message: 'Cập nhật embeddings thành công.',
             stats: {
                 collectionsProcessed: collectionsUpdated,
                 categoriesProcessed: categoriesUpdated

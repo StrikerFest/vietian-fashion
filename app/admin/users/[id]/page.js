@@ -6,13 +6,13 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import UserAddresses from '@/components/admin/UserAddresses';
 import UserOrders from '@/components/admin/UserOrders';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function UserDetailsPage() {
     const params = useParams();
     const { id } = params;
     const router = useRouter();
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
 
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -25,7 +25,7 @@ export default function UserDetailsPage() {
                 const response = await fetch(`/api/admin/users/${id}`);
                 if (!response.ok) {
                     if (response.status === 404) {
-                        addToast("Không tìm thấy người dùng", 'error'); // --- FIXED: Replaced alert() ---
+                        addToast("Không tìm thấy người dùng", 'error');
                         router.push('/admin/users');
                         return;
                     }
@@ -35,7 +35,7 @@ export default function UserDetailsPage() {
                 setUser(data);
             } catch (error) {
                 console.error(error);
-                addToast(error.message, 'error'); // --- FIXED ---
+                addToast(error.message, 'error');
             } finally {
                 setIsLoading(false);
             }
@@ -51,7 +51,7 @@ export default function UserDetailsPage() {
         );
     }
 
-    if (!user) return null; // Handled by redirect in useEffect
+    if (!user) return null;
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -71,7 +71,6 @@ export default function UserDetailsPage() {
                             <span className="text-gray-400">Tham gia ngày {new Date(user.created_at).toLocaleDateString('vi-VN')}</span>
                         </div>
                     </div>
-                    {/* You could add User specific actions here like 'Reset Password' or 'Edit' in future */}
                 </div>
             </div>
 

@@ -3,11 +3,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-// --- NEW: Import the custom admin auth hook ---
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
 export default function AdminLoginPage() {
-    // --- NEW: Use the admin auth context ---
     const { login, session, isLoading: isAuthLoading } = useAdminAuth();
     const router = useRouter();
 
@@ -19,9 +17,7 @@ export default function AdminLoginPage() {
     const [message, setMessage] = useState({ type: '', text: '' });
     const [isLoading, setIsLoading] = useState(false);
 
-    // --- NEW: Redirect if already logged in as admin ---
     useEffect(() => {
-        // If auth is not loading and an admin session *exists*, redirect to dashboard
         if (!isAuthLoading && session) {
             router.push('/admin');
         }
@@ -33,22 +29,17 @@ export default function AdminLoginPage() {
         setMessage({ type: '', text: '' });
 
         try {
-            // --- NEW: Call the custom login function from the context ---
             const { success } = await login(email, password);
 
             if (success) {
-                // On success, redirect to the admin dashboard
                 router.push('/admin');
             }
         } catch (error) {
-            // The login function will throw an error if login fails or user is not admin
             setMessage({ type: 'error', text: error.message });
             setIsLoading(false);
         }
-        // No need to set isLoading(false) on success, as we are redirecting
     };
 
-    // Don't render the form if auth is loading or user is already logged in
     if (isAuthLoading || session) {
         return (
             <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -91,7 +82,6 @@ export default function AdminLoginPage() {
                         />
                     </div>
 
-                    {/* --- Display Messages --- */}
                     {message.text && (
                         <p className={`text-sm text-center ${message.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
                             {message.text}

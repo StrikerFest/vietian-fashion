@@ -6,32 +6,28 @@ import ProductFilters from '@/components/admin/ProductFilters';
 import ProductForm from '@/components/admin/ProductForm';
 import ProductImportExport from '@/components/admin/ProductImportExport';
 import PaginationControls from '@/components/ui/PaginationControls';
-import BulkImportModal from '@/components/admin/BulkImportModal'; // --- NEW: Import the Modal ---
+import BulkImportModal from '@/components/admin/BulkImportModal';
 import {useToast} from '@/context/ToastContext';
 
 export default function AdminProductsPage() {
     const {addToast} = useToast();
 
-    // --- Data State ---
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [collections, setCollections] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // --- Pagination State ---
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(20);
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
 
-    // --- View State ---
     const [showForm, setShowForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [selectedProductIds, setSelectedProductIds] = useState([]);
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false); // --- NEW: Modal State ---
-    const [activeTab, setActiveTab] = useState('all'); // --- NEW: 'all' | 'generated' ---
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState('all');
 
-    // --- Filter & Sort State ---
     const [searchQuery, setSearchQuery] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
     const [filterCollection, setFilterCollection] = useState('');
@@ -39,13 +35,9 @@ export default function AdminProductsPage() {
     const [filterStock, setFilterStock] = useState('all');
     const [sortOption, setSortOption] = useState('newest');
 
-    // --- Data Fetching ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Note: In a real app with thousands of "Generated" items, you might want
-            // to filter by [G] on the server side using a new API param like ?is_generated=true
-            // For now, we fetch all and filter client-side as per the current architecture.
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: limit.toString(),
@@ -83,7 +75,6 @@ export default function AdminProductsPage() {
         }
     }, [page, limit, searchQuery, addToast]);
 
-    // Debounce search
     useEffect(() => {
         const timeout = setTimeout(() => {
             fetchData();
@@ -91,7 +82,6 @@ export default function AdminProductsPage() {
         return () => clearTimeout(timeout);
     }, [fetchData]);
 
-    // --- Computed: Comprehensive Attributes List ---
     const allAttributes = useMemo(() => {
         const attrSet = new Set();
         products.forEach(p => {
@@ -109,31 +99,23 @@ export default function AdminProductsPage() {
         return Array.from(attrSet).sort();
     }, [products]);
 
-    // --- Filter Logic (Client-side) ---
     const filteredAndSortedProducts = useMemo(() => {
         let result = [...products];
 
-        // --- 0. TAB LOGIC (The Filter) ---
         if (activeTab === 'generated') {
-            // Show ONLY products starting with [G]
             result = result.filter(p => p.name.startsWith('[G]'));
         } else {
-            // Show standard products (hide [G] unless specifically searched for)
-            // If user searches "[G]", we let it through, otherwise hide.
             if (!searchQuery.includes('[G]')) {
                 result = result.filter(p => !p.name.startsWith('[G]'));
             }
         }
 
-        // 1. Catalog Category Filter
         if (filterCategory) {
             result = result.filter(p => p.catalog_categories?.some(c => c.id.toString() === filterCategory));
         }
-        // 2. Collection Filter
         if (filterCollection) {
             result = result.filter(p => p.collections?.some(c => c.id.toString() === filterCollection));
         }
-        // 3. Attribute Filter
         if (filterAttribute) {
             result = result.filter(p => {
                 const hasGlobal = p.attributes?.some(a => a.name === filterAttribute);
@@ -144,7 +126,6 @@ export default function AdminProductsPage() {
                 return hasGlobal || hasVariant;
             });
         }
-        // 4. Stock Filter
         if (filterStock !== 'all') {
             result = result.filter(p => {
                 const totalStock = p.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0) || 0;
@@ -155,7 +136,6 @@ export default function AdminProductsPage() {
             });
         }
 
-        // 5. Sorting
         result.sort((a, b) => {
             switch (sortOption) {
                 case 'name_asc':
@@ -186,7 +166,6 @@ export default function AdminProductsPage() {
     const allVisibleProductsSelected = filteredAndSortedProducts.length > 0 &&
         filteredAndSortedProducts.every(p => selectedProductIds.includes(p.id));
 
-    // --- Handlers ---
     const handleEdit = (product) => {
         setEditingProduct(product);
         setShowForm(true);
@@ -240,10 +219,8 @@ export default function AdminProductsPage() {
             <div className="flex justify-between items-start mb-6">
                 <h1 className="text-3xl font-bold">Quản lý Sản phẩm</h1>
 
-                {/* Header Actions */}
                 {!showForm && (
                     <div className="flex gap-3">
-                        {/* AI Import Button */}
                         <button
                             onClick={() => setIsImportModalOpen(true)}
                             className="bg-gray-800 hover:bg-gray-700 text-indigo-400 border border-indigo-500/30 font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
@@ -264,13 +241,12 @@ export default function AdminProductsPage() {
                 )}
             </div>
 
-            {/* Bulk Import Modal */}
             <BulkImportModal
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
                 onComplete={() => {
-                    fetchData(); // Refresh list after import
-                    setActiveTab('generated'); // Switch to Generated tab to see results
+                    fetchData();
+                    setActiveTab('generated');
                 }}
             />
 
@@ -287,7 +263,6 @@ export default function AdminProductsPage() {
                 />
             ) : (
                 <>
-                    {/* --- TABS --- */}
                     <div className="flex gap-1 bg-gray-800/50 p-1 rounded-lg w-fit mb-6 border border-gray-700">
                         <button
                             onClick={() => setActiveTab('all')}
@@ -308,7 +283,6 @@ export default function AdminProductsPage() {
                             }`}
                         >
                             <span>✨</span> Bản nháp AI
-                            {/* Optional: Counter Badge could go here */}
                         </button>
                     </div>
 

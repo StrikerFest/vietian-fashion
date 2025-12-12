@@ -51,6 +51,6 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Error fetching users:', error);
-        return NextResponse.json({ error: 'Failed to fetch users.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải danh sách người dùng.', details: error.message }, { status: 500 });
     }
 }

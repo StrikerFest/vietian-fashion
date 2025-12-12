@@ -24,7 +24,7 @@ export default function TaxSettings() {
                 }
             } catch (error) {
                 console.error(error);
-                addToast('Failed to load tax settings', 'error');
+                addToast('Không thể tải cài đặt thuế', 'error');
             } finally {
                 setIsLoading(false);
             }
@@ -49,28 +49,28 @@ export default function TaxSettings() {
                     description: 'Configuration for Tax Rate (%) and Shipping Cost ($).'
                 })
             });
-            addToast('Tax & Shipping settings saved successfully', 'success');
+            addToast('Đã lưu cài đặt Thuế & Vận chuyển thành công', 'success');
         } catch (error) {
             console.error(error);
-            addToast('Failed to save settings', 'error');
+            addToast('Lưu cài đặt thất bại', 'error');
         } finally {
             setIsSaving(false);
         }
     };
 
-    if (isLoading) return <div className="text-gray-400 animate-pulse">Loading configuration...</div>;
+    if (isLoading) return <div className="text-gray-400 animate-pulse">Đang tải cấu hình...</div>;
 
     return (
         <form onSubmit={handleSubmit} className="max-w-2xl space-y-8">
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <h3 className="text-lg font-medium text-white mb-4">Financial Settings</h3>
+                <h3 className="text-lg font-medium text-white mb-4">Cài đặt Tài chính</h3>
                 <p className="text-sm text-gray-400 mb-6">
-                    Configure the base tax rate and shipping costs applied to all orders.
+                    Cấu hình thuế suất cơ bản và phí vận chuyển áp dụng cho tất cả đơn hàng.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Tax Rate (%)</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Thuế suất (%)</label>
                         <input
                             type="number"
                             min="0"
@@ -78,14 +78,14 @@ export default function TaxSettings() {
                             value={config.taxRate}
                             onChange={(e) => setConfig({ ...config, taxRate: e.target.value })}
                             className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            placeholder="e.g. 5.0"
+                            placeholder="vd: 5.0"
                             required
                         />
-                        <p className="text-xs text-gray-500 mt-1">Applied to subtotal after discounts.</p>
+                        <p className="text-xs text-gray-500 mt-1">Áp dụng cho tạm tính sau khi giảm giá.</p>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Standard Shipping ($)</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Phí vận chuyển tiêu chuẩn ($)</label>
                         <input
                             type="number"
                             min="0"
@@ -93,13 +93,13 @@ export default function TaxSettings() {
                             value={config.shippingCost}
                             onChange={(e) => setConfig({ ...config, shippingCost: e.target.value })}
                             className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            placeholder="e.g. 10.00"
+                            placeholder="vd: 10.00"
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Free Shipping Threshold ($)</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Ngưỡng miễn phí vận chuyển ($)</label>
                         <input
                             type="number"
                             min="0"
@@ -107,9 +107,9 @@ export default function TaxSettings() {
                             value={config.freeShippingThreshold}
                             onChange={(e) => setConfig({ ...config, freeShippingThreshold: e.target.value })}
                             className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            placeholder="e.g. 100"
+                            placeholder="vd: 100"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Set to 0 to disable free shipping.</p>
+                        <p className="text-xs text-gray-500 mt-1">Đặt là 0 để tắt miễn phí vận chuyển.</p>
                     </div>
                 </div>
             </div>
@@ -120,7 +120,7 @@ export default function TaxSettings() {
                     disabled={isSaving}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-indigo-500/20 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                    {isSaving ? 'Saving...' : 'Save Configuration'}
+                    {isSaving ? 'Đang lưu...' : 'Lưu Cấu Hình'}
                 </button>
             </div>
         </form>

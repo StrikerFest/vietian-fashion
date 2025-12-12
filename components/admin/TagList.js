@@ -3,7 +3,7 @@
 
 export default function TagList({ tags, onEdit, onDelete }) {
     if (tags.length === 0) {
-        return <p className="text-gray-500 mt-4 text-center">No tags found.</p>;
+        return <p className="text-gray-500 mt-4 text-center">Không tìm thấy thẻ nào.</p>;
     }
 
     return (
@@ -15,14 +15,14 @@ export default function TagList({ tags, onEdit, onDelete }) {
                         <button
                             onClick={() => onEdit(tag)}
                             className="text-indigo-400 hover:text-indigo-300 text-sm font-bold px-1"
-                            title="Edit"
+                            title="Sửa"
                         >
                             ✎
                         </button>
                         <button
                             onClick={() => onDelete(tag.id)}
                             className="text-red-500 hover:text-red-400 text-sm font-bold px-1"
-                            title="Delete"
+                            title="Xóa"
                         >
                             ×
                         </button>

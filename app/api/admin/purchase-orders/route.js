@@ -28,7 +28,7 @@ export async function POST(request) {
     const { supplier_id, order_date, expected_date, items } = await request.json();
 
     if (!supplier_id || !items || items.length === 0) {
-        return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
+        return NextResponse.json({ error: 'Dữ liệu không hợp lệ' }, { status: 400 });
     }
 
     try {
@@ -61,7 +61,7 @@ export async function POST(request) {
             throw itemsError;
         }
 
-        return NextResponse.json({ message: 'Created', purchaseOrder: newPO }, { status: 201 });
+        return NextResponse.json({ message: 'Đã tạo', purchaseOrder: newPO }, { status: 201 });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

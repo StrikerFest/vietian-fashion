@@ -9,13 +9,13 @@ export async function POST(request) {
     const { product_id, discount_text } = await request.json();
 
     if (!product_id || !discount_text) {
-        return NextResponse.json({ error: 'Product ID and Discount Text required' }, { status: 400 });
+        return NextResponse.json({ error: 'Yêu cầu ID sản phẩm và nội dung giảm giá' }, { status: 400 });
     }
 
     try {
         // 1. Fetch Product
         const { data: product } = await supabase.from('products').select('name').eq('id', product_id).single();
-        if (!product) throw new Error("Product not found");
+        if (!product) throw new Error("Không tìm thấy sản phẩm");
 
         // 2. Find Users who wishlisted this product
         const { data: wishlists } = await supabase
@@ -24,7 +24,7 @@ export async function POST(request) {
             .eq('product_id', product_id);
 
         if (!wishlists || wishlists.length === 0) {
-            return NextResponse.json({ message: 'No users have wishlisted this item.' });
+            return NextResponse.json({ message: 'Không có người dùng nào thích sản phẩm này.' });
         }
 
         // 3. Get the "Wishlist Sale" Template
@@ -35,7 +35,7 @@ export async function POST(request) {
             .eq('is_active', true)
             .single();
 
-        if (!template) throw new Error("No active 'wishlist_sale' email template found.");
+        if (!template) throw new Error("Không tìm thấy mẫu email 'wishlist_sale' đang hoạt động.");
 
         // 4. Get Sender Configuration (Dynamic)
         const { data: emailSettings } = await supabase
@@ -53,7 +53,7 @@ export async function POST(request) {
         const emailBatch = wishlists.map(item => {
             const user = item.users;
             const filledBody = template.body_html
-                .replace(/{{customer_name}}/g, user.first_name || 'Friend')
+                .replace(/{{customer_name}}/g, user.first_name || 'Bạn')
                 .replace(/{{product_name}}/g, product.name)
                 .replace(/{{discount_text}}/g, discount_text);
 
@@ -75,7 +75,7 @@ export async function POST(request) {
 
         return NextResponse.json({
             success: true,
-            message: `Sent sale notifications to ${wishlists.length} customers.`,
+            message: `Đã gửi thông báo giảm giá đến ${wishlists.length} khách hàng.`,
             data
         });
 

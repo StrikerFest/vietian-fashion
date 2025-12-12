@@ -33,7 +33,7 @@ export async function DELETE(request, context) {
             .eq('id', id);
 
         if (error) throw error;
-        return NextResponse.json({ message: 'Template deleted' });
+        return NextResponse.json({ message: 'Đã xóa mẫu' });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

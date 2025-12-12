@@ -2,7 +2,7 @@
 'use client';
 
 export default function TemplateList({ templates, onEdit, onDelete }) {
-    if (templates.length === 0) return <p className="text-gray-500 text-center">No templates found.</p>;
+    if (templates.length === 0) return <p className="text-gray-500 text-center">Không tìm thấy mẫu nào.</p>;
 
     return (
         <div className="grid gap-4">
@@ -18,11 +18,11 @@ export default function TemplateList({ templates, onEdit, onDelete }) {
                                 {t.type.replace('_', ' ')}
                             </span>
                         </div>
-                        <p className="text-sm text-gray-400">Subject: <span className="text-gray-300 italic">{t.subject}</span></p>
+                        <p className="text-sm text-gray-400">Chủ đề: <span className="text-gray-300 italic">{t.subject}</span></p>
                     </div>
                     <div className="flex gap-2">
-                        <button onClick={() => onEdit(t)} className="text-indigo-400 hover:text-indigo-300 font-semibold text-sm">Edit</button>
-                        <button onClick={() => onDelete(t.id)} className="text-red-500 hover:text-red-400 font-semibold text-sm">Delete</button>
+                        <button onClick={() => onEdit(t)} className="text-indigo-400 hover:text-indigo-300 font-semibold text-sm">Sửa</button>
+                        <button onClick={() => onDelete(t.id)} className="text-red-500 hover:text-red-400 font-semibold text-sm">Xóa</button>
                     </div>
                 </div>
             ))}
