@@ -16,25 +16,56 @@ export async function PUT(request, context) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     // ----------------------------
 
-    // ... (rest of logic: parsing body, validation, slug generation, update) ...
-    // Copy logic from your file, but use the 'supabase' client created above.
-    const { name, description, parent_id, seo_title, seo_description } = await request.json();
+    // FIX: Destructure ALL fields, including time fencing and taxonomy settings
+    const body = await request.json();
+    const {
+        name,
+        description,
+        parent_id,
+        type,               // Missing
+        display_style,      // Missing
+        value,              // Missing
+        is_active,          // Missing
+        sort_order,         // Missing
+        start_date,         // Missing (Time fencing)
+        end_date,           // Missing (Time fencing)
+        seo_title,
+        seo_description
+    } = body;
+
     if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+
+    // Regenerate slug in case name changed
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     try {
         const { data, error } = await supabase
             .from('categories')
-            .update({ name, slug, description, parent_id: parent_id || null, seo_title, seo_description })
+            .update({
+                name,
+                slug,
+                description,
+                parent_id: parent_id || null,
+                type: type || 'catalog',
+                display_style: display_style || 'list',
+                value: value || null,
+                is_active: is_active ?? true,
+                sort_order: sort_order || 0,
+                start_date: start_date || null, // FIX: Update start_date
+                end_date: end_date || null,     // FIX: Update end_date
+                seo_title: seo_title || null,
+                seo_description: seo_description || null
+            })
             .eq('id', parseInt(id))
             .select().single();
 
         if (error) {
-            if (error.code === '23505') return NextResponse.json({ error: 'Tồn tại.' }, { status: 409 });
+            if (error.code === '23505') return NextResponse.json({ error: 'Danh mục đã tồn tại.' }, { status: 409 });
             throw error;
         }
         return NextResponse.json(data);
     } catch (error) {
+        console.error("Update Category Error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
