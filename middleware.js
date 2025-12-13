@@ -11,47 +11,29 @@ export async function middleware(req) {
     const path = req.nextUrl.pathname;
 
     // 1. ADMIN ROUTES (Pages & APIs)
-    // Protects both /admin and /api/admin
     if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
-
-        // Allow access to login page
         if (path === '/admin/login') {
-            if (session) {
-                return NextResponse.redirect(new URL('/admin', req.url));
-            }
+            if (session) return NextResponse.redirect(new URL('/admin', req.url));
             return res;
         }
 
-        // If no session exists
         if (!session) {
-            // API: Return 401 JSON
-            if (path.startsWith('/api/')) {
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-            }
-            // Page: Redirect to login
+            if (path.startsWith('/api/')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
             return NextResponse.redirect(new URL('/admin/login', req.url));
         }
 
-        // Verify Admin Role (RBAC)
         const { data: userRole, error: roleError } = await supabase.rpc('get_user_role');
-
         if (roleError || userRole !== 'admin') {
-            if (path.startsWith('/api/')) {
-                return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
-            }
+            if (path.startsWith('/api/')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
             return NextResponse.redirect(new URL('/', req.url));
         }
     }
 
-    // 2. ACCOUNT ROUTES (Pages & APIs) [SECURITY PATCH]
-    // Now protects /api/account routes from unauthorized access
-    if (path.startsWith('/account') || path.startsWith('/api/account')) {
+    // 2. ACCOUNT ROUTES (Pages & APIs)
+    // [FIX] Allow public access to Wishlist API (it handles guests internally)
+    if ((path.startsWith('/account') || path.startsWith('/api/account')) && !path.startsWith('/api/account/wishlist')) {
         if (!session) {
-            // API: Return 401 JSON (Don't redirect an AJAX call)
-            if (path.startsWith('/api/')) {
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-            }
-            // Page: Redirect to login
+            if (path.startsWith('/api/')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
             return NextResponse.redirect(new URL('/login', req.url));
         }
     }
@@ -64,7 +46,7 @@ export const config = {
         '/admin/:path*',
         '/api/admin/:path*',
         '/account/:path*',
-        '/api/account/:path*', // <--- CRITICAL: Ensures the middleware actually runs for these APIs
+        '/api/account/:path*',
         '/login',
         '/admin/login'
     ],

@@ -9,7 +9,7 @@ export async function PUT(request, context) {
     const { id } = params;
     const { name } = await request.json();
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // [SECURITY PATCH] ADMIN ONLY
@@ -42,7 +42,7 @@ export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // [SECURITY PATCH] ADMIN ONLY

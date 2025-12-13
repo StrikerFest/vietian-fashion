@@ -9,7 +9,7 @@ export async function PUT(request, context) {
     const { reviewId } = params;
     const { is_approved } = await request.json();
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // [SECURITY PATCH] ADMIN ONLY
@@ -40,7 +40,7 @@ export async function DELETE(request, context) {
     const params = await context.params;
     const { reviewId } = params;
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // [SECURITY PATCH] ADMIN ONLY

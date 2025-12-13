@@ -7,7 +7,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
 
     // --- AUTH & SCOPE SETUP ---
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const scope = searchParams.get('scope'); // 'admin' or null
 
@@ -175,7 +175,7 @@ export async function POST(request) {
         attribute_ids = [], category_id, collection_ids = [], position = 0, status // Accept status
     } = await request.json();
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     let newId = null;

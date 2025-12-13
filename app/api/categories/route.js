@@ -4,7 +4,7 @@ import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Use d
 import {cookies} from 'next/headers';
 
 export async function GET(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
     const {searchParams} = new URL(request.url);
@@ -46,7 +46,7 @@ export async function GET(request) {
 
 // POST (Create Category) - LOCKED TO ADMIN
 export async function POST(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
     // [SECURITY PATCH] ADMIN ONLY

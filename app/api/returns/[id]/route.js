@@ -8,7 +8,7 @@ export async function PUT(request, context) {
     const {id} = params;
 
     // [SECURITY PATCH] AUTH CHECK
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
     const {data: {session}} = await supabase.auth.getSession();
 

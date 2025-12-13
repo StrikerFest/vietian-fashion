@@ -70,7 +70,7 @@ export async function PUT(request, context) {
     const { id } = params;
     const { status } = await request.json();
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const authSupabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { session } } = await authSupabase.auth.getSession();
 

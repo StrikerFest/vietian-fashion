@@ -1,18 +1,17 @@
 // app/order-confirmation/[id]/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import {useState, useEffect} from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
-import { useParams } from 'next/navigation';
+import {useParams} from 'next/navigation';
 import ReturnRequestModal from '@/components/account/ReturnRequestModal';
 import OrderReceipt from '@/components/order/OrderReceipt';
-import { useToast } from '@/context/ToastContext';
+import {useToast} from '@/context/ToastContext';
 
 export default function OrderConfirmationPage() {
     const params = useParams();
     const orderId = params?.id;
-    const { addToast } = useToast();
+    const {addToast} = useToast();
 
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -23,74 +22,16 @@ export default function OrderConfirmationPage() {
             const fetchOrderDetails = async () => {
                 setIsLoading(true);
                 try {
-                    const { data, error } = await supabase
-                        .from('orders')
-                        .select(`
-                            id,
-                            created_at,
-                            subtotal,
-                            total_amount,
-                            tax_amount,      -- NEW: Fetch Tax
-                            shipping_cost,   -- NEW: Fetch Shipping
-                            status,
-                            shipping_carrier,
-                            tracking_number,
-                            order_items (
-                                id, 
-                                quantity,
-                                price_at_purchase,
-                                custom_options, 
-                                product_variants (
-                                    sku, price,
-                                    products ( name ),
-                                    variant_attributes (
-                                        attribute_value:categories (
-                                            name, parent:parent_id ( name )
-                                        )
-                                    )
-                                )
-                            ),
-                            order_discounts (
-                                discounts ( code, type, value )
-                            ),
-                            addresses (
-                                address_line_1,
-                                address_line_2,
-                                city,
-                                state_province_region,
-                                postal_code,
-                                country
-                            )
-                        `)
-                        .eq('id', orderId)
-                        .single();
+                    // [FIX] Use API Route instead of direct Supabase client
+                    // This allows the server to bypass RLS for Guest Orders securely
+                    const response = await fetch(`/api/orders/${orderId}`);
 
-                    if (error) throw error;
+                    if (!response.ok) {
+                        throw new Error('Order not found or unauthorized');
+                    }
 
-                    const formattedOrder = {
-                        ...data,
-                        // Ensure defaults for older orders
-                        tax_amount: data.tax_amount || 0,
-                        shipping_cost: data.shipping_cost || 0,
-                        order_items: data.order_items.map(item => {
-                            const attributes = {};
-                            item.product_variants?.variant_attributes?.forEach(va => {
-                                if (va.attribute_value?.parent?.name) {
-                                    attributes[va.attribute_value.parent.name] = va.attribute_value.name;
-                                }
-                            });
-
-                            return {
-                                ...item,
-                                product_variants: {
-                                    ...item.product_variants,
-                                    attributes
-                                }
-                            };
-                        })
-                    };
-
-                    setOrder(formattedOrder);
+                    const data = await response.json();
+                    setOrder(data);
                 } catch (error) {
                     console.error("Failed to fetch order details:", error);
                     setOrder(null);
@@ -131,7 +72,7 @@ export default function OrderConfirmationPage() {
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
-            <OrderReceipt order={order} />
+            <OrderReceipt order={order}/>
 
             {order.status === 'delivered' && (
                 <div className="max-w-4xl mx-auto mt-8 text-center pt-8 border-t border-gray-800">

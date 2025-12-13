@@ -5,7 +5,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'; // Swi
 import { cookies } from 'next/headers';
 
 export async function GET() {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // [SECURITY PATCH] ADMIN ONLY

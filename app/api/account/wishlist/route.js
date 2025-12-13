@@ -4,14 +4,17 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
 export async function GET(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
 
-        // Fetch wishlist items with full product details
+        // [FIX] For guests, just return empty list instead of 401 Error
+        if (!session) {
+            return NextResponse.json([]);
+        }
+
         const { data, error } = await supabase
             .from('wishlists')
             .select(`
@@ -25,10 +28,8 @@ export async function GET(request) {
 
         if (error) throw error;
 
-        // Clean up the data structure
         const formatted = data.map(item => ({
             ...item.products,
-            // Get the lowest price from variants for display
             price: item.products.price?.[0]?.price || 0
         }));
 
@@ -39,12 +40,13 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
+        // POST still requires login
+        if (!session) return NextResponse.json({ error: 'Vui lòng đăng nhập để lưu yêu thích' }, { status: 401 });
 
         const { product_id } = await request.json();
 
@@ -53,7 +55,6 @@ export async function POST(request) {
             .insert({ user_id: session.user.id, product_id });
 
         if (error) {
-            // Ignore duplicate key error (already in wishlist)
             if (error.code === '23505') return NextResponse.json({ message: 'Sản phẩm đã có trong danh sách yêu thích' });
             throw error;
         }
@@ -65,12 +66,12 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const { searchParams } = new URL(request.url);
         const product_id = searchParams.get('productId');

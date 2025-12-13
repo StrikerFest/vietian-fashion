@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 
 // GET all active reviews (Admin)
 export async function GET(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // [SECURITY PATCH] ADMIN ONLY ACCESS
@@ -62,7 +62,7 @@ export async function POST(request) {
     // [SECURITY PATCH] Ignore 'user_id' from body to prevent spoofing
     const { product_id, rating, comment } = await request.json();
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // 1. Get the Real User ID from the session

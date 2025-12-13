@@ -29,7 +29,7 @@ function generateSlug(name) {
 }
 
 export async function POST(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {

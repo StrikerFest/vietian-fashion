@@ -7,7 +7,7 @@ export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {

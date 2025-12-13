@@ -5,7 +5,7 @@ import {cookies} from 'next/headers';
 import Papa from 'papaparse';
 
 export async function GET(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
     // [SECURITY PATCH] ADMIN ONLY

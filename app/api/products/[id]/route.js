@@ -8,7 +8,7 @@ export async function GET(request, context) {
     const numericProductId = parseInt(id);
 
     // --- AUTH SETUP ---
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
     const {data, error} = await supabase
@@ -85,7 +85,7 @@ export async function PUT(request, context) {
     const numericProductId = parseInt(id);
 
     // Use dynamic client for security
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
     const {data: {session}} = await supabase.auth.getSession();
     if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
@@ -158,7 +158,7 @@ export async function PUT(request, context) {
 
 export async function DELETE(request, context) {
     const {id} = await context.params;
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
     const {data: {session}} = await supabase.auth.getSession();
     if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});

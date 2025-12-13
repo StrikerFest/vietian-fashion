@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 
 // GET all active discounts
 export async function GET(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // [SECURITY PATCH] ADMIN ONLY ACCESS
@@ -52,7 +52,7 @@ export async function GET(request) {
 
 // POST (Create Discount) - NOW SECURED
 export async function POST(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // [SECURITY PATCH] ADMIN ONLY - PREVENT UNAUTHORIZED CREATION

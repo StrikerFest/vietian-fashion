@@ -6,7 +6,7 @@ import {cookies} from 'next/headers';
 
 // GET all return requests (Admin Only)
 export async function GET() {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
     // [SECURITY PATCH] ADMIN ONLY
@@ -57,7 +57,7 @@ export async function GET() {
 
 // POST remains the same (it already checks for session)
 export async function POST(request) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
     try {

@@ -1,18 +1,36 @@
-import {NextResponse} from 'next/server';
-import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs';
-import {cookies} from 'next/headers';
+// app/api/settings/route.js
+import { NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+
+// [FIX] Define keys that are SAFE for the public to read
+const PUBLIC_KEYS = [
+    'homepage_config',      // Required for Homepage Banners/Layout
+    'ai_search_attributes', // Required for AI Search
+    'site_name',
+    'contact_email',
+    'tax_config',           // Required for Cart/Checkout calculation
+    'shipping_config'       // Required for Cart/Checkout calculation
+];
 
 export async function GET(request) {
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    // [SECURITY PATCH] ADMIN ONLY - Prevent configuration leakage
-    const {data: {session}} = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
-    // -------------------------------------------------------------
-
-    const {searchParams} = new URL(request.url);
+    const { searchParams } = new URL(request.url);
     const key = searchParams.get('key');
+
+    // [SECURITY CHECK]
+    // 1. Check if the requested key is in the Public Whitelist
+    const isPublicRequest = key && PUBLIC_KEYS.includes(key);
+
+    // 2. If NOT public, enforce Admin Session
+    if (!isPublicRequest) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+    }
 
     try {
         let query = supabase.from('settings').select('*');
@@ -21,10 +39,10 @@ export async function GET(request) {
             query = query.eq('key', key).single();
         }
 
-        const {data, error} = await query;
+        const { data, error } = await query;
 
         if (error && error.code === 'PGRST116') {
-            return NextResponse.json({value: null});
+            return NextResponse.json({ value: null });
         }
 
         if (error) throw error;
@@ -32,23 +50,22 @@ export async function GET(request) {
         return NextResponse.json(data);
 
     } catch (error) {
-        return NextResponse.json({error: error.message}, {status: 500});
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
 export async function POST(request) {
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    // [SECURITY PATCH] ADMIN ONLY - CRITICAL: Prevent unauthorized config changes
-    const {data: {session}} = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
-    // ---------------------------------------------------------------------------
+    // [SECURITY] POST/WRITE is always strictly Admin-only
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const {key, value, description} = await request.json();
+    const { key, value, description } = await request.json();
 
     try {
-        const {data, error} = await supabase
+        const { data, error } = await supabase
             .from('settings')
             .upsert({
                 key,
@@ -62,6 +79,6 @@ export async function POST(request) {
         if (error) throw error;
         return NextResponse.json(data);
     } catch (error) {
-        return NextResponse.json({error: error.message}, {status: 500});
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
