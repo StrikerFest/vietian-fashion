@@ -5,15 +5,15 @@ import { useState, useEffect, useCallback } from 'react';
 import InventoryAdjustForm from '@/components/admin/InventoryAdjustForm';
 import InventoryLogList from '@/components/admin/InventoryLogList';
 import PaginationControls from '@/components/ui/PaginationControls';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function InventoryPage() {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [logs, setLogs] = useState([]);
     const [products, setProducts] = useState([]);
     const [isLoadingLogs, setIsLoadingLogs] = useState(true);
 
-    // --- NEW: Pagination State for Logs ---
+    // --- Pagination State for Logs ---
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(20);
     const [totalItems, setTotalItems] = useState(0);
@@ -40,11 +40,25 @@ export default function InventoryPage() {
         }
     }, [page, limit]);
 
+    // Fetch products helper
+    const fetchProducts = async () => {
+        try {
+            // We fetch a larger limit to get most products for the dropdown
+            // Ideally this should be a searchable combobox for scalability
+            const res = await fetch('/api/products?limit=100');
+            const result = await res.json();
+            // FIX: Extract .data from the paginated response
+            setProducts(result.data || []);
+        } catch (error) {
+            console.error("Failed to fetch products:", error);
+            setProducts([]);
+        }
+    };
+
     // Initial data load
     useEffect(() => {
         fetchLogs();
-        // Fetch products once for the dropdown (not paginated for now)
-        fetch('/api/products').then(res => res.json()).then(data => setProducts(data || []));
+        fetchProducts();
     }, [fetchLogs]);
 
     const handleAdjust = async (data) => {
@@ -59,10 +73,9 @@ export default function InventoryPage() {
             throw new Error(errorData.error || 'Điều chỉnh thất bại');
         }
 
-        addToast('Điều chỉnh tồn kho thành công.', 'success'); // --- FIXED: Replaced alert() ---
+        addToast('Điều chỉnh tồn kho thành công.', 'success');
         fetchLogs(); // Refresh logs to show new entry
-        // Optionally refresh products to update local stock counts if needed
-        fetch('/api/products').then(res => res.json()).then(data => setProducts(data || []));
+        fetchProducts(); // Refresh products to update local stock counts
     };
 
     const handlePageChange = (newPage) => setPage(newPage);

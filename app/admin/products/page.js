@@ -66,7 +66,11 @@ export default function AdminProductsPage() {
             }
 
             setCategories(await categoriesRes.json() || []);
-            setCollections(await collectionsRes.json() || []);
+
+            // FIX: collections API returns { data: [...], meta: ... }
+            const collectionsData = await collectionsRes.json();
+            setCollections(collectionsData.data || []);
+
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast("Không thể tải dữ liệu sản phẩm.", 'error');
