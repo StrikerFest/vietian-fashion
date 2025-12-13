@@ -396,7 +396,7 @@ export default function AdminProductsPage() {
                                                     </td>
                                                     <td className="p-3 text-gray-300 pt-4">{product.product_variants?.length || 0}</td>
                                                     <td className="p-3 text-gray-300 pt-4">
-                                                        {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.[0]?.on_hand || 0), 0)}
+                                                        {product.product_variants?.reduce((sum, v) => sum + (v.inventory_levels?.on_hand || 0), 0)}
                                                     </td>
                                                     <td className="p-3 text-gray-300 pt-4">
                                                         {product.catalog_categories?.[0]?.name || '-'}

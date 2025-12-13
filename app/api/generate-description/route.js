@@ -17,10 +17,7 @@ export async function POST(request) {
     try {
         const formData = await request.formData();
         const imageFile = formData.get('image');
-        const productName = formData.get('name') || 'this product';
-
-        // Optional: You could add a field for "Key Features" or "Style Notes" in the future
-        // to guide the AI, but for now, we'll rely on the image.
+        const productName = formData.get('name') || 'Sản phẩm này';
 
         if (!imageFile) {
             return NextResponse.json({ error: 'Không có tệp hình ảnh được cung cấp.' }, { status: 400 });
@@ -32,17 +29,19 @@ export async function POST(request) {
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        const prompt = `Act as a professional fashion copywriter for a modern e-commerce brand.
-        Write a compelling, SEO-friendly product description for the clothing item shown in this image.
+        // Vietnamese Prompt
+        const prompt = `Đóng vai trò là một chuyên gia viết nội dung (copywriter) cho một thương hiệu thời trang hiện đại tại Việt Nam.
+        Viết một đoạn mô tả sản phẩm hấp dẫn, chuẩn SEO cho mặt hàng trong hình ảnh này.
         
-        Product Name: "${productName}"
+        Tên sản phẩm: "${productName}"
 
-        Guidelines:
-        - Focus on the style, fit, material textures (visible in image), and versatility.
-        - Suggest a potential occasion or styling tip.
-        - Tone: Sophisticated, engaging, and persuasive.
-        - Length: 3 to 4 concise sentences.
-        - Do not include a title or headings, just the paragraph text.`;
+        Hướng dẫn:
+        - Tập trung vào kiểu dáng, form dáng, chất liệu (quan sát được từ ảnh) và tính ứng dụng.
+        - Gợi ý dịp sử dụng phù hợp hoặc cách phối đồ nhanh.
+        - Giọng văn: Tinh tế, chuyên nghiệp, lôi cuốn và thuyết phục.
+        - Ngôn ngữ: Hoàn toàn bằng Tiếng Việt.
+        - Độ dài: 3 đến 4 câu văn ngắn gọn, súc tích.
+        - Không bao gồm tiêu đề hay định dạng markdown, chỉ trả về nội dung đoạn văn.`;
 
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;

@@ -15,19 +15,30 @@ export default function ProductForm({ initialData, categories = [], collections 
     // --- State ---
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [status, setStatus] = useState('draft'); // Added Status State
+    const [status, setStatus] = useState('draft');
     const [imageFile, setImageFile] = useState(null);
     const [currentImageUrl, setCurrentImageUrl] = useState('');
     const [position, setPosition] = useState(0);
     const [selectedCatalogId, setSelectedCatalogId] = useState('');
     const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
-    const [selectedAttributeIds, setSelectedAttributeIds] = useState(new Set());
+
+    // REFACTORED: Store full tag objects instead of just IDs to handle "New" state
+    // Structure: { id: string | null, name: string, groupId: string, isNew: boolean }
+    const [selectedTags, setSelectedTags] = useState([]);
+
+    // Manual input state for each group: { [groupId]: "inputValue" }
+    const [tagInputs, setTagInputs] = useState({});
+
     const [seoTitle, setSeoTitle] = useState('');
     const [seoDescription, setSeoDescription] = useState('');
 
     const [variantConfig, setVariantConfig] = useState([]);
     const [variants, setVariants] = useState([{ ...emptyVariant }]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // AI Loading States
+    const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
+    const [isGeneratingTags, setIsGeneratingTags] = useState(false);
 
     // --- Computed: AI Detection ---
     const isGenerated = useMemo(() => {
@@ -37,9 +48,11 @@ export default function ProductForm({ initialData, categories = [], collections 
     // --- Dynamic Grouping of Attributes ---
     const attributeGroups = useMemo(() => {
         const groups = {};
+        // 1. Create Group Roots
         categories.filter(c => c.type === 'attribute' && !c.parent_id).forEach(root => {
             groups[root.id] = { ...root, options: [] };
         });
+        // 2. Assign Options to Groups
         categories.filter(c => c.type === 'attribute' && c.parent_id).forEach(opt => {
             if (groups[opt.parent_id]) {
                 groups[opt.parent_id].options.push(opt);
@@ -53,15 +66,25 @@ export default function ProductForm({ initialData, categories = [], collections 
         if (initialData) {
             setName(initialData.name);
             setDescription(initialData.description || '');
-            setStatus(initialData.status || 'draft'); // Load Status
+            setStatus(initialData.status || 'draft');
             setCurrentImageUrl(initialData.image_url || '');
             setPosition(initialData.position || 0);
             setSeoTitle(initialData.seo_title || '');
             setSeoDescription(initialData.seo_description || '');
 
             if (initialData.catalog_categories?.[0]) setSelectedCatalogId(initialData.catalog_categories[0].id);
-            if (initialData.attributes) setSelectedAttributeIds(new Set(initialData.attributes.map(a => a.id)));
             if (initialData.collections) setSelectedCollectionIds(initialData.collections.map(c => c.id));
+
+            // Load existing tags into the new structure
+            if (initialData.attributes) {
+                const loadedTags = initialData.attributes.map(attr => ({
+                    id: attr.id,
+                    name: attr.name,
+                    groupId: attr.parent_id,
+                    isNew: false
+                }));
+                setSelectedTags(loadedTags);
+            }
 
             if (initialData.product_variants?.length > 0) {
                 const loadedVariants = initialData.product_variants.map(v => {
@@ -80,7 +103,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                 });
                 setVariants(loadedVariants);
 
-                // Auto-detect config from existing variants
                 const detectedConfig = new Set();
                 if (loadedVariants[0]) {
                     Object.keys(loadedVariants[0].attribute_value_ids).forEach(groupId => {
@@ -92,8 +114,141 @@ export default function ProductForm({ initialData, categories = [], collections 
         }
     }, [initialData, attributeGroups]);
 
-    // --- Handlers ---
-    const handleAttributeToggle = (id) => { const next = new Set(selectedAttributeIds); if (next.has(id)) next.delete(id); else next.add(id); setSelectedAttributeIds(next); };
+    // --- Tag Management Logic ---
+
+    // Add a tag (Manual or AI)
+    const addTag = (tagName, group) => {
+        const cleanName = tagName.trim();
+        if (!cleanName) return;
+
+        // Prevent duplicates in selected list
+        const isAlreadySelected = selectedTags.some(
+            t => t.name.toLowerCase() === cleanName.toLowerCase() && t.groupId === group.id
+        );
+        if (isAlreadySelected) return;
+
+        // Check if it exists in the database (pre-existing options)
+        const existingOption = group.options.find(
+            o => o.name.toLowerCase() === cleanName.toLowerCase()
+        );
+
+        const newTagObj = {
+            id: existingOption ? existingOption.id : null, // ID null means it's new
+            name: existingOption ? existingOption.name : cleanName, // Use DB casing if exists
+            groupId: group.id,
+            isNew: !existingOption
+        };
+
+        setSelectedTags(prev => [...prev, newTagObj]);
+    };
+
+    const removeTag = (tagName, groupId) => {
+        setSelectedTags(prev => prev.filter(t => !(t.name === tagName && t.groupId === groupId)));
+    };
+
+    const handleManualAddTag = (e, group) => {
+        e.preventDefault();
+        const val = tagInputs[group.id];
+        if (val) {
+            addTag(val, group);
+            setTagInputs(prev => ({ ...prev, [group.id]: '' })); // Clear input
+        }
+    };
+
+    const handleKeyDown = (e, group) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleManualAddTag(e, group);
+        }
+    };
+
+    // --- Helper to get Image Blob ---
+    const getImageForAI = async () => {
+        if (imageFile) return imageFile;
+        if (currentImageUrl) {
+            try {
+                const response = await fetch(currentImageUrl);
+                const blob = await response.blob();
+                return new File([blob], "existing_image.jpg", { type: blob.type });
+            } catch (err) {
+                console.error("Could not fetch existing image for AI:", err);
+                return null;
+            }
+        }
+        return null;
+    };
+
+    // --- AI Handlers ---
+    const handleGenerateDescription = async () => {
+        if (!name) return addToast('Vui lòng nhập tên sản phẩm trước.', 'error');
+        setIsGeneratingDesc(true);
+        try {
+            const fileToSend = await getImageForAI();
+            if (!fileToSend) {
+                addToast('Vui lòng tải ảnh lên để AI phân tích.', 'warning');
+                setIsGeneratingDesc(false);
+                return;
+            }
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('image', fileToSend);
+
+            const res = await fetch('/api/generate-description', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Failed');
+            const data = await res.json();
+            if (data.description) setDescription(data.description);
+            addToast('Đã tạo mô tả từ AI!', 'success');
+        } catch (error) {
+            addToast('Lỗi tạo mô tả: ' + error.message, 'error');
+        } finally {
+            setIsGeneratingDesc(false);
+        }
+    };
+
+    const handleGenerateTags = async () => {
+        if (!name) return addToast('Vui lòng nhập tên sản phẩm trước.', 'error');
+        setIsGeneratingTags(true);
+        try {
+            const fileToSend = await getImageForAI();
+            if (!fileToSend) {
+                addToast('Vui lòng tải ảnh lên để AI phân tích.', 'warning');
+                setIsGeneratingTags(false);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('description', description);
+            formData.append('image', fileToSend);
+
+            const res = await fetch('/api/generate-tags', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Failed');
+            const result = await res.json();
+
+            if (result.data) {
+                const suggestedTags = result.data;
+                let count = 0;
+
+                Object.keys(suggestedTags).forEach(groupName => {
+                    // Match group name loosely
+                    const group = attributeGroups.find(g => g.name.toLowerCase() === groupName.toLowerCase());
+                    if (group && Array.isArray(suggestedTags[groupName])) {
+                        suggestedTags[groupName].forEach(val => {
+                            addTag(val, group);
+                            count++;
+                        });
+                    }
+                });
+                addToast(`AI đã đề xuất ${count} thẻ!`, 'success');
+            }
+        } catch (error) {
+            addToast('Lỗi tạo thẻ: ' + error.message, 'error');
+        } finally {
+            setIsGeneratingTags(false);
+        }
+    };
+
+    // --- Other Handlers ---
     const handleCollectionToggle = (id) => { setSelectedCollectionIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]); };
     const handleVariantConfigToggle = (groupId) => { setVariantConfig(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]); };
     const handleVariantChange = (index, field, value) => { const updated = [...variants]; updated[index][field] = value; setVariants(updated); };
@@ -123,16 +278,47 @@ export default function ProductForm({ initialData, categories = [], collections 
         setIsSubmitting(true);
 
         try {
+            // 1. Handle "New" Tags Creation
+            const newTags = selectedTags.filter(t => t.isNew);
+            const existingTagIds = selectedTags.filter(t => !t.isNew).map(t => t.id);
+            const createdTagIds = [];
+
+            if (newTags.length > 0) {
+                // Create them in parallel
+                await Promise.all(newTags.map(async (tag) => {
+                    const res = await fetch('/api/categories', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: tag.name,
+                            type: 'attribute',
+                            parent_id: tag.groupId,
+                            is_active: true
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        createdTagIds.push(data.id);
+                    } else {
+                        console.error("Failed to auto-create tag:", tag.name);
+                    }
+                }));
+            }
+
+            // Combine IDs
+            const finalAttributeIds = [...existingTagIds, ...createdTagIds];
+
+            // 2. Upload Image
             let finalImageUrl = currentImageUrl;
             if (imageFile) finalImageUrl = await uploadImage(imageFile);
 
-            // --- GRADUATION LOGIC ---
-            // If publishing (Active) and still has [G] tag, strip it.
+            // 3. Name Formatting
             let finalName = name;
             if (status === 'active' && finalName.startsWith('[G]')) {
-                finalName = finalName.replace(/\[G\]\s?/, ''); // Remove '[G]' or '[G] '
+                finalName = finalName.replace(/\[G\]\s?/, '');
             }
 
+            // 4. Variant Formatting
             const processedVariants = variants.map(v => {
                 const attrIds = Object.values(v.attribute_value_ids).filter(id => id);
                 return {
@@ -143,17 +329,18 @@ export default function ProductForm({ initialData, categories = [], collections 
                 };
             });
 
+            // 5. Submit Payload
             const body = {
                 name: finalName,
                 description,
-                status, // Send Status
+                status,
                 image_url: finalImageUrl,
                 seo_title: seoTitle,
                 seo_description: seoDescription,
                 position: parseInt(position),
                 variants: processedVariants,
                 category_id: selectedCatalogId || null,
-                attribute_ids: Array.from(selectedAttributeIds),
+                attribute_ids: finalAttributeIds, // Use the resolved IDs
                 collection_ids: selectedCollectionIds
             };
 
@@ -171,7 +358,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                 throw new Error(errorData.error || 'Lưu sản phẩm thất bại');
             }
 
-            // If we automatically renamed it, let the user know
             if (finalName !== name) {
                 onSuccess(`Sản phẩm đã được xuất bản và thẻ "Generated" đã được xóa!`);
             } else {
@@ -186,19 +372,14 @@ export default function ProductForm({ initialData, categories = [], collections 
     };
 
     return (
-        <div className={`bg-gray-800 p-6 rounded-lg transition-all ${
-            isGenerated
-                ? 'border-2 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.15)]'
-                : 'border border-gray-700'
-        }`}>
+        <div className={`bg-gray-800 p-6 rounded-lg transition-all ${isGenerated ? 'border-2 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.15)]' : 'border border-gray-700'}`}>
 
-            {/* AI Banner */}
             {isGenerated && (
                 <div className="bg-indigo-900/30 border border-indigo-500/50 text-indigo-200 px-4 py-3 rounded mb-6 flex items-start gap-3">
                     <span className="text-xl">✨</span>
                     <div>
                         <p className="font-bold text-sm">Bản nháp do AI tạo</p>
-                        <p className="text-xs opacity-80">Sản phẩm này được tạo bởi Gemini. Vui lòng xem lại thẻ, danh mục và giá trước khi chuyển trạng thái sang <strong>Hoạt động</strong>.</p>
+                        <p className="text-xs opacity-80">Vui lòng kiểm tra lại trước khi xuất bản.</p>
                     </div>
                 </div>
             )}
@@ -207,14 +388,10 @@ export default function ProductForm({ initialData, categories = [], collections 
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     {initialData ? 'Sửa sản phẩm' : 'Sản phẩm mới'}
                 </h2>
-                {/* Status Selector */}
                 <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
-                    className={`
-                        bg-gray-900 border text-sm rounded-lg block p-2.5 font-bold
-                        ${status === 'active' ? 'border-green-500 text-green-400' : 'border-gray-600 text-gray-400'}
-                    `}
+                    className={`bg-gray-900 border text-sm rounded-lg block p-2.5 font-bold ${status === 'active' ? 'border-green-500 text-green-400' : 'border-gray-600 text-gray-400'}`}
                 >
                     <option value="draft">Nháp</option>
                     <option value="active">Hoạt động (Đã xuất bản)</option>
@@ -223,30 +400,30 @@ export default function ProductForm({ initialData, categories = [], collections 
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm text-gray-400 mb-1">Tên sản phẩm</label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={e => setName(e.target.value)}
-                                className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white focus:border-indigo-500 outline-none"
-                                required
-                            />
+                            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white focus:border-indigo-500 outline-none" required />
                         </div>
                         <div>
                             <label className="block text-sm text-gray-400 mb-1">Vị trí (Ưu tiên)</label>
                             <input type="number" value={position} onChange={e => setPosition(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white" />
                         </div>
                         <div>
-                            <label className="block text-sm text-gray-400 mb-1">Mô tả</label>
+                            <div className="flex justify-between items-end mb-1">
+                                <label className="block text-sm text-gray-400">Mô tả</label>
+                                <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingDesc} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 disabled:opacity-50">
+                                    {isGeneratingDesc ? 'Creating...' : '✨ Auto-Write'}
+                                </button>
+                            </div>
                             <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white" rows="4" />
                         </div>
                     </div>
                     <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
                         <label className="block text-sm text-gray-400 mb-2">Hình ảnh sản phẩm</label>
-                        <input type="file" onChange={e => setImageFile(e.target.files[0])} className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" />
+                        <input type="file" onChange={e => setImageFile(e.target.files[0])} className="w-full text-sm text-gray-300" />
                         {currentImageUrl && (
                             <div className="mt-4 relative h-48 w-full border border-gray-700 rounded overflow-hidden">
                                 <Image src={currentImageUrl} alt="Preview" fill className="object-cover" />
@@ -259,7 +436,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-gray-700 pt-6">
                     <div>
                         <h3 className="font-semibold mb-2 text-blue-400">Điều hướng</h3>
-                        <p className="text-xs text-gray-500 mb-2">Vị trí trong menu danh mục?</p>
+                        <p className="text-xs text-gray-500 mb-2">Menu danh mục chính</p>
                         <select value={selectedCatalogId} onChange={e => setSelectedCatalogId(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white">
                             <option value="">-- Chọn --</option>
                             {categories.filter(c => c.type === 'catalog').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -267,7 +444,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                     </div>
                     <div>
                         <h3 className="font-semibold mb-2 text-green-400">Bộ sưu tập</h3>
-                        <p className="text-xs text-gray-500 mb-2">Nhóm tiếp thị (Mùa hè, Nổi bật...)</p>
+                        <p className="text-xs text-gray-500 mb-2">Nhóm tiếp thị</p>
                         <div className="max-h-40 overflow-y-auto bg-gray-700 p-2 rounded border border-gray-600">
                             {collections.map(c => (
                                 <label key={c.id} className="flex gap-2 p-1 hover:bg-gray-600 rounded cursor-pointer">
@@ -277,19 +454,73 @@ export default function ProductForm({ initialData, categories = [], collections 
                             ))}
                         </div>
                     </div>
-                    <div>
-                        <h3 className="font-semibold mb-2 text-purple-400">Thuộc tính / Thẻ</h3>
-                        <p className="text-xs text-gray-500 mb-2">Đặc điểm để lọc (Vintage, Cotton...)</p>
-                        <div className="max-h-40 overflow-y-auto bg-gray-700 p-2 rounded border border-gray-600">
-                            {attributeGroups.map(g => (
-                                <div key={g.id} className="mb-2 last:mb-0">
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1 px-1">{g.name}</p>
-                                    {g.options.map(o => (
-                                        <label key={o.id} className="flex gap-2 pl-2 p-1 hover:bg-gray-600 rounded cursor-pointer">
-                                            <input type="checkbox" checked={selectedAttributeIds.has(o.id)} onChange={() => handleAttributeToggle(o.id)} className="rounded text-purple-500 focus:ring-purple-500 bg-gray-900 border-gray-500" />
-                                            <span className="text-sm">{o.name}</span>
-                                        </label>
-                                    ))}
+
+                    {/* REFACTORED ATTRIBUTE/TAG SECTION */}
+                    <div className="col-span-1 md:col-span-1">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="font-semibold text-purple-400">Thuộc tính / Thẻ</h3>
+                            <button
+                                type="button"
+                                onClick={handleGenerateTags}
+                                disabled={isGeneratingTags}
+                                className="text-[10px] bg-purple-900/50 hover:bg-purple-900 text-purple-200 px-2 py-1 rounded border border-purple-500/30 flex items-center gap-1 transition-colors disabled:opacity-50"
+                            >
+                                {isGeneratingTags ? '...' : '✨ Suggest'}
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-4">Nhập thủ công hoặc dùng AI gợi ý.</p>
+
+                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                            {attributeGroups.map(group => (
+                                <div key={group.id} className="bg-gray-700/50 p-3 rounded border border-gray-700">
+                                    <p className="text-xs text-gray-300 font-bold uppercase tracking-wider mb-2">{group.name}</p>
+
+                                    {/* Selected Tags List (Pills) */}
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {selectedTags.filter(t => t.groupId === group.id).map((tag, idx) => (
+                                            <span
+                                                key={idx}
+                                                className={`
+                                                    inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border
+                                                    ${tag.isNew
+                                                    ? 'bg-green-900/30 border-green-500 text-green-300'
+                                                    : 'bg-purple-900/30 border-purple-500/50 text-purple-200'}
+                                                `}
+                                            >
+                                                {tag.name}
+                                                {tag.isNew && <span className="text-[9px] bg-green-600 text-white px-1 rounded ml-1">Mới</span>}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeTag(tag.name, group.id)}
+                                                    className="ml-1 hover:text-white"
+                                                >
+                                                    &times;
+                                                </button>
+                                            </span>
+                                        ))}
+                                        {selectedTags.filter(t => t.groupId === group.id).length === 0 && (
+                                            <span className="text-xs text-gray-500 italic">Chưa chọn</span>
+                                        )}
+                                    </div>
+
+                                    {/* Manual Input */}
+                                    <div className="flex gap-1">
+                                        <input
+                                            type="text"
+                                            placeholder={`+ Thêm ${group.name.toLowerCase()}...`}
+                                            value={tagInputs[group.id] || ''}
+                                            onChange={(e) => setTagInputs(prev => ({...prev, [group.id]: e.target.value}))}
+                                            onKeyDown={(e) => handleKeyDown(e, group)}
+                                            className="flex-1 bg-gray-800 text-xs text-white px-2 py-1 rounded border border-gray-600 focus:border-indigo-500 outline-none"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={(e) => handleManualAddTag(e, group)}
+                                            className="bg-gray-600 hover:bg-gray-500 text-white px-2 rounded text-xs"
+                                        >
+                                            Add
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -304,7 +535,6 @@ export default function ProductForm({ initialData, categories = [], collections 
 
                     <div className="bg-indigo-900/20 p-4 rounded border border-indigo-500/30 mb-6">
                         <p className="text-sm text-indigo-300 mb-2 font-bold">Cấu hình tùy chọn biến thể</p>
-                        <p className="text-xs text-gray-400 mb-3">Chọn các thuộc tính xác định biến thể của bạn (ví dụ: Kích thước, Màu sắc).</p>
                         <div className="flex flex-wrap gap-4">
                             {attributeGroups.map(group => (
                                 <label key={group.id} className="flex items-center gap-2 cursor-pointer bg-gray-800 px-3 py-1.5 rounded border border-gray-600 hover:border-indigo-500 transition-colors">
@@ -335,6 +565,10 @@ export default function ProductForm({ initialData, categories = [], collections 
                                             >
                                                 <option value="">- Chọn -</option>
                                                 {group?.options.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
+                                                {/* Allow selecting newly created tags for variants too */}
+                                                {selectedTags.filter(t => t.groupId === groupId && t.isNew).map((t, i) => (
+                                                    <option key={`new-${i}`} disabled>⚠️ {t.name} (Lưu trước)</option>
+                                                ))}
                                             </select>
                                         </div>
                                     );
@@ -345,7 +579,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                                 </div>
                                 <div className="w-24">
                                     <label className="text-xs text-gray-500 mb-1 block">Tồn kho</label>
-                                    <input type="number" value={variant.on_hand} onChange={e => handleVariantChange(index, 'on_hand', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required />
+                                    <input type="number" value={variant?.inventory_levels?.on_hand} onChange={e => handleVariantChange(index, 'on_hand', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required />
                                 </div>
                                 <button type="button" onClick={() => removeVariant(index)} disabled={variants.length <= 1} className="bg-red-900/50 hover:bg-red-900 text-red-200 rounded px-3 py-2 h-[38px] border border-red-800 transition-colors">×</button>
                             </div>
@@ -356,6 +590,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                     </div>
                 </div>
 
+                {/* Footer Actions */}
                 <div className="flex justify-end gap-4 pt-6 border-t border-gray-700 sticky bottom-0 bg-gray-800 pb-2 z-10">
                     <button type="button" onClick={onCancel} className="px-6 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white font-bold transition-colors">Hủy</button>
                     <button
@@ -363,15 +598,11 @@ export default function ProductForm({ initialData, categories = [], collections 
                         disabled={isSubmitting}
                         className={`
                             px-6 py-2 rounded font-bold text-white shadow-lg transition-all
-                            ${isGenerated && status === 'active'
-                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-500/30'
-                            : 'bg-indigo-600 hover:bg-indigo-700'}
-                            disabled:opacity-50 disabled:cursor-not-allowed
+                            ${isGenerated && status === 'active' ? 'bg-gradient-to-r from-indigo-600 to-purple-600' : 'bg-indigo-600 hover:bg-indigo-700'}
+                            disabled:opacity-50
                         `}
                     >
-                        {isSubmitting ? 'Đang lưu...' : (
-                            isGenerated && status === 'active' ? 'Xuất bản & Xóa [G]' : 'Lưu sản phẩm'
-                        )}
+                        {isSubmitting ? 'Đang lưu...' : (isGenerated && status === 'active' ? 'Xuất bản & Xóa [G]' : 'Lưu sản phẩm')}
                     </button>
                 </div>
             </form>

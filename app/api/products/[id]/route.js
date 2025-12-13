@@ -11,6 +11,11 @@ export async function GET(request, context) {
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
+    // Check if user is admin
+    let isAdmin = false;
+    const {data: {session}} = await supabase.auth.getSession();
+    if (session) isAdmin = true;
+
     const {data, error} = await supabase
         .from('products')
         .select(`
@@ -35,15 +40,11 @@ export async function GET(request, context) {
     if (error || !data) return NextResponse.json({error: 'Không tìm thấy sản phẩm.'}, {status: 404});
 
     // --- SECURITY CHECK: DRAFT VISIBILITY ---
-    if (data.status !== 'active') {
-        const {data: {session}} = await supabase.auth.getSession();
-        if (!session) {
-            // Allow 404 to mask existence of draft
-            return NextResponse.json({error: 'Không tìm thấy sản phẩm.'}, {status: 404});
-        }
+    if (data.status !== 'active' && !isAdmin) {
+        return NextResponse.json({error: 'Không tìm thấy sản phẩm.'}, {status: 404});
     }
 
-    // --- DATA TRANSFORMATION & MASKING ---
+    // --- DATA TRANSFORMATION ---
     const formatted = {
         ...data,
         catalog_categories: data.categories.map(c => c.category).filter(c => c.type === 'catalog'),
@@ -58,17 +59,25 @@ export async function GET(request, context) {
                 }
             });
 
-            // [SECURITY PATCH] INVENTORY MASKING
             const realStock = v.inventory_levels?.[0]?.on_hand || 0;
-
-            // Remove raw inventory data
             const {inventory_levels, ...safeVariant} = v;
 
+            // FIX: Return raw stock for Admins
+            if (isAdmin) {
+                return {
+                    ...v,
+                    attributes,
+                    attribute_value_ids,
+                    inventory_levels: v.inventory_levels,
+                    on_hand: realStock
+                };
+            }
+
+            // PUBLIC View: Masking
             return {
                 ...safeVariant,
                 attributes,
                 attribute_value_ids,
-                // UI Signals
                 in_stock: realStock > 0,
                 low_stock: realStock > 0 && realStock <= 10,
                 stock_display: realStock > 10 ? 10 : realStock

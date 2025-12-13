@@ -13,12 +13,14 @@ export async function GET(request) {
 
     // Default: Public View (Active Only)
     let statusFilter = ['active'];
+    let isAdmin = false;
 
     // Admin View: Check Session
     if (scope === 'admin') {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             statusFilter = ['active', 'draft', 'archived'];
+            isAdmin = true; // Mark as admin request
         }
     }
     // ---------------------------
@@ -60,7 +62,7 @@ export async function GET(request) {
                 )
             `, { count: 'exact' })
             .is('deleted_at', null)
-            .in('status', statusFilter); // <--- STATUS FILTER APPLIED
+            .in('status', statusFilter);
 
         if (search) query = query.ilike('name', `%${search}%`);
 
@@ -103,7 +105,7 @@ export async function GET(request) {
         const { data, error, count } = await query;
         if (error) throw error;
 
-        // --- DATA TRANSFORMATION & MASKING ---
+        // --- DATA TRANSFORMATION ---
         const formattedData = data.map(product => ({
             ...product,
             catalog_categories: product.product_categories?.map(pc => pc.categories).filter(c => c.type === 'catalog') || [],
@@ -123,12 +125,23 @@ export async function GET(request) {
                     }
                 });
 
-                // [SECURITY PATCH] INVENTORY MASKING
                 const realStock = v.inventory_levels?.[0]?.on_hand || 0;
 
-                // Destructure to remove 'inventory_levels' from the result
+                // Destructure to remove 'inventory_levels' from the public result
                 const { inventory_levels, ...safeVariant } = v;
 
+                // FIX: If Admin, return raw inventory data (inventory_levels and on_hand)
+                if (isAdmin) {
+                    return {
+                        ...v, // Keep original structure including inventory_levels
+                        attributes,
+                        attribute_value_ids,
+                        inventory_levels: v.inventory_levels, // Explicitly keep
+                        on_hand: realStock // Explicit helper for admin UI
+                    };
+                }
+
+                // PUBLIC View: Apply Masking
                 return {
                     ...safeVariant,
                     attributes,
@@ -143,7 +156,6 @@ export async function GET(request) {
             product_categories: undefined
         }));
 
-        // Price Sort adjustment (if needed logic remains here)
         if (sort === 'price-asc' || sort === 'price-desc') {
             formattedData.sort((a, b) => {
                 const pA = a.product_variants?.[0]?.price || 0;
@@ -162,17 +174,9 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-    // Note: Use standard supabase client for inserts if using service role,
-    // or dynamic client if checking user auth. Assuming existing logic is fine.
-    // ... (Your existing POST logic handles creation) ...
-    // For brevity, I'm returning the existing POST handler as is,
-    // but ensure you import 'supabase' if you use the static client here.
-
-    // RE-IMPORT STATIC CLIENT FOR POST IF NEEDED, OR REFACTOR TO DYNAMIC
-    // Ideally, consistency suggests using dynamic client here too.
     const {
         name, description, image_url, seo_title, seo_description, variants,
-        attribute_ids = [], category_id, collection_ids = [], position = 0, status // Accept status
+        attribute_ids = [], category_id, collection_ids = [], position = 0, status
     } = await request.json();
 
     const cookieStore = await cookies();
@@ -183,7 +187,7 @@ export async function POST(request) {
         const { data: product, error: pErr } = await supabase.from('products')
             .insert([{
                 name, description, image_url, seo_title, seo_description, position,
-                status: status || 'draft' // Default to draft if not specified
+                status: status || 'draft'
             }]).select().single();
 
         if (pErr) throw pErr;
