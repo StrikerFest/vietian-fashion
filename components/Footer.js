@@ -9,7 +9,7 @@ export default function Footer() {
             <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
                 {/* Brand */}
                 <div className="col-span-1 md:col-span-1">
-                    <h3 className="text-white text-lg font-bold mb-4">AI Fashion</h3>
+                    <h3 className="text-white text-lg font-bold mb-4">Vietian Fashion</h3>
                     <p className="text-sm mb-4">
                         Phong cách của bạn, được lựa chọn bởi trí tuệ nhân tạo. Khám phá tương lai của mua sắm thời trang.
                     </p>

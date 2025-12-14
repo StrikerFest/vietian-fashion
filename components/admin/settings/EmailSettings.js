@@ -7,7 +7,7 @@ import { useToast } from '@/context/ToastContext';
 export default function EmailSettings() {
     const { addToast } = useToast();
     const [config, setConfig] = useState({
-        senderName: 'AI Fashion',
+        senderName: 'Vietian Fashion',
         senderEmail: 'orders@example.com'
     });
     const [isLoading, setIsLoading] = useState(true);

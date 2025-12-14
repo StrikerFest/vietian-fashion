@@ -45,7 +45,7 @@ export async function POST(request) {
             .single();
 
         // Fallback defaults if settings aren't configured yet
-        const senderName = emailSettings?.value?.senderName || 'AI Fashion';
+        const senderName = emailSettings?.value?.senderName || 'Vietian Fashion';
         const senderEmail = emailSettings?.value?.senderEmail || 'sales@your-domain.com';
         const fromAddress = `${senderName} <${senderEmail}>`;
 

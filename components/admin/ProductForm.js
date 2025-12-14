@@ -75,21 +75,30 @@ export default function ProductForm({ initialData, categories = [], collections 
             if (initialData.catalog_categories?.[0]) setSelectedCatalogId(initialData.catalog_categories[0].id);
             if (initialData.collections) setSelectedCollectionIds(initialData.collections.map(c => c.id));
 
-            // Load existing tags into the new structure
+            // --- FIX START: Tra cứu category gốc để lấy parent_id chính xác ---
             if (initialData.attributes) {
-                const loadedTags = initialData.attributes.map(attr => ({
-                    id: attr.id,
-                    name: attr.name,
-                    groupId: attr.parent_id,
-                    isNew: false
-                }));
-                setSelectedTags(loadedTags);
+                const loadedTags = initialData.attributes.map(attr => {
+                    // Tìm attribute tương ứng trong danh sách categories toàn cục để lấy parent_id
+                    const categoryInfo = categories.find(c => c.id === attr.id);
+
+                    return {
+                        id: attr.id,
+                        name: attr.name,
+                        // Ưu tiên lấy từ categoryInfo, nếu không có mới fallback về attr.parent_id
+                        groupId: categoryInfo ? categoryInfo.parent_id : attr.parent_id,
+                        isNew: false
+                    };
+                });
+                // Lọc bỏ những tag nào không xác định được groupId (để tránh lỗi hiển thị)
+                setSelectedTags(loadedTags.filter(t => t.groupId));
             }
+            // --- FIX END ---
 
             if (initialData.product_variants?.length > 0) {
                 const loadedVariants = initialData.product_variants.map(v => {
                     const attrMap = {};
                     if (v.attribute_value_ids) {
+                        // Logic này vẫn giữ nguyên vì nó dựa vào options của attributeGroups đã được computed đúng
                         v.attribute_value_ids.forEach(optId => {
                             const group = attributeGroups.find(g => g.options.some(o => o.id === optId));
                             if (group) attrMap[group.id] = optId;
@@ -106,13 +115,14 @@ export default function ProductForm({ initialData, categories = [], collections 
                 const detectedConfig = new Set();
                 if (loadedVariants[0]) {
                     Object.keys(loadedVariants[0].attribute_value_ids).forEach(groupId => {
-                        detectedConfig.add(parseInt(groupId));
+                        detectedConfig.add(parseInt(groupId) || groupId); // Handle both string/int IDs safely
                     });
                 }
+                // Convert Set to Array
                 setVariantConfig(Array.from(detectedConfig));
             }
         }
-    }, [initialData, attributeGroups]);
+    }, [initialData, attributeGroups, categories]);;
 
     // --- Tag Management Logic ---
 
@@ -579,7 +589,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                                 </div>
                                 <div className="w-24">
                                     <label className="text-xs text-gray-500 mb-1 block">Tồn kho</label>
-                                    <input type="number" value={variant?.inventory_levels?.on_hand} onChange={e => handleVariantChange(index, 'on_hand', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required />
+                                    <input type="number" value={variant?.inventory_levels?.on_hand || 0} onChange={e => handleVariantChange(index, 'on_hand', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required />
                                 </div>
                                 <button type="button" onClick={() => removeVariant(index)} disabled={variants.length <= 1} className="bg-red-900/50 hover:bg-red-900 text-red-200 rounded px-3 py-2 h-[38px] border border-red-800 transition-colors">×</button>
                             </div>

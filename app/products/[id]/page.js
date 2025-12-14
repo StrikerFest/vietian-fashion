@@ -72,7 +72,7 @@ export default function ProductDetailPage() {
 
     useEffect(() => {
         if (product) {
-            document.title = product.seo_title || `${product.name} | AI Fashion`;
+            document.title = product.seo_title || `${product.name} | Vietian Fashion`;
         }
     }, [product]);
 

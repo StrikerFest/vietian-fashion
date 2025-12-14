@@ -1,6 +1,6 @@
 # Database Schema & Architecture
 
-This document outlines the data model powering the AI Fashion Store. The database is hosted on **Supabase (PostgreSQL)** and utilizes relational integrity, custom SQL functions (RPC), and the `pgvector` extension for AI features.
+This document outlines the data model powering the Vietian Fashion Store. The database is hosted on **Supabase (PostgreSQL)** and utilizes relational integrity, custom SQL functions (RPC), and the `pgvector` extension for AI features.
 
 ## 1. Core Commerce Entities
 

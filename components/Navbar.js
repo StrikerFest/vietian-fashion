@@ -97,7 +97,7 @@ export default function Navbar() {
                         </button>
 
                         <Link href="/" className="text-xl font-bold tracking-tight shrink-0">
-                            AI Fashion
+                            Vietian Fashion
                         </Link>
                     </div>
 

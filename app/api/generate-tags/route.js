@@ -1,8 +1,8 @@
 // app/api/generate-tags/route.js
-import {NextResponse} from 'next/server';
-import {GoogleGenerativeAI} from '@google/generative-ai';
-import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Switch client
-import {cookies} from 'next/headers';
+import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -17,11 +17,11 @@ async function fileToGenerativePart(fileBuffer, mimeType) {
 
 export async function POST(request) {
     const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({cookies: () => cookieStore});
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // [SECURITY PATCH] ADMIN ONLY
-    const {data: {session}} = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({error: 'Unauthorized'}, {status: 401});
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     // ----------------------------
 
     try {
@@ -31,53 +31,54 @@ export async function POST(request) {
         const productDescription = formData.get('description');
 
         if (!imageFile) {
-            return NextResponse.json({error: 'Không có tệp hình ảnh được cung cấp.'}, {status: 400});
+            return NextResponse.json({ error: 'Không có tệp hình ảnh được cung cấp.' }, { status: 400 });
         }
 
         // 1. Fetch Dynamic Attributes from Database
-        // We only want root attributes (parents) that are active filters
-        const {data: attributes, error: dbError} = await supabase
+        const { data: attributes, error: dbError } = await supabase
             .from('categories')
             .select('name')
             .eq('type', 'attribute')
-            .is('parent_id', null) // Only get root groups (e.g. Color, Material)
+            .is('parent_id', null)
             .eq('is_active', true);
 
         if (dbError) throw dbError;
 
-        // Format attributes for the prompt (e.g., "- Color\n- Material")
+        // Format attributes for the prompt
         const attributeList = attributes && attributes.length > 0
             ? attributes.map(a => `- ${a.name}`).join('\n')
-            : '- Category\n- Color\n- Style'; // Fallback if DB is empty
+            : '- Màu sắc\n- Chất liệu\n- Kiểu dáng'; // Vietnamese fallback
 
         const buffer = Buffer.from(await imageFile.arrayBuffer());
         const mimeType = imageFile.type;
         const imagePart = await fileToGenerativePart(buffer, mimeType);
 
-        const model = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // 2. Construct Dynamic Prompt
-        const prompt = `Analyze this fashion item image, name, and description.
-        Name: "${productName}"
-        Description: "${productDescription}"
-
-        Your task is to categorize this item according to the user's specific store attributes.
+        // 2. Construct Dynamic Prompt (Vietnamese Instructions)
+        const prompt = `Bạn là một chuyên gia thời trang tại Việt Nam. 
+        Hãy phân tích hình ảnh, tên và mô tả của sản phẩm này.
         
-        Please extract values ONLY for the following Attribute Groups:
+        Tên: "${productName}"
+        Mô tả: "${productDescription}"
+
+        Nhiệm vụ của bạn là phân loại sản phẩm này theo các Nhóm Thuộc Tính sau đây:
         ${attributeList}
         
-        Guidelines:
-        - Look for visual cues in the image and keywords in the text.
-        - Return ONLY a valid JSON object.
-        - The keys of the JSON object must match the Attribute Groups listed above EXACTLY.
-        - The values should be arrays of strings (e.g. ["Navy", "Blue"]).
-        - If a group is not applicable or cannot be determined, omit it from the JSON.
-        - Do not include markdown formatting or code blocks.
+        Hướng dẫn quan trọng:
+        1. **Ngôn ngữ**: Tất cả các giá trị (values) trả về PHẢI là Tiếng Việt chuẩn.
+        2. **Định dạng**: Trả về duy nhất một JSON object hợp lệ.
+        3. **Keys**: Tên các key trong JSON phải KHỚP CHÍNH XÁC với tên Nhóm Thuộc Tính được liệt kê ở trên (giữ nguyên ngôn ngữ gốc của tên nhóm nếu có).
+        4. **Values**: Giá trị phải là mảng các chuỗi (Array of Strings).
+           - Ví dụ: Thay vì "Blue", hãy trả về "Xanh dương".
+           - Thay vì "Cotton", hãy trả về "Vải Cotton".
+        5. Nếu không xác định được thuộc tính nào, hãy bỏ qua key đó.
+        6. Không sử dụng markdown code block.
         
-        Example Output Format:
+        Ví dụ định dạng mong muốn:
         {
-          "${attributes?.[0]?.name || 'Color'}": ["Value1", "Value2"],
-          "${attributes?.[1]?.name || 'Material'}": ["Value3"]
+          "${attributes?.[0]?.name || 'Màu sắc'}": ["Xanh Navy", "Trắng"],
+          "${attributes?.[1]?.name || 'Chất liệu'}": ["Kaki", "Thun"]
         }`;
 
         const result = await model.generateContent([prompt, imagePart]);
@@ -88,9 +89,10 @@ export async function POST(request) {
         const cleanedText = text.replace(/```json|```/g, '').trim();
         const structuredTags = JSON.parse(cleanedText);
 
-        return NextResponse.json({data: structuredTags});
+        return NextResponse.json({ data: structuredTags });
 
     } catch (error) {
-        return NextResponse.json({error: error.message}, {status: 500});
+        console.error("Generate Tags Error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
