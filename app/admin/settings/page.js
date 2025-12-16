@@ -7,17 +7,18 @@ import HomepageSettings from '@/components/admin/settings/HomepageSettings';
 import EmailSettings from '@/components/admin/settings/EmailSettings';
 import TaxSettings from '@/components/admin/settings/TaxSettings';
 import PaymentSettings from '@/components/admin/settings/PaymentSettings';
+import AiPromptSettings from '@/components/admin/settings/AiPromptSettings'; // --- NEW ---
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('homepage');
 
     const tabs = [
         { id: 'homepage', label: 'Giao diện Trang chủ' },
+        { id: 'ai_prompts', label: 'Cấu hình AI Prompt' }, // --- NEW ---
         { id: 'recommendation', label: 'Gợi ý AI' },
         { id: 'email', label: 'Cấu hình Email' },
         { id: 'tax', label: 'Thuế & Vận chuyển' },
         { id: 'payment', label: 'Thanh toán (VietQR)' },
-        { id: 'general', label: 'Chung' },
     ];
 
     return (
@@ -46,31 +47,17 @@ export default function SettingsPage() {
             {/* Tab Content */}
             <div className="bg-gray-800/50 rounded-lg border border-gray-700/50 p-6 min-h-[400px]">
 
-                {activeTab === 'homepage' && (
-                    <HomepageSettings />
-                )}
+                {activeTab === 'homepage' && <HomepageSettings />}
 
-                {activeTab === 'recommendation' && (
-                    <RecommendationSettings />
-                )}
+                {activeTab === 'ai_prompts' && <AiPromptSettings />} {/* --- NEW --- */}
 
-                {activeTab === 'email' && (
-                    <EmailSettings />
-                )}
+                {activeTab === 'recommendation' && <RecommendationSettings />}
 
-                {activeTab === 'tax' && (
-                    <TaxSettings />
-                )}
+                {activeTab === 'email' && <EmailSettings />}
 
-                {activeTab === 'payment' && (
-                    <PaymentSettings />
-                )}
+                {activeTab === 'tax' && <TaxSettings />}
 
-                {activeTab === 'general' && (
-                    <div className="text-center text-gray-500 py-12">
-                        <p>Cài đặt chung cho cửa hàng (Tiền tệ, Múi giờ, v.v.) sẽ ở đây.</p>
-                    </div>
-                )}
+                {activeTab === 'payment' && <PaymentSettings />}
             </div>
         </div>
     );

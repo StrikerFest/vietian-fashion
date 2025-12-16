@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { DEFAULT_PRODUCT_GENERATE_PROMPT } from '@/utils/ai-prompts';
 
 // 1. Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -37,10 +38,6 @@ export async function POST(request) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        // Optional: Check if admin (if your RLS strictly requires it)
-        // const { data: userRole } = await supabase.rpc('get_user_role');
-        // if (userRole !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
         // --- B. PARSE INPUT ---
         const formData = await request.formData();
         const imageFile = formData.get('image');
@@ -50,7 +47,6 @@ export async function POST(request) {
         }
 
         // --- C. UPLOAD IMAGE TO STORAGE ---
-        // We upload first so we have a URL for the database
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `generated/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
@@ -68,23 +64,14 @@ export async function POST(request) {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const imagePart = await fileToGenerativePart(imageFile);
 
-        const prompt = `
-            You are an expert fashion merchandiser. Analyze this image and extract product data for an e-commerce database.
-            
-            Return a valid JSON object with the following fields:
-            1. "name": A creative, SEO-friendly product name (max 60 chars).
-            2. "description": A compelling 2-sentence marketing description.
-            3. "category": The single most specific product category (e.g., "Bomber Jacket", "Maxi Dress", "Tote Bag").
-            4. "color": The dominant color name.
-            5. "tags": An array of 5-7 descriptive keywords (Material, Occasion, Style, Fit). 
-               - EXAMPLE: ["Silk", "Vintage", "Evening", "Slim Fit", "Summer"].
-               - Do NOT include the color here, as we have a separate field.
-            6. "price_estimate": A numeric estimated price (USD) based on perceived quality (e.g. 45.00).
+        // Fetch Prompt from Settings or Default
+        const { data: promptSetting } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'prompt_product_generate')
+            .single();
 
-            IMPORTANT: 
-            - Return ONLY raw JSON. No markdown formatting.
-            - Be specific. Instead of "Shirt", use "Oxford Shirt".
-        `;
+        const prompt = promptSetting?.value || DEFAULT_PRODUCT_GENERATE_PROMPT;
 
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;
@@ -98,30 +85,42 @@ export async function POST(request) {
             throw new Error("AI trả về JSON không hợp lệ.");
         }
 
-        // --- E. INTELLIGENT TAXONOMY SYNC ---
+        // --- E. INTELLIGENT TAXONOMY SYNC (UNIFIED) ---
 
         /**
-         * ensureCategory: Finds an existing category ID or creates a new one.
+         * ensureCategory: Finds/Creates a category node.
+         * @param {string} name - Name of category/attribute
+         * @param {string} type - 'catalog' or 'attribute'
+         * @param {string|null} parentId - Parent UUID
          */
         const ensureCategory = async (name, type, parentId = null) => {
-            const slug = generateSlug(name);
+            if (!name) return null;
 
-            // 1. Try to find existing
-            const { data: existing } = await supabase
+            // Normalize for search
+            const slugBase = generateSlug(name);
+
+            // 1. Try to find existing (Case insensitive)
+            let query = supabase
                 .from('categories')
                 .select('id')
                 .eq('type', type)
-                .ilike('name', name) // Case-insensitive match
-                .single();
+                .ilike('name', name);
 
+            if (parentId) {
+                query = query.eq('parent_id', parentId);
+            } else {
+                query = query.is('parent_id', null);
+            }
+
+            const { data: existing } = await query.single();
             if (existing) return existing.id;
 
             // 2. Create new if missing
             const { data: newCat, error } = await supabase
                 .from('categories')
                 .insert({
-                    name: name, // Capitalize first letter logic could go here
-                    slug: slug + '-' + Math.floor(Math.random() * 1000), // Ensure unique slug
+                    name: name, // Keep original casing from AI (e.g. "Màu sắc")
+                    slug: `${slugBase}-${Math.floor(Math.random() * 1000)}`,
                     type: type,
                     parent_id: parentId,
                     is_active: true
@@ -137,79 +136,58 @@ export async function POST(request) {
         };
 
         // 1. Handle Main Catalog Category (Navigation)
+        // e.g., "Áo khoác" -> Type: Catalog, Parent: Null
         const mainCategoryId = await ensureCategory(aiData.category, 'catalog');
 
-        // 2. Handle Attributes (Color + Tags)
+        // 2. Handle Attributes (Dynamic Group -> Value)
         const attributeIds = [];
 
-        // 2a. Process Color
-        // We assume a root "Color" category exists. If not, we might need to find/create it.
-        // For simplicity, we'll search for a root category named "Color".
-        const { data: colorRoot } = await supabase
-            .from('categories')
-            .select('id')
-            .eq('name', 'Color')
-            .is('parent_id', null)
-            .single();
+        if (aiData.attributes && typeof aiData.attributes === 'object') {
+            for (const [groupName, valueName] of Object.entries(aiData.attributes)) {
+                // 2a. Ensure the Attribute Group exists (e.g., "Màu sắc", "Chất liệu")
+                // Type: attribute, Parent: null
+                const groupId = await ensureCategory(groupName, 'attribute', null);
 
-        if (colorRoot) {
-            const colorId = await ensureCategory(aiData.color, 'attribute', colorRoot.id);
-            if (colorId) attributeIds.push(colorId);
-        }
+                if (groupId && valueName) {
+                    // 2b. Ensure the Attribute Value exists under that Group (e.g., "Xanh Navy" under "Màu sắc")
+                    // Type: attribute, Parent: groupId
+                    const valueId = await ensureCategory(valueName, 'attribute', groupId);
 
-        // 2b. Process Tags (as generic attributes or specific groups if we had them)
-        // We will put them under a "General" attribute group or just flat attributes if your UI handles that.
-        // Let's assume there is a "Tags" root attribute group.
-        let { data: tagsRoot } = await supabase
-            .from('categories')
-            .select('id')
-            .eq('name', 'Tags')
-            .is('parent_id', null)
-            .single();
-
-        // If "Tags" root doesn't exist, create it once
-        if (!tagsRoot) {
-            const { data: newRoot } = await supabase.from('categories').insert({ name: 'Tags', type: 'attribute', slug: 'tags-root' }).select().single();
-            tagsRoot = newRoot;
-        }
-
-        if (tagsRoot && aiData.tags) {
-            for (const tag of aiData.tags) {
-                const tagId = await ensureCategory(tag, 'attribute', tagsRoot.id);
-                if (tagId) attributeIds.push(tagId);
+                    if (valueId) attributeIds.push(valueId);
+                }
             }
         }
 
-        // --- F. DATABASE INSERTION (TRANSACTIONAL-LIKE) ---
+        // --- F. DATABASE INSERTION ---
 
         // 1. Insert Product
         const { data: product, error: prodError } = await supabase
             .from('products')
             .insert({
-                name: `[G] ${aiData.name}`, // The [G] marker
+                name: `[AI] ${aiData.name}`,
                 description: aiData.description,
-                status: 'draft', // Force draft
+                status: 'draft',
                 seo_title: aiData.name,
-                image_url: publicUrl // Main image
+                image_url: publicUrl
             })
             .select()
             .single();
 
         if (prodError) throw prodError;
 
-        // 2. Insert Image Record (Gallery)
+        // 2. Insert Image Record
         await supabase.from('product_images').insert({
             product_id: product.id,
             image_url: publicUrl,
             is_primary: true
         });
 
-        // 3. Insert Default Variant (So it has a price)
+        // 3. Insert Default Variant
         const { data: variant, error: varError } = await supabase
             .from('product_variants')
             .insert({
                 product_id: product.id,
-                sku: `GEN-${Date.now()}-${Math.floor(Math.random() * 999)}`,
+                sku: `GEN-${Date.now()}`,
                 price: aiData.price_estimate || 0
             })
             .select()
@@ -220,7 +198,7 @@ export async function POST(request) {
         // 4. Initialize Inventory
         await supabase.from('inventory_levels').insert({
             variant_id: variant.id,
-            on_hand: 0 // Drafts start with 0 stock for safety
+            on_hand: 0
         });
 
         // 5. Link Main Category
@@ -231,8 +209,7 @@ export async function POST(request) {
             });
         }
 
-        // 6. Link Attributes (Color & Tags) to the VARIANT
-        // (Your schema links attributes to variants, not products directly)
+        // 6. Link Attributes to Variant
         if (attributeIds.length > 0) {
             const variantAttributes = attributeIds.map(attrId => ({
                 variant_id: variant.id,

@@ -1,6 +1,9 @@
 // app/api/generate-description/route.js
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { DEFAULT_DESCRIPTION_PROMPT } from '@/utils/ai-prompts'; // --- NEW ---
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -14,6 +17,11 @@ async function fileToGenerativePart(fileBuffer, mimeType) {
 }
 
 export async function POST(request) {
+    // --- NEW: Need supabase to fetch settings ---
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    // --------------------------------------------
+
     try {
         const formData = await request.formData();
         const imageFile = formData.get('image');
@@ -29,19 +37,17 @@ export async function POST(request) {
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // Vietnamese Prompt
-        const prompt = `Đóng vai trò là một chuyên gia viết nội dung (copywriter) cho một thương hiệu thời trang hiện đại tại Việt Nam.
-        Viết một đoạn mô tả sản phẩm hấp dẫn, chuẩn SEO cho mặt hàng trong hình ảnh này.
-        
-        Tên sản phẩm: "${productName}"
+        // --- NEW: FETCH AND PROCESS PROMPT ---
+        const { data: promptSetting } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'prompt_generate_description')
+            .single();
 
-        Hướng dẫn:
-        - Tập trung vào kiểu dáng, form dáng, chất liệu (quan sát được từ ảnh) và tính ứng dụng.
-        - Gợi ý dịp sử dụng phù hợp hoặc cách phối đồ nhanh.
-        - Giọng văn: Tinh tế, chuyên nghiệp, lôi cuốn và thuyết phục.
-        - Ngôn ngữ: Hoàn toàn bằng Tiếng Việt.
-        - Độ dài: 3 đến 4 câu văn ngắn gọn, súc tích.
-        - Không bao gồm tiêu đề hay định dạng markdown, chỉ trả về nội dung đoạn văn.`;
+        let promptTemplate = promptSetting?.value || DEFAULT_DESCRIPTION_PROMPT;
+
+        const prompt = promptTemplate.replace(/{{productName}}/g, productName);
+        // -------------------------------------
 
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;
