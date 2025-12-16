@@ -1,5 +1,6 @@
 // components/admin/UserOrders.js
 import OrderStatusBadge from '@/components/OrderStatusBadge';
+import { formatCurrency } from '@/utils/format';
 
 export default function UserOrders({ orders }) {
     return (
@@ -26,7 +27,7 @@ export default function UserOrders({ orders }) {
                                     {new Date(order.created_at).toLocaleDateString('vi-VN')}
                                 </td>
                                 <td className="p-3 font-medium text-white">
-                                    ${order.total_amount.toFixed(2)}
+                                    {formatCurrency(order.total_amount)}
                                 </td>
                                 <td className="p-3">
                                     <OrderStatusBadge status={order.status} />

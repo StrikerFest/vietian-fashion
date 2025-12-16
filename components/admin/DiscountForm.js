@@ -2,10 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
 
 export default function DiscountForm({ initialData, onSuccess, onCancel }) {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [code, setCode] = useState('');
     const [type, setType] = useState('percentage');
     const [value, setValue] = useState('');
@@ -31,15 +31,15 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
 
         // Validation
         if (!code || !type || value === '') {
-            addToast('Vui lòng điền Mã, Loại và Giá trị.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Vui lòng điền Mã, Loại và Giá trị.', 'error');
             return;
         }
         if (type === 'percentage' && (parseFloat(value) < 0 || parseFloat(value) > 100)) {
-            addToast('Giá trị phần trăm phải từ 0 đến 100.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Giá trị phần trăm phải từ 0 đến 100.', 'error');
             return;
         }
         if (type === 'fixed' && parseFloat(value) < 0) {
-            addToast('Giá trị cố định không được là số âm.', 'error'); // --- FIXED: Replaced alert() ---
+            addToast('Giá trị cố định không được là số âm.', 'error');
             return;
         }
 
@@ -71,7 +71,7 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
 
             onSuccess(isEditing ? 'Cập nhật mã giảm giá thành công!' : 'Tạo mã giảm giá thành công!');
         } catch (error) {
-            addToast(`Lỗi: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Lỗi: ${error.message}`, 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -104,7 +104,7 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
                             required
                         >
                             <option value="percentage">Phần trăm (%)</option>
-                            <option value="fixed">Số tiền cố định ($)</option>
+                            <option value="fixed">Số tiền cố định (₫)</option>
                         </select>
                     </div>
                     <div>
@@ -112,7 +112,7 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
                         <input
                             id="value"
                             type="number"
-                            step={type === 'percentage' ? "1" : "0.01"}
+                            step={type === 'percentage' ? "1" : "1"}
                             min="0"
                             value={value}
                             onChange={(e) => setValue(e.target.value)}

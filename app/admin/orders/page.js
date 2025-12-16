@@ -7,6 +7,7 @@ import OrderDetailsModal from '@/components/admin/OrderDetailsModal';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import PaginationControls from '@/components/ui/PaginationControls';
 import { useToast } from '@/context/ToastContext';
+import { formatCurrency } from '@/utils/format';
 
 export default function OrdersPage() {
     const { addToast } = useToast();
@@ -93,7 +94,7 @@ export default function OrdersPage() {
                                         <td className="p-3 font-mono text-gray-300">#{order.id}</td>
                                         <td className="p-3 text-gray-300">{new Date(order.created_at).toLocaleDateString('vi-VN')}</td>
                                         <td className="p-3 font-medium">{order.users?.email || 'Khách vãng lai'}</td>
-                                        <td className="p-3 text-white font-semibold">${order.total_amount.toFixed(2)}</td>
+                                        <td className="p-3 text-white font-semibold">{formatCurrency(order.total_amount)}</td>
                                         <td className="p-3"><OrderStatusBadge status={order.status} /></td>
                                         <td className="p-3 text-right">
                                             <button

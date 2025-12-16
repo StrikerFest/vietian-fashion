@@ -68,10 +68,11 @@ function ConditionRow({ condition, onChange, onRemove, products, collections, ca
                     </select>
                     <input
                         type="number"
+                        step="1" // REFACTORED: Integer for VND
                         value={condition.value}
                         onChange={(e) => onChange('value', e.target.value)}
-                        className="bg-gray-700 text-white rounded p-1 text-sm border border-gray-600 w-24"
-                        placeholder="Giá"
+                        className="bg-gray-700 text-white rounded p-1 text-sm border border-gray-600 w-28"
+                        placeholder="Giá (₫)"
                     />
                 </>
             )}
@@ -180,9 +181,9 @@ function OptionBuilder({ options, onChange }) {
                         </div>
 
                         <div>
-                            <label className="block text-xs text-gray-400 mb-1">Giá cơ bản (+$)</label>
+                            <label className="block text-xs text-gray-400 mb-1">Giá cơ bản (+₫)</label> {/* REFACTORED: Label */}
                             <input
-                                type="number" min="0" step="0.01"
+                                type="number" min="0" step="1" // REFACTORED: Integer for VND
                                 value={opt.price_modifier || 0}
                                 onChange={(e) => updateOption(idx, 'price_modifier', parseFloat(e.target.value))}
                                 className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white"
@@ -203,7 +204,14 @@ function OptionBuilder({ options, onChange }) {
                             {opt.values.map((val, vIdx) => (
                                 <div key={vIdx} className="flex gap-2 mb-2">
                                     <input placeholder="Nhãn" value={val.label} onChange={(e) => { const n = [...opt.values]; n[vIdx].label = e.target.value; updateValues(idx, n); }} className="flex-grow bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white" />
-                                    <input type="number" placeholder="$ Mod" value={val.price_modifier} onChange={(e) => { const n = [...opt.values]; n[vIdx].price_modifier = parseFloat(e.target.value) || 0; updateValues(idx, n); }} className="w-24 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white" />
+                                    <input
+                                        type="number"
+                                        placeholder="₫ Mod" // REFACTORED: Placeholder
+                                        step="1" // REFACTORED: Integer
+                                        value={val.price_modifier}
+                                        onChange={(e) => { const n = [...opt.values]; n[vIdx].price_modifier = parseFloat(e.target.value) || 0; updateValues(idx, n); }}
+                                        className="w-24 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white"
+                                    />
                                     <button type="button" onClick={() => updateValues(idx, opt.values.filter((_, i) => i !== vIdx))} className="text-red-500 px-2">×</button>
                                 </div>
                             ))}

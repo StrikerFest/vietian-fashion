@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { formatCurrency } from '@/utils/format';
 
 export default function CartSummary({
                                         subtotal,
@@ -123,13 +124,13 @@ export default function CartSummary({
             <div className="space-y-3 text-sm mb-6">
                 <div className="flex justify-between text-gray-400">
                     <span>Tạm tính</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>{formatCurrency(subtotal)}</span>
                 </div>
 
                 {appliedDiscount && (
                     <div className="flex justify-between text-green-400">
                         <span>Giảm giá</span>
-                        <span>-${discountAmount.toFixed(2)}</span>
+                        <span>-{formatCurrency(discountAmount)}</span>
                     </div>
                 )}
 
@@ -138,18 +139,18 @@ export default function CartSummary({
                     {shippingCost === 0 ? (
                         <span className="text-green-400 font-medium">Miễn phí</span>
                     ) : (
-                        <span className="text-white font-medium">${shippingCost.toFixed(2)}</span>
+                        <span className="text-white font-medium">{formatCurrency(shippingCost)}</span>
                     )}
                 </div>
 
                 <div className="flex justify-between text-gray-400">
                     <span>Thuế ước tính ({config.taxRate}%)</span>
-                    <span className="text-white font-medium">${taxAmount.toFixed(2)}</span>
+                    <span className="text-white font-medium">{formatCurrency(taxAmount)}</span>
                 </div>
 
                 <div className="border-t border-gray-700 pt-4 mt-4 flex justify-between items-end">
                     <span className="text-white font-bold text-lg">Tổng cộng</span>
-                    <span className="text-2xl font-extrabold text-white">${finalTotal.toFixed(2)}</span>
+                    <span className="text-2xl font-extrabold text-white">{formatCurrency(finalTotal)}</span>
                 </div>
             </div>
 

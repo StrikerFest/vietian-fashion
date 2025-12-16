@@ -1,8 +1,12 @@
 // app/api/orders/export/route.js
 import {NextResponse} from 'next/server';
-import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Use dynamic client
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs';
 import {cookies} from 'next/headers';
 import Papa from 'papaparse';
+
+// Helper to format VND for CSV (raw number is often better for Excel, but let's ensure consistency)
+// Or better: ensure we don't output small float decimals for VND.
+const toVND = (num) => Math.round(num || 0);
 
 export async function GET(request) {
     const cookieStore = await cookies();
@@ -60,14 +64,14 @@ export async function GET(request) {
 
             const baseData = {
                 'Order ID': order.id,
-                'Date': new Date(order.created_at).toLocaleDateString(),
+                'Date': new Date(order.created_at).toLocaleDateString('vi-VN'), // Use VN date format
                 'Status': order.status,
                 'Customer': order.users?.email || 'Guest',
-                'Subtotal': order.subtotal,
+                'Subtotal': toVND(order.subtotal),
                 'Discount Code': discountCode,
-                'Tax': order.tax_amount || 0,
-                'Shipping Cost': order.shipping_cost || 0,
-                'Total': order.total_amount,
+                'Tax': toVND(order.tax_amount),
+                'Shipping Cost': toVND(order.shipping_cost),
+                'Total': toVND(order.total_amount),
                 'Shipping Address': address ? `${address.city}, ${address.country}` : 'N/A'
             };
 
@@ -92,7 +96,7 @@ export async function GET(request) {
                         'SKU': v?.sku || 'N/A',
                         'Variant': variantParts.join('; '),
                         'Qty': item.quantity,
-                        'Unit Price': item.price_at_purchase
+                        'Unit Price': toVND(item.price_at_purchase)
                     });
                 }
             } else {
@@ -103,7 +107,7 @@ export async function GET(request) {
         const csv = Papa.unparse(flattenedData);
         return new Response(csv, {
             headers: {
-                'Content-Type': 'text/csv',
+                'Content-Type': 'text/csv; charset=utf-8', // Ensure UTF-8 for VN characters
                 'Content-Disposition': `attachment; filename="orders_export_${new Date().toISOString().split('T')[0]}.csv"`
             }
         });

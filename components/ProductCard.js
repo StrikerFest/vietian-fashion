@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import WishlistButton from '@/components/product/WishlistButton';
+import { formatCurrency } from '@/utils/format';
 
 export default function ProductCard({ product, onQuickViewClick }) {
     const firstVariant = product.product_variants?.[0];
@@ -43,7 +44,7 @@ export default function ProductCard({ product, onQuickViewClick }) {
 
                 {firstVariant ? (
                     <p className="mt-1 text-md font-medium text-indigo-400">
-                        ${firstVariant.price.toFixed(2)}
+                        {formatCurrency(firstVariant.price)}
                     </p>
                 ) : (
                     <p className="mt-1 text-md text-gray-500">

@@ -1,6 +1,8 @@
 // components/admin/DiscountList.js
 'use client';
 
+import { formatCurrency } from '@/utils/format';
+
 export default function DiscountList({ discounts, onEdit, onDelete }) {
 
     const formatDate = (dateString) => {
@@ -32,7 +34,7 @@ export default function DiscountList({ discounts, onEdit, onDelete }) {
                         <td className="p-3 font-mono font-semibold text-white">{discount.code}</td>
                         <td className="p-3 capitalize text-gray-300">{discount.type === 'percentage' ? 'Phần trăm' : 'Cố định'}</td>
                         <td className="p-3 text-white">
-                            {discount.type === 'percentage' ? `${discount.value}%` : `$${Number(discount.value).toFixed(2)}`}
+                            {discount.type === 'percentage' ? `${discount.value}%` : formatCurrency(discount.value)}
                         </td>
                         <td className="p-3">
                                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${

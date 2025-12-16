@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
+import { formatCurrency } from '@/utils/format';
 
 export default function QuickViewModal({ productId, onClose }) {
     const { addToCart } = useCart();
@@ -101,7 +102,7 @@ export default function QuickViewModal({ productId, onClose }) {
                         <div className="flex flex-col">
                             <h1 className="text-3xl font-extrabold mb-2">{product.name}</h1>
                             <p className="text-2xl font-semibold text-indigo-400 mb-4">
-                                ${selectedVariant?.price.toFixed(2)}
+                                {formatCurrency(selectedVariant?.price)}
                             </p>
 
                             <p className="text-gray-400 mb-6 text-sm">

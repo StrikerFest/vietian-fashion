@@ -46,7 +46,7 @@ export default function TaxSettings() {
                         shippingCost: parseFloat(config.shippingCost),
                         freeShippingThreshold: parseFloat(config.freeShippingThreshold)
                     },
-                    description: 'Configuration for Tax Rate (%) and Shipping Cost ($).'
+                    description: 'Configuration for Tax Rate (%) and Shipping Cost (VND).'
                 })
             });
             addToast('Đã lưu cài đặt Thuế & Vận chuyển thành công', 'success');
@@ -74,40 +74,40 @@ export default function TaxSettings() {
                         <input
                             type="number"
                             min="0"
-                            step="0.01"
+                            step="0.01" // Percentage can still be decimal
                             value={config.taxRate}
                             onChange={(e) => setConfig({ ...config, taxRate: e.target.value })}
                             className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            placeholder="vd: 5.0"
+                            placeholder="vd: 8.0"
                             required
                         />
                         <p className="text-xs text-gray-500 mt-1">Áp dụng cho tạm tính sau khi giảm giá.</p>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Phí vận chuyển tiêu chuẩn ($)</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Phí vận chuyển tiêu chuẩn (₫)</label>
                         <input
                             type="number"
                             min="0"
-                            step="0.01"
+                            step="1" // VND is integer
                             value={config.shippingCost}
                             onChange={(e) => setConfig({ ...config, shippingCost: e.target.value })}
                             className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            placeholder="vd: 10.00"
+                            placeholder="vd: 30000"
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Ngưỡng miễn phí vận chuyển ($)</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Ngưỡng miễn phí vận chuyển (₫)</label>
                         <input
                             type="number"
                             min="0"
-                            step="1"
+                            step="1" // VND is integer
                             value={config.freeShippingThreshold}
                             onChange={(e) => setConfig({ ...config, freeShippingThreshold: e.target.value })}
                             className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            placeholder="vd: 100"
+                            placeholder="vd: 500000"
                         />
                         <p className="text-xs text-gray-500 mt-1">Đặt là 0 để tắt miễn phí vận chuyển.</p>
                     </div>

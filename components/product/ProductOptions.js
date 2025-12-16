@@ -2,10 +2,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
+import { formatCurrency } from '@/utils/format';
 
 export default function ProductOptions({ productId, variantId, onChange, setIsValid }) {
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
     const [optionSets, setOptionSets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selections, setSelections] = useState({}); // { optionId: "Value" }
@@ -17,19 +18,18 @@ export default function ProductOptions({ productId, variantId, onChange, setIsVa
 
             setLoading(true);
             try {
-                // Pass variantId to API for secure price-based rule evaluation
                 const res = await fetch(`/api/product-options?productId=${productId}&variantId=${variantId}`);
                 const data = await res.json();
                 setOptionSets(data || []);
             } catch (e) {
                 console.error(e);
-                addToast("Không thể tải các tùy chọn tùy chỉnh.", 'error'); // --- FIXED: Replaced silent console error ---
+                addToast("Không thể tải các tùy chọn tùy chỉnh.", 'error');
             } finally {
                 setLoading(false);
             }
         };
         fetchOptions();
-    }, [productId, variantId, addToast]); // Added addToast to dependency array
+    }, [productId, variantId, addToast]);
 
     // Validation & Price Calculation
     useEffect(() => {
@@ -48,7 +48,7 @@ export default function ProductOptions({ productId, variantId, onChange, setIsVa
                 // 2. Cart Payload Construction
                 if (val) {
                     let displayValue = val;
-                    // Start with the Base Price (New Feature)
+                    // Start with the Base Price
                     let priceMod = opt.price_modifier ? parseFloat(opt.price_modifier) : 0;
 
                     // Add Choice Price (for Radio/Checkbox/Select)
@@ -91,7 +91,7 @@ export default function ProductOptions({ productId, variantId, onChange, setIsVa
                             <label className="block text-sm font-medium text-white mb-2">
                                 {opt.label}
                                 {/* Show Base Price Modifier if exists */}
-                                {opt.price_modifier > 0 && <span className="text-indigo-400 ml-1">(+${opt.price_modifier})</span>}
+                                {opt.price_modifier > 0 && <span className="text-indigo-400 ml-1">(+{formatCurrency(opt.price_modifier)})</span>}
                                 {opt.is_required && <span className="text-red-400 ml-1">*</span>}
                             </label>
 
@@ -128,7 +128,7 @@ export default function ProductOptions({ productId, variantId, onChange, setIsVa
                                     <option value="">-- Chọn --</option>
                                     {opt.values.map((val, i) => (
                                         <option key={i} value={val.label}>
-                                            {val.label} {val.price_modifier ? `(+$${val.price_modifier})` : ''}
+                                            {val.label} {val.price_modifier ? `(+${formatCurrency(val.price_modifier)})` : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -139,7 +139,7 @@ export default function ProductOptions({ productId, variantId, onChange, setIsVa
                                 <div className="flex flex-wrap gap-2">
                                     {opt.values.map((val, i) => {
                                         const isSelected = selections[opt.id] === val.label;
-                                        const priceText = val.price_modifier ? ` (+${val.price_modifier})` : '';
+                                        const priceText = val.price_modifier ? ` (+${formatCurrency(val.price_modifier)})` : '';
 
                                         return (
                                             <button

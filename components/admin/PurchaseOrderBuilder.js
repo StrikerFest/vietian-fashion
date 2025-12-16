@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
+import { formatCurrency } from '@/utils/format';
 
 export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) {
     const router = useRouter();
@@ -153,7 +154,7 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                     <div className="md:col-span-2">
                         <label className="block text-xs font-medium mb-1 text-gray-400">Giá vốn</label>
                         <input
-                            type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)}
+                            type="number" min="0" step="1" value={cost} onChange={(e) => setCost(e.target.value)}
                             className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm text-white"
                         />
                     </div>
@@ -181,8 +182,8 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
                             <td className="p-2 text-white">{item.productName}</td>
                             <td className="p-2">{item.sku} <span className="text-gray-500">({item.details})</span></td>
                             <td className="p-2">{item.quantity}</td>
-                            <td className="p-2">${item.cost_price.toFixed(2)}</td>
-                            <td className="p-2">${(item.quantity * item.cost_price).toFixed(2)}</td>
+                            <td className="p-2">{formatCurrency(item.cost_price)}</td>
+                            <td className="p-2">{formatCurrency(item.quantity * item.cost_price)}</td>
                             <td className="p-2 text-right">
                                 <button type="button" onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300 font-bold">&times;</button>
                             </td>

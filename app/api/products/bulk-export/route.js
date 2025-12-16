@@ -1,6 +1,6 @@
 // app/api/products/bulk-export/route.js
 import {NextResponse} from 'next/server';
-import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Use dynamic client
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs';
 import {cookies} from 'next/headers';
 import Papa from 'papaparse';
 
@@ -87,7 +87,7 @@ export async function GET(request) {
                     'seo_title': product.seo_title || '',
                     'seo_description': product.seo_description || '',
                     'sku': variant.sku,
-                    'price': variant.price,
+                    'price': Math.round(variant.price), // Format as Integer for VND
                     'on_hand': variant.inventory_levels?.[0]?.on_hand ?? 0,
                     'dynamic_attributes': attrStrings.join('; ')
                 });
@@ -96,7 +96,7 @@ export async function GET(request) {
 
         const csv = Papa.unparse(flattenedData, {header: true});
         const headers = new Headers();
-        headers.set('Content-Type', 'text/csv');
+        headers.set('Content-Type', 'text/csv; charset=utf-8'); // Ensure UTF-8
         headers.set('Content-Disposition', 'attachment; filename="products_export.csv"');
 
         return new Response(csv, {headers});

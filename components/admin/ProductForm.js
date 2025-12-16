@@ -584,8 +584,8 @@ export default function ProductForm({ initialData, categories = [], collections 
                                     );
                                 })}
                                 <div className="w-28">
-                                    <label className="text-xs text-gray-500 mb-1 block">Giá ($)</label>
-                                    <input type="number" step="0.01" value={variant.price} onChange={e => handleVariantChange(index, 'price', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required />
+                                    <label className="text-xs text-gray-500 mb-1 block">Giá (₫)</label>
+                                    <input type="number" step="1" value={variant.price} onChange={e => handleVariantChange(index, 'price', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required />
                                 </div>
                                 <div className="w-24">
                                     <label className="text-xs text-gray-500 mb-1 block">Tồn kho</label>

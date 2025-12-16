@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatCurrency } from '@/utils/format';
 
 export default function CartItemList({ cartItems, updateQuantity, removeFromCart }) {
     // Helper to render options (Engraving, etc.)
@@ -16,7 +17,7 @@ export default function CartItemList({ cartItems, updateQuantity, removeFromCart
                         <span className="font-semibold text-gray-500">{opt.label}:</span>
                         <span className="text-gray-300">{opt.value}</span>
                         {opt.priceModifier > 0 && (
-                            <span className="text-indigo-400 ml-1">(+${opt.priceModifier.toFixed(2)})</span>
+                            <span className="text-indigo-400 ml-1">(+{formatCurrency(opt.priceModifier)})</span>
                         )}
                     </div>
                 ))}
@@ -59,7 +60,7 @@ export default function CartItemList({ cartItems, updateQuantity, removeFromCart
                         {/* Custom Options */}
                         {renderCustomOptions(item.selectedOptions)}
 
-                        <p className="text-indigo-400 font-semibold mt-1">${item.price.toFixed(2)}</p>
+                        <p className="text-indigo-400 font-semibold mt-1">{formatCurrency(item.price)}</p>
                     </div>
 
                     {/* Quantity & Remove */}

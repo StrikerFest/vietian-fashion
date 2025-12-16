@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { formatCurrency } from '@/utils/format';
 
 export default function VietQRDisplay({ order }) {
     const [config, setConfig] = useState(null);
@@ -30,12 +31,13 @@ export default function VietQRDisplay({ order }) {
 
     // Generate VietQR URL
     // Format: https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-<TEMPLATE>.png?amount=<AMOUNT>&addInfo=<INFO>&accountName=<NAME>
-    // Note: We encode spaces as %20 automatically by browser/Image component, but good practice to handle info
     const bankId = config.bankId;
     const accountNo = config.accountNo;
     const template = config.template || 'compact';
-    const amount = Math.round(order.total_amount); // VietQR expects integers ideally, though float works often. Assuming currency handling.
-    // If currency is USD, this might be small. If VND, it's large. For this demo, we assume the raw total_amount is correct.
+
+    // VietQR expects integers. Math.round is perfect for VND.
+    const amount = Math.round(order.total_amount);
+
     const description = `ĐƠN HÀNG ${order.id}`;
     const accountName = config.accountName;
 
@@ -71,7 +73,8 @@ export default function VietQRDisplay({ order }) {
                 </div>
                 <div className="flex justify-between border-b border-gray-200 pb-2">
                     <span className="font-semibold">Số tiền:</span>
-                    <span className="font-bold text-red-600">${order.total_amount.toFixed(2)}</span>
+                    {/* REFACTORED: Use formatCurrency instead of toFixed(2) */}
+                    <span className="font-bold text-red-600">{formatCurrency(order.total_amount)}</span>
                 </div>
                 <div className="flex justify-between">
                     <span className="font-semibold">Nội dung:</span>

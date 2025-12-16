@@ -2,7 +2,8 @@
 'use client';
 
 import Link from 'next/link';
-import VietQRDisplay from './VietQRDisplay'; // --- NEW IMPORT ---
+import VietQRDisplay from './VietQRDisplay';
+import { formatCurrency } from '@/utils/format';
 
 export default function OrderReceipt({ order }) {
     const appliedDiscount = order.order_discounts?.[0]?.discounts;
@@ -71,7 +72,7 @@ export default function OrderReceipt({ order }) {
                                                     <p key={key} className="text-xs text-gray-500">
                                                         <span className="font-semibold">{opt.label}:</span> <span className="text-gray-300">{opt.value}</span>
                                                         {opt.priceModifier > 0 && (
-                                                            <span className="text-indigo-400 ml-1">(+${Number(opt.priceModifier).toFixed(2)})</span>
+                                                            <span className="text-indigo-400 ml-1">(+{formatCurrency(opt.priceModifier)})</span>
                                                         )}
                                                     </p>
                                                 ))}
@@ -80,7 +81,7 @@ export default function OrderReceipt({ order }) {
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-white font-medium">${(item.price_at_purchase * item.quantity).toFixed(2)}</p>
+                                    <p className="text-white font-medium">{formatCurrency(item.price_at_purchase * item.quantity)}</p>
                                     <p className="text-xs text-gray-500">SL: {item.quantity}</p>
                                 </div>
                             </div>
@@ -110,22 +111,22 @@ export default function OrderReceipt({ order }) {
                     <div className="p-6 md:p-8 bg-gray-700/10">
                         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Chi tiết chi phí</h3>
                         <div className="space-y-2 text-sm">
-                            <div className="flex justify-between text-gray-300"><span>Tạm tính</span><span>${order.subtotal.toFixed(2)}</span></div>
-                            {appliedDiscount && <div className="flex justify-between text-green-400"><span>Giảm giá ({appliedDiscount.code})</span><span>-${discountAmount.toFixed(2)}</span></div>}
+                            <div className="flex justify-between text-gray-300"><span>Tạm tính</span><span>{formatCurrency(order.subtotal)}</span></div>
+                            {appliedDiscount && <div className="flex justify-between text-green-400"><span>Giảm giá ({appliedDiscount.code})</span><span>-{formatCurrency(discountAmount)}</span></div>}
 
                             <div className="flex justify-between text-gray-300">
                                 <span>Vận chuyển</span>
                                 <span className={shippingCost === 0 ? "text-green-400" : "text-white"}>
-                                    {shippingCost === 0 ? 'Miễn phí' : `$${Number(shippingCost).toFixed(2)}`}
+                                    {shippingCost === 0 ? 'Miễn phí' : formatCurrency(shippingCost)}
                                 </span>
                             </div>
 
                             <div className="flex justify-between text-gray-300">
                                 <span>Thuế</span>
-                                <span>${Number(taxAmount).toFixed(2)}</span>
+                                <span>{formatCurrency(taxAmount)}</span>
                             </div>
 
-                            <div className="pt-4 mt-4 border-t border-gray-700 flex justify-between items-center"><span className="font-bold text-white text-lg">Tổng cộng</span><span className="font-bold text-white text-2xl">${order.total_amount.toFixed(2)}</span></div>
+                            <div className="pt-4 mt-4 border-t border-gray-700 flex justify-between items-center"><span className="font-bold text-white text-lg">Tổng cộng</span><span className="font-bold text-white text-2xl">{formatCurrency(order.total_amount)}</span></div>
                         </div>
                     </div>
                 </div>

@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
+import { formatCurrency } from '@/utils/format';
 
 export default function OrderHistory({ orders, isLoading }) {
 
@@ -71,7 +72,7 @@ export default function OrderHistory({ orders, isLoading }) {
                                                     <div key={key} className="text-gray-400">
                                                         <span className="text-indigo-300">{opt.label}:</span> {opt.value}
                                                         {opt.priceModifier > 0 && (
-                                                            <span className="text-gray-500 ml-1">(+${Number(opt.priceModifier).toFixed(2)})</span>
+                                                            <span className="text-gray-500 ml-1">(+{formatCurrency(opt.priceModifier)})</span>
                                                         )}
                                                     </div>
                                                 ))}
@@ -86,7 +87,7 @@ export default function OrderHistory({ orders, isLoading }) {
 
                             <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
                                 <Link href={`/order-confirmation/${order.id}`} className="text-sm text-gray-400 hover:text-white transition-colors">Xem hóa đơn đầy đủ</Link>
-                                <p className="font-bold text-lg text-white">${order.total_amount.toFixed(2)}</p>
+                                <p className="font-bold text-lg text-white">{formatCurrency(order.total_amount)}</p>
                             </div>
                         </div>
                     ))}

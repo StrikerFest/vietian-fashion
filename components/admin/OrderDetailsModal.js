@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import { useToast } from '@/context/ToastContext';
+import { formatCurrency } from '@/utils/format';
 
 export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
     const { addToast } = useToast();
@@ -48,7 +49,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
             text = `Giảm giá (${discountInfo.code} - ${discountValue}%)`;
         } else if (discountInfo.type === 'fixed') {
             amount = Math.min(discountInfo.value, ord.subtotal);
-            text = `Giảm giá (${discountInfo.code} - $${Number(discountInfo.value).toFixed(2)})`;
+            text = `Giảm giá (${discountInfo.code} - ${formatCurrency(discountInfo.value)})`;
         }
         amount = Math.max(0, amount);
         return { text, amount };
@@ -148,7 +149,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div className="bg-gray-900 p-2 rounded border border-gray-700">
                                     <span className="block text-xs text-gray-500">Số tiền mong đợi</span>
-                                    <span className="font-mono text-white font-bold">${order.total_amount.toFixed(2)}</span>
+                                    <span className="font-mono text-white font-bold">{formatCurrency(order.total_amount)}</span>
                                 </div>
                                 <div className="bg-gray-900 p-2 rounded border border-gray-700">
                                     <span className="block text-xs text-gray-500">Nội dung / Ghi chú</span>
@@ -179,7 +180,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                                     <p key={key} className="text-xs text-indigo-300">
                                                         <span className="font-bold text-indigo-200">{opt.label}:</span> {opt.value}
                                                         {opt.priceModifier > 0 && (
-                                                            <span className="text-green-400 ml-1 font-bold">[+${Number(opt.priceModifier).toFixed(2)}]</span>
+                                                            <span className="text-green-400 ml-1 font-bold">[{formatCurrency(opt.priceModifier)}]</span>
                                                         )}
                                                     </p>
                                                 ))}
@@ -187,8 +188,8 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                         )}
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-gray-300 whitespace-nowrap">{item.quantity} x ${item.price_at_purchase.toFixed(2)}</p>
-                                        <p className="text-white font-bold">${(item.quantity * item.price_at_purchase).toFixed(2)}</p>
+                                        <p className="text-gray-300 whitespace-nowrap">{item.quantity} x {formatCurrency(item.price_at_purchase)}</p>
+                                        <p className="text-white font-bold">{formatCurrency(item.quantity * item.price_at_purchase)}</p>
                                     </div>
                                 </div>
                             ))}
@@ -199,19 +200,19 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                     <div>
                         <h3 className="font-semibold mb-2 text-lg text-white">Chi tiết thanh toán</h3>
                         <div className="space-y-1 text-sm bg-gray-900/50 p-4 rounded border border-gray-700">
-                            <div className="flex justify-between"><span className="text-gray-400">Tạm tính</span><span className="text-white">${order.subtotal?.toFixed(2) ?? '0.00'}</span></div>
-                            {discountDetails.text && <div className="flex justify-between text-green-400"><span>{discountDetails.text}</span><span>-${discountDetails.amount.toFixed(2)}</span></div>}
+                            <div className="flex justify-between"><span className="text-gray-400">Tạm tính</span><span className="text-white">{formatCurrency(order.subtotal ?? 0)}</span></div>
+                            {discountDetails.text && <div className="flex justify-between text-green-400"><span>{discountDetails.text}</span><span>-{formatCurrency(discountDetails.amount)}</span></div>}
 
                             <div className="flex justify-between text-gray-400">
                                 <span>Vận chuyển</span>
-                                <span className="text-white">${Number(shippingCost).toFixed(2)}</span>
+                                <span className="text-white">{formatCurrency(shippingCost)}</span>
                             </div>
                             <div className="flex justify-between text-gray-400">
                                 <span>Thuế</span>
-                                <span className="text-white">${Number(taxAmount).toFixed(2)}</span>
+                                <span className="text-white">{formatCurrency(taxAmount)}</span>
                             </div>
 
-                            <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between font-bold text-base text-white"><span>Tổng cộng</span><span>${order.total_amount.toFixed(2)}</span></div>
+                            <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between font-bold text-base text-white"><span>Tổng cộng</span><span>{formatCurrency(order.total_amount)}</span></div>
                         </div>
                     </div>
 

@@ -3,13 +3,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter, useSearchParams } from 'next/navigation'; // Added hooks
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import ProductGallery from '@/components/product/ProductGallery';
 import VariantSelector from '@/components/product/VariantSelector';
 import ProductReviews from '@/components/product/ProductReviews';
 import ProductOptions from '@/components/product/ProductOptions';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
+import { formatCurrency } from '@/utils/format';
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -17,7 +18,7 @@ export default function ProductDetailPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { addToCart } = useCart();
-    const { addToast } = useToast(); // --- NEW ---
+    const { addToast } = useToast();
 
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +59,7 @@ export default function ProductDetailPage() {
             }
         };
         fetchProduct();
-    }, [id]); // Intentionally excludes searchParams to prevent loop on URL update
+    }, [id]);
 
     // 3. Sync Selection to URL
     const handleVariantSelect = (variant) => {
@@ -79,7 +80,7 @@ export default function ProductDetailPage() {
     const handleAddToCart = () => {
         if (product && selectedVariant) {
             if (!areOptionsValid) {
-                addToast("Vui lòng điền tất cả các tùy chọn bắt buộc.", 'error'); // --- FIXED: Replaced alert() ---
+                addToast("Vui lòng điền tất cả các tùy chọn bắt buộc.", 'error');
                 return;
             }
             addToCart(product, selectedVariant, customOptions);
@@ -117,7 +118,7 @@ export default function ProductDetailPage() {
 
                         <div className="mb-6 flex items-baseline gap-4">
                             <p className="text-3xl font-bold text-indigo-400">
-                                ${finalPrice.toFixed(2)}
+                                {formatCurrency(finalPrice)}
                             </p>
                             {isOutOfStock && (
                                 <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs font-bold uppercase rounded border border-red-900/50">
@@ -133,13 +134,13 @@ export default function ProductDetailPage() {
                         <VariantSelector
                             variants={product.product_variants}
                             selectedVariant={selectedVariant}
-                            onSelect={handleVariantSelect} // Use new handler
+                            onSelect={handleVariantSelect}
                         />
 
                         {selectedVariant && (
                             <ProductOptions
                                 productId={product.id}
-                                variantId={selectedVariant.id} // Pass ID instead of price
+                                variantId={selectedVariant.id}
                                 onChange={setCustomOptions}
                                 setIsValid={setAreOptionsValid}
                             />

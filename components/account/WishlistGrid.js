@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCart } from '@/context/CartContext';
+import { formatCurrency } from '@/utils/format';
 
 export default function WishlistGrid({ items, isLoading }) {
     const { toggleWishlist } = useWishlist();
@@ -51,7 +52,7 @@ export default function WishlistGrid({ items, isLoading }) {
 
                     <div className="p-4 flex flex-col flex-grow">
                         <h3 className="font-bold text-white truncate">{product.name}</h3>
-                        <p className="text-indigo-400 font-semibold mt-1">${product.price.toFixed(2)}</p>
+                        <p className="text-indigo-400 font-semibold mt-1">{formatCurrency(product.price)}</p>
 
                         <Link
                             href={`/products/${product.id}`}

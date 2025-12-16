@@ -6,6 +6,7 @@ import Link from 'next/link';
 import SalesChart from '@/components/admin/SalesChart';
 import TopProducts from '@/components/admin/TopProducts';
 import LowStockAlert from '@/components/admin/LowStockAlert';
+import { formatCurrency } from '@/utils/format';
 
 function StatCard({ title, value, color = "text-white" }) {
     return (
@@ -43,6 +44,9 @@ export default function AdminDashboardPage() {
         fetchAnalytics();
     }, []);
 
+    // Calculate Average Order Value
+    const averageOrderValue = data.totalOrders > 0 ? (data.totalRevenue / data.totalOrders) : 0;
+
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="flex justify-between items-end mb-8">
@@ -54,7 +58,7 @@ export default function AdminDashboardPage() {
             <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard
                     title="Tổng doanh thu"
-                    value={isLoading ? '...' : `$${data.totalRevenue.toLocaleString()}`}
+                    value={isLoading ? '...' : formatCurrency(data.totalRevenue)}
                     color="text-green-400"
                 />
                 <StatCard
@@ -63,7 +67,7 @@ export default function AdminDashboardPage() {
                 />
                 <StatCard
                     title="Giá trị đơn trung bình"
-                    value={isLoading ? '...' : `$${data.totalOrders > 0 ? (data.totalRevenue / data.totalOrders).toFixed(2) : '0.00'}`}
+                    value={isLoading ? '...' : formatCurrency(averageOrderValue)}
                     color="text-indigo-400"
                 />
             </div>
