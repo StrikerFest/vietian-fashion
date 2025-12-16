@@ -1,7 +1,7 @@
 // context/AdminAuthContext.js
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 const AdminAuthContext = createContext();
@@ -12,8 +12,10 @@ export function AdminAuthProvider({ children }) {
     const [userRole, setUserRole] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    // [FIX] Track the last processed token to prevent redundant verification loops
+    const lastProcessedToken = useRef(null);
+
     // Centralized Role Verification Logic
-    // Using useCallback to ensure stability and prevent unnecessary re-renders
     const verifyRole = useCallback(async (currentSession) => {
         if (!currentSession?.user) {
             setUserRole(null);
@@ -28,39 +30,43 @@ export function AdminAuthProvider({ children }) {
             return role;
         } catch (err) {
             console.error("Xác minh vai trò thất bại:", err);
+            // Don't set null immediately if it's just a network glitch?
+            // For security, strictly nullifying is safer, but might cause temporary access denial.
             setUserRole(null);
             return null;
         }
     }, [supabase]);
 
     // Handler for Auth State Changes
-    // Handles both initial load and real-time updates
     const handleAuthChange = useCallback(async (event, currentSession, mounted) => {
         if (!mounted) return;
 
+        // [FIX] Optimization: If session exists and token is same as last checked, skip verification
+        if (currentSession && currentSession.access_token === lastProcessedToken.current && userRole) {
+            // Already verified this session, just ensure loading is false
+            setIsLoading(false);
+            return;
+        }
+
         setSession(currentSession);
 
-        // If we have a session, verify the role.
-        // This covers INITIAL_SESSION, SIGNED_IN, and TOKEN_REFRESHED.
         if (currentSession) {
-            // Optional: You can check if event === 'TOKEN_REFRESHED' to skip verifying if not needed,
-            // but verifying ensures security is always up to date.
+            lastProcessedToken.current = currentSession.access_token;
             await verifyRole(currentSession);
         } else {
+            lastProcessedToken.current = null;
             setUserRole(null);
         }
 
         setIsLoading(false);
-    }, [verifyRole]);
+    }, [verifyRole, userRole]);
 
     // Initialize and Listen for Auth Changes
     useEffect(() => {
         let mounted = true;
 
-        // onAuthStateChange fires immediately with the current session (INITIAL_SESSION),
-        // so we don't need a separate getSession() call which was causing the race condition.
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            handleAuthChange(event, session, mounted).then(r => {});
+            handleAuthChange(event, session, mounted);
         });
 
         return () => {
@@ -71,7 +77,6 @@ export function AdminAuthProvider({ children }) {
 
     // --- Admin-specific LOGIN function ---
     const login = async (email, password) => {
-        // 1. Sign in normally
         const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -80,7 +85,7 @@ export function AdminAuthProvider({ children }) {
         if (loginError) throw new Error(loginError.message);
         if (!loginData.user) throw new Error("Đăng nhập thất bại, không tìm thấy người dùng.");
 
-        // 2. Verify Admin Role Immediately
+        // Force verify immediately after login action
         const role = await verifyRole(loginData.session);
 
         if (role !== 'admin') {
@@ -95,6 +100,7 @@ export function AdminAuthProvider({ children }) {
         await supabase.auth.signOut();
         setSession(null);
         setUserRole(null);
+        lastProcessedToken.current = null;
     };
 
     const value = {
