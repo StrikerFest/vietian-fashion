@@ -1,80 +1,63 @@
 // components/AddressModal.js
 'use client';
 
-import { useState } from 'react';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import {useState, useCallback} from 'react';
+import {useToast} from '@/context/ToastContext';
+import VietnamAddressForm from '@/components/shared/VietnamAddressForm';
 
-export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
-    const { addToast } = useToast(); // --- NEW ---
-    const [formData, setFormData] = useState({
-        address_line_1: '',
-        address_line_2: '',
-        city: '',
-        state: '', // Maps to state_province_region
-        postal_code: '',
-        country: '',
-        is_default: false
-    });
+export default function AddressModal({isOpen, onClose, onAddressAdded}) {
+    const {addToast} = useToast();
+    const [formData, setFormData] = useState({});
+    const [isDefault, setIsDefault] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState(''); // Still used for internal modal error
 
-    if (!isOpen) return null;
-
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
-    };
+    // FIXED: Hook moved before the conditional return
+    const handleAddressUpdate = useCallback((data) => {
+        setFormData(data);
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Manual validation
+        if (!formData.address_line_1 || !formData.city || !formData.state_province_region) {
+            addToast('Vui lòng chọn đầy đủ địa chỉ (Tỉnh, Huyện, Xã, Đường)', 'error');
+            return;
+        }
+
         setIsSubmitting(true);
-        setError('');
 
         try {
+            const payload = {...formData, is_default: isDefault};
+
             const response = await fetch('/api/account/addresses', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData),
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
                 const data = await response.json();
-                // Throw error to be caught below
                 throw new Error(data.error || 'Thêm địa chỉ thất bại');
             }
 
-            // Success handling
-            addToast('Đã lưu địa chỉ mới thành công!', 'success'); // --- NEW ---
-
-            // Reset form and notify parent
-            setFormData({
-                address_line_1: '',
-                address_line_2: '',
-                city: '',
-                state: '',
-                postal_code: '',
-                country: '',
-                is_default: false
-            });
+            addToast('Đã lưu địa chỉ mới thành công!', 'success');
             onAddressAdded();
             onClose();
         } catch (err) {
-            setError(err.message);
-            addToast(`Lỗi khi thêm địa chỉ: ${err.message}`, 'error'); // --- NEW ---
+            addToast(`Lỗi: ${err.message}`, 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    // FIXED: Conditional return is now at the end of the logic block, ensuring hooks always run
+    if (!isOpen) return null;
+
     return (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div
-                className="bg-gray-800 text-white rounded-lg shadow-xl w-full max-w-md overflow-hidden"
+                className="bg-gray-800 text-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden"
                 onClick={e => e.stopPropagation()}
             >
                 <div className="p-6 border-b border-gray-700 flex justify-between items-center">
@@ -82,119 +65,39 @@ export default function AddressModal({ isOpen, onClose, onAddressAdded }) {
                     <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {error && (
-                        <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded text-sm">
-                            {error}
-                        </div>
-                    )}
+                <div className="p-6">
+                    <VietnamAddressForm onUpdate={handleAddressUpdate}/>
 
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Địa chỉ dòng 1</label>
-                        <input
-                            type="text"
-                            name="address_line_1"
-                            value={formData.address_line_1}
-                            onChange={handleChange}
-                            required
-                            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Số nhà, tên đường..."
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Địa chỉ dòng 2 (Tùy chọn)</label>
-                        <input
-                            type="text"
-                            name="address_line_2"
-                            value={formData.address_line_2}
-                            onChange={handleChange}
-                            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Căn hộ, tòa nhà, v.v."
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Thành phố</label>
-                            <input
-                                type="text"
-                                name="city"
-                                value={formData.city}
-                                onChange={handleChange}
-                                required
-                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Tỉnh/Thành</label>
-                            <input
-                                type="text"
-                                name="state"
-                                value={formData.state}
-                                onChange={handleChange}
-                                required
-                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Mã bưu chính</label>
-                            <input
-                                type="text"
-                                name="postal_code"
-                                value={formData.postal_code}
-                                onChange={handleChange}
-                                required
-                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Quốc gia</label>
-                            <input
-                                type="text"
-                                name="country"
-                                value={formData.country}
-                                onChange={handleChange}
-                                required
-                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex items-center">
+                    <div className="flex items-center mt-6 p-3 bg-gray-900/50 rounded border border-gray-700">
                         <input
                             type="checkbox"
                             id="is_default"
-                            name="is_default"
-                            checked={formData.is_default}
-                            onChange={handleChange}
+                            checked={isDefault}
+                            onChange={(e) => setIsDefault(e.target.checked)}
                             className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                         />
-                        <label htmlFor="is_default" className="ml-2 text-sm text-gray-300">
-                            Đặt làm địa chỉ giao hàng mặc định
+                        <label htmlFor="is_default" className="ml-2 text-sm text-gray-300 cursor-pointer">
+                            Đặt làm địa chỉ mặc định
                         </label>
                     </div>
 
-                    <div className="pt-4 flex gap-3">
+                    <div className="pt-6 flex gap-3">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-colors"
+                            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors"
                         >
                             Hủy
                         </button>
                         <button
-                            type="submit"
+                            onClick={handleSubmit}
                             disabled={isSubmitting}
-                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-indigo-800 disabled:cursor-not-allowed"
+                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-600"
                         >
                             {isSubmitting ? 'Đang lưu...' : 'Lưu địa chỉ'}
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

@@ -1,97 +1,33 @@
 // components/cart/GuestAddressForm.js
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useToast } from '@/context/ToastContext';
+import {useState, useEffect, useCallback} from 'react';
+import VietnamAddressForm from '@/components/shared/VietnamAddressForm';
 
-const defaultAddress = {
-    address_line_1: '',
-    city: '',
-    state_province_region: '',
-    postal_code: '',
-    country: '',
-};
+export default function GuestAddressForm({onChange, setIsValid}) {
+    const [internalData, setInternalData] = useState({});
 
-export default function GuestAddressForm({ onChange, setIsValid }) {
-    const { addToast } = useToast();
-    const [formData, setFormData] = useState(defaultAddress);
+    const handleAddressUpdate = useCallback((data) => {
+        setInternalData(data);
 
-    const requiredFields = ['address_line_1', 'city', 'state_province_region', 'postal_code', 'country'];
+        // Validate required fields for Vietnam address
+        // Note: postal_code and country are hardcoded in the child, so we check the user inputs
+        const isValid =
+            data.address_line_1?.trim() && // Street
+            data.address_line_2?.trim() && // Ward
+            data.city?.trim() &&           // District
+            data.state_province_region?.trim(); // Province
 
-    useEffect(() => {
-        // Validation logic
-        const allValid = requiredFields.every(field => formData[field]?.trim());
-        setIsValid(allValid);
-        onChange(formData);
-    }, [formData, onChange, setIsValid]);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
+        setIsValid(!!isValid);
+        onChange(data);
+    }, [onChange, setIsValid]);
 
     return (
         <div className="space-y-4">
-            <p className="text-sm text-gray-400">
-                Vui lòng nhập địa chỉ giao hàng để hoàn tất đơn hàng.
+            <p className="text-sm text-gray-400 border-b border-gray-700 pb-2 mb-4">
+                Thông tin giao hàng (Chỉ hỗ trợ Việt Nam)
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-xs font-medium mb-1 text-gray-400">Địa chỉ dòng 1*</label>
-                    <input
-                        type="text"
-                        name="address_line_1"
-                        value={formData.address_line_1}
-                        onChange={handleChange}
-                        className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-medium mb-1 text-gray-400">Thành phố*</label>
-                    <input
-                        type="text"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleChange}
-                        className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-medium mb-1 text-gray-400">Tỉnh/Thành*</label>
-                    <input
-                        type="text"
-                        name="state_province_region"
-                        value={formData.state_province_region}
-                        onChange={handleChange}
-                        className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-medium mb-1 text-gray-400">Mã bưu chính*</label>
-                    <input
-                        type="text"
-                        name="postal_code"
-                        value={formData.postal_code}
-                        onChange={handleChange}
-                        className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm"
-                        required
-                    />
-                </div>
-                <div className="md:col-span-2">
-                    <label className="block text-xs font-medium mb-1 text-gray-400">Quốc gia*</label>
-                    <input
-                        type="text"
-                        name="country"
-                        value={formData.country}
-                        onChange={handleChange}
-                        className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm"
-                        required
-                    />
-                </div>
-            </div>
+            <VietnamAddressForm onUpdate={handleAddressUpdate}/>
         </div>
     );
 }
