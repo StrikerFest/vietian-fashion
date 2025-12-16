@@ -23,10 +23,7 @@ export default function ProductForm({ initialData, categories = [], collections 
     const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
 
     // REFACTORED: Store full tag objects instead of just IDs to handle "New" state
-    // Structure: { id: string | null, name: string, groupId: string, isNew: boolean }
     const [selectedTags, setSelectedTags] = useState([]);
-
-    // Manual input state for each group: { [groupId]: "inputValue" }
     const [tagInputs, setTagInputs] = useState({});
 
     const [seoTitle, setSeoTitle] = useState('');
@@ -48,11 +45,9 @@ export default function ProductForm({ initialData, categories = [], collections 
     // --- Dynamic Grouping of Attributes ---
     const attributeGroups = useMemo(() => {
         const groups = {};
-        // 1. Create Group Roots
         categories.filter(c => c.type === 'attribute' && !c.parent_id).forEach(root => {
             groups[root.id] = { ...root, options: [] };
         });
-        // 2. Assign Options to Groups
         categories.filter(c => c.type === 'attribute' && c.parent_id).forEach(opt => {
             if (groups[opt.parent_id]) {
                 groups[opt.parent_id].options.push(opt);
@@ -75,30 +70,23 @@ export default function ProductForm({ initialData, categories = [], collections 
             if (initialData.catalog_categories?.[0]) setSelectedCatalogId(initialData.catalog_categories[0].id);
             if (initialData.collections) setSelectedCollectionIds(initialData.collections.map(c => c.id));
 
-            // --- FIX START: Tra cứu category gốc để lấy parent_id chính xác ---
             if (initialData.attributes) {
                 const loadedTags = initialData.attributes.map(attr => {
-                    // Tìm attribute tương ứng trong danh sách categories toàn cục để lấy parent_id
                     const categoryInfo = categories.find(c => c.id === attr.id);
-
                     return {
                         id: attr.id,
                         name: attr.name,
-                        // Ưu tiên lấy từ categoryInfo, nếu không có mới fallback về attr.parent_id
                         groupId: categoryInfo ? categoryInfo.parent_id : attr.parent_id,
                         isNew: false
                     };
                 });
-                // Lọc bỏ những tag nào không xác định được groupId (để tránh lỗi hiển thị)
                 setSelectedTags(loadedTags.filter(t => t.groupId));
             }
-            // --- FIX END ---
 
             if (initialData.product_variants?.length > 0) {
                 const loadedVariants = initialData.product_variants.map(v => {
                     const attrMap = {};
                     if (v.attribute_value_ids) {
-                        // Logic này vẫn giữ nguyên vì nó dựa vào options của attributeGroups đã được computed đúng
                         v.attribute_value_ids.forEach(optId => {
                             const group = attributeGroups.find(g => g.options.some(o => o.id === optId));
                             if (group) attrMap[group.id] = optId;
@@ -115,36 +103,31 @@ export default function ProductForm({ initialData, categories = [], collections 
                 const detectedConfig = new Set();
                 if (loadedVariants[0]) {
                     Object.keys(loadedVariants[0].attribute_value_ids).forEach(groupId => {
-                        detectedConfig.add(parseInt(groupId) || groupId); // Handle both string/int IDs safely
+                        detectedConfig.add(parseInt(groupId) || groupId);
                     });
                 }
-                // Convert Set to Array
                 setVariantConfig(Array.from(detectedConfig));
             }
         }
     }, [initialData, attributeGroups, categories]);;
 
     // --- Tag Management Logic ---
-
-    // Add a tag (Manual or AI)
     const addTag = (tagName, group) => {
         const cleanName = tagName.trim();
         if (!cleanName) return;
 
-        // Prevent duplicates in selected list
         const isAlreadySelected = selectedTags.some(
             t => t.name.toLowerCase() === cleanName.toLowerCase() && t.groupId === group.id
         );
         if (isAlreadySelected) return;
 
-        // Check if it exists in the database (pre-existing options)
         const existingOption = group.options.find(
             o => o.name.toLowerCase() === cleanName.toLowerCase()
         );
 
         const newTagObj = {
-            id: existingOption ? existingOption.id : null, // ID null means it's new
-            name: existingOption ? existingOption.name : cleanName, // Use DB casing if exists
+            id: existingOption ? existingOption.id : null,
+            name: existingOption ? existingOption.name : cleanName,
             groupId: group.id,
             isNew: !existingOption
         };
@@ -161,7 +144,7 @@ export default function ProductForm({ initialData, categories = [], collections 
         const val = tagInputs[group.id];
         if (val) {
             addTag(val, group);
-            setTagInputs(prev => ({ ...prev, [group.id]: '' })); // Clear input
+            setTagInputs(prev => ({ ...prev, [group.id]: '' }));
         }
     };
 
@@ -172,7 +155,6 @@ export default function ProductForm({ initialData, categories = [], collections 
         }
     };
 
-    // --- Helper to get Image Blob ---
     const getImageForAI = async () => {
         if (imageFile) return imageFile;
         if (currentImageUrl) {
@@ -240,7 +222,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                 let count = 0;
 
                 Object.keys(suggestedTags).forEach(groupName => {
-                    // Match group name loosely
                     const group = attributeGroups.find(g => g.name.toLowerCase() === groupName.toLowerCase());
                     if (group && Array.isArray(suggestedTags[groupName])) {
                         suggestedTags[groupName].forEach(val => {
@@ -283,9 +264,35 @@ export default function ProductForm({ initialData, categories = [], collections 
         return data.publicUrl;
     };
 
+    // --- SUBMIT ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+
+        // --- NEW: Front-end SKU Validation ---
+        const skuCounts = {};
+        let hasDuplicateSku = false;
+
+        for (const variant of variants) {
+            const sku = variant.sku ? variant.sku.trim() : '';
+            if (!sku) {
+                addToast('Vui lòng nhập SKU cho tất cả biến thể.', 'error');
+                setIsSubmitting(false);
+                return;
+            }
+            if (skuCounts[sku]) {
+                hasDuplicateSku = true;
+                break;
+            }
+            skuCounts[sku] = (skuCounts[sku] || 0) + 1;
+        }
+
+        if (hasDuplicateSku) {
+            addToast('Có SKU bị trùng lặp trong danh sách biến thể. Vui lòng kiểm tra lại.', 'error');
+            setIsSubmitting(false);
+            return;
+        }
+        // -------------------------------------
 
         try {
             // 1. Handle "New" Tags Creation
@@ -294,7 +301,6 @@ export default function ProductForm({ initialData, categories = [], collections 
             const createdTagIds = [];
 
             if (newTags.length > 0) {
-                // Create them in parallel
                 await Promise.all(newTags.map(async (tag) => {
                     const res = await fetch('/api/categories', {
                         method: 'POST',
@@ -309,13 +315,10 @@ export default function ProductForm({ initialData, categories = [], collections 
                     if (res.ok) {
                         const data = await res.json();
                         createdTagIds.push(data.id);
-                    } else {
-                        console.error("Failed to auto-create tag:", tag.name);
                     }
                 }));
             }
 
-            // Combine IDs
             const finalAttributeIds = [...existingTagIds, ...createdTagIds];
 
             // 2. Upload Image
@@ -339,7 +342,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                 };
             });
 
-            // 5. Submit Payload
             const body = {
                 name: finalName,
                 description,
@@ -350,7 +352,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                 position: parseInt(position),
                 variants: processedVariants,
                 category_id: selectedCatalogId || null,
-                attribute_ids: finalAttributeIds, // Use the resolved IDs
+                attribute_ids: finalAttributeIds,
                 collection_ids: selectedCollectionIds
             };
 
@@ -560,7 +562,14 @@ export default function ProductForm({ initialData, categories = [], collections 
                             <div key={index} className="flex flex-wrap gap-3 items-end bg-gray-900/80 p-4 rounded border border-gray-700">
                                 <div className="w-32">
                                     <label className="text-xs text-gray-500 mb-1 block">Mã SKU</label>
-                                    <input type="text" value={variant.sku} onChange={e => handleVariantChange(index, 'sku', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm font-mono" required placeholder="SKU-001" />
+                                    <input
+                                        type="text"
+                                        value={variant.sku}
+                                        onChange={e => handleVariantChange(index, 'sku', e.target.value)}
+                                        className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm font-mono"
+                                        required
+                                        placeholder="SKU-001"
+                                    />
                                 </div>
                                 {variantConfig.map(groupId => {
                                     const group = attributeGroups.find(g => g.id === groupId);
@@ -575,7 +584,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                                             >
                                                 <option value="">- Chọn -</option>
                                                 {group?.options.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
-                                                {/* Allow selecting newly created tags for variants too */}
                                                 {selectedTags.filter(t => t.groupId === groupId && t.isNew).map((t, i) => (
                                                     <option key={`new-${i}`} disabled>⚠️ {t.name} (Lưu trước)</option>
                                                 ))}

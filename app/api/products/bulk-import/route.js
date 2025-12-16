@@ -1,10 +1,10 @@
 // app/api/products/bulk-import/route.js
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'; // Use dynamic client
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import Papa from 'papaparse';
 
-// ... (keep your parseCsv helper function) ...
+// Helper to parse CSV
 async function parseCsv(file) {
     const text = await file.text();
     return new Promise((resolve, reject) => {
@@ -26,7 +26,6 @@ export async function POST(request) {
     if (!session) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    // ----------------------------
 
     let createdProductsCount = 0;
     let createdVariantsCount = 0;
@@ -40,14 +39,53 @@ export async function POST(request) {
         const rows = await parseCsv(file);
         if (!rows || rows.length === 0) return NextResponse.json({ error: 'Tệp CSV trống.' }, { status: 400 });
 
-        // ... (The rest of your logic remains EXACTLY the same) ...
-        // ... (1. Pre-fetch Taxonomy) ...
+        // --- 1. SKU VALIDATION (STRICT) ---
+
+        // A. Extract all SKUs from CSV
+        const csvSkus = rows
+            .map(r => r.sku || r.SKU)
+            .filter(sku => sku && sku.trim().length > 0)
+            .map(sku => sku.trim());
+
+        // B. Check Internal Duplicates (in the file itself)
+        const uniqueCsvSkus = new Set(csvSkus);
+        if (uniqueCsvSkus.size !== csvSkus.length) {
+            // Find duplicates for error message
+            const seen = new Set();
+            const duplicates = new Set();
+            for (const sku of csvSkus) {
+                if (seen.has(sku)) duplicates.add(sku);
+                seen.add(sku);
+            }
+            return NextResponse.json({
+                error: `Tệp CSV chứa SKU trùng lặp: ${Array.from(duplicates).join(', ')}`
+            }, { status: 400 });
+        }
+
+        // C. Check External Duplicates (in the Database)
+        // We only check variants because product names are allowed to be upserted (merged)
+        const { data: existingVariants, error: checkError } = await supabase
+            .from('product_variants')
+            .select('sku')
+            .in('sku', Array.from(uniqueCsvSkus));
+
+        if (checkError) throw checkError;
+
+        if (existingVariants && existingVariants.length > 0) {
+            const existingSkuList = existingVariants.map(v => v.sku).join(', ');
+            return NextResponse.json({
+                error: `Các SKU sau đã tồn tại trong hệ thống: ${existingSkuList}. Vui lòng kiểm tra lại.`
+            }, { status: 400 });
+        }
+
+        // ----------------------------------
+
+        // ... (Pre-fetch Taxonomy - Logic unchanged) ...
         const { data: allCategories } = await supabase
             .from('categories')
             .select('id, name, parent_id')
             .eq('type', 'attribute');
 
-        // ... (Keep existing logic map/findAttributeId) ...
         const optionMap = new Map();
         allCategories?.forEach(cat => {
             if (cat.parent_id) {
@@ -64,11 +102,9 @@ export async function POST(request) {
             return optionMap.get(key) || null;
         };
 
-        // ... (2. Process Rows - Keep existing logic) ...
+        // ... (Process Rows - Logic unchanged) ...
         const productsMap = new Map();
         for (const row of rows) {
-            // ... (Keep your loop logic exactly as is) ...
-            // (Copy the body of your loop from the original file)
             const productName = row.product_name || row.Name;
             const sku = row.sku || row.SKU;
             const price = row.price || row.Price;
@@ -86,7 +122,7 @@ export async function POST(request) {
                     variants: [],
                 });
             }
-            // ... (attribute parsing) ...
+
             const attrString = row.attributes || row.dynamic_attributes || "";
             const attributeIdsToLink = [];
             if (attrString) {
@@ -102,19 +138,18 @@ export async function POST(request) {
                 });
             }
             productsMap.get(productName).variants.push({
-                sku,
+                sku: sku.trim(), // Ensure trim
                 price: parseFloat(price) || 0,
                 on_hand: parseInt(row.on_hand || 0, 10),
                 attribute_ids: [...new Set(attributeIdsToLink)]
             });
         }
 
-        // ... (3. Database Inserts - Keep existing logic) ...
+        // ... (Database Inserts - Logic unchanged) ...
         for (const [productName, data] of productsMap.entries()) {
-            // ... (Upsert Product, Variants, Inventory, Attributes) ...
-            // (Use the 'supabase' client we created at the top)
             const { productData, variants } = data;
 
+            // Upsert Product (Allow merging new variants into existing products)
             const { data: product, error: productError } = await supabase
                 .from('products')
                 .upsert(productData, { onConflict: 'name' })
@@ -126,6 +161,8 @@ export async function POST(request) {
             createdProductsCount++;
 
             for (const v of variants) {
+                // We use 'upsert' here but effectively it's an 'insert'
+                // because we already validated that these SKUs DO NOT exist.
                 const { data: insertedVar, error: varError } = await supabase
                     .from('product_variants')
                     .upsert({
@@ -160,6 +197,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Bulk import error:', error);
-        return NextResponse.json({ error: 'Lỗi trong quá trình nhập.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Lỗi trong quá trình nhập.' }, { status: 500 });
     }
 }

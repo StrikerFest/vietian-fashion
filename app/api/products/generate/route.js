@@ -29,6 +29,37 @@ function generateSlug(name) {
         .replace(/^-+|-+$/g, ''); // Trim dashes
 }
 
+// --- NEW: Helper to ensure SKU Uniqueness ---
+async function ensureUniqueSku(supabase) {
+    let isUnique = false;
+    let sku = '';
+    let attempts = 0;
+
+    while (!isUnique && attempts < 5) {
+        // Generate candidate: GEN-{timestamp}-{random}
+        sku = `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        // Check DB
+        const { data } = await supabase
+            .from('product_variants')
+            .select('sku')
+            .eq('sku', sku)
+            .maybeSingle(); // distinct from .single(), doesn't throw if not found
+
+        if (!data) {
+            isUnique = true;
+        } else {
+            attempts++;
+            // Wait 1ms to ensure Date.now() changes if loop runs fast
+            await new Promise(r => setTimeout(r, 2));
+        }
+    }
+
+    if (!isUnique) throw new Error("Không thể tạo SKU duy nhất sau nhiều lần thử.");
+    return sku;
+}
+// ---------------------------------------------
+
 export async function POST(request) {
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
@@ -64,7 +95,7 @@ export async function POST(request) {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const imagePart = await fileToGenerativePart(imageFile);
 
-        // Fetch Prompt from Settings or Default
+        // Fetch Prompt
         const { data: promptSetting } = await supabase
             .from('settings')
             .select('value')
@@ -75,7 +106,7 @@ export async function POST(request) {
 
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;
-        const text = response.text().replace(/```json|```/g, '').trim(); // Clean markdown
+        const text = response.text().replace(/```json|```/g, '').trim();
 
         let aiData;
         try {
@@ -85,21 +116,11 @@ export async function POST(request) {
             throw new Error("AI trả về JSON không hợp lệ.");
         }
 
-        // --- E. INTELLIGENT TAXONOMY SYNC (UNIFIED) ---
-
-        /**
-         * ensureCategory: Finds/Creates a category node.
-         * @param {string} name - Name of category/attribute
-         * @param {string} type - 'catalog' or 'attribute'
-         * @param {string|null} parentId - Parent UUID
-         */
+        // --- E. INTELLIGENT TAXONOMY SYNC ---
         const ensureCategory = async (name, type, parentId = null) => {
             if (!name) return null;
-
-            // Normalize for search
             const slugBase = generateSlug(name);
 
-            // 1. Try to find existing (Case insensitive)
             let query = supabase
                 .from('categories')
                 .select('id')
@@ -112,14 +133,13 @@ export async function POST(request) {
                 query = query.is('parent_id', null);
             }
 
-            const { data: existing } = await query.single();
+            const { data: existing } = await query.maybeSingle(); // Changed to maybeSingle for safety
             if (existing) return existing.id;
 
-            // 2. Create new if missing
             const { data: newCat, error } = await supabase
                 .from('categories')
                 .insert({
-                    name: name, // Keep original casing from AI (e.g. "Màu sắc")
+                    name: name,
                     slug: `${slugBase}-${Math.floor(Math.random() * 1000)}`,
                     type: type,
                     parent_id: parentId,
@@ -135,24 +155,14 @@ export async function POST(request) {
             return newCat.id;
         };
 
-        // 1. Handle Main Catalog Category (Navigation)
-        // e.g., "Áo khoác" -> Type: Catalog, Parent: Null
         const mainCategoryId = await ensureCategory(aiData.category, 'catalog');
 
-        // 2. Handle Attributes (Dynamic Group -> Value)
         const attributeIds = [];
-
         if (aiData.attributes && typeof aiData.attributes === 'object') {
             for (const [groupName, valueName] of Object.entries(aiData.attributes)) {
-                // 2a. Ensure the Attribute Group exists (e.g., "Màu sắc", "Chất liệu")
-                // Type: attribute, Parent: null
                 const groupId = await ensureCategory(groupName, 'attribute', null);
-
                 if (groupId && valueName) {
-                    // 2b. Ensure the Attribute Value exists under that Group (e.g., "Xanh Navy" under "Màu sắc")
-                    // Type: attribute, Parent: groupId
                     const valueId = await ensureCategory(valueName, 'attribute', groupId);
-
                     if (valueId) attributeIds.push(valueId);
                 }
             }
@@ -182,12 +192,14 @@ export async function POST(request) {
             is_primary: true
         });
 
-        // 3. Insert Default Variant
+        // 3. Insert Default Variant (WITH VALIDATED UNIQUE SKU)
+        const uniqueSku = await ensureUniqueSku(supabase);
+
         const { data: variant, error: varError } = await supabase
             .from('product_variants')
             .insert({
                 product_id: product.id,
-                sku: `GEN-${Date.now()}`,
+                sku: uniqueSku, // Used the checked SKU
                 price: aiData.price_estimate || 0
             })
             .select()
@@ -209,7 +221,7 @@ export async function POST(request) {
             });
         }
 
-        // 6. Link Attributes to Variant
+        // 6. Link Attributes
         if (attributeIds.length > 0) {
             const variantAttributes = attributeIds.map(attrId => ({
                 variant_id: variant.id,

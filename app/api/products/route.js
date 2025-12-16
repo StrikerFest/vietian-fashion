@@ -105,7 +105,6 @@ export async function GET(request) {
         const { data, error, count } = await query;
         if (error) throw error;
 
-        // --- DATA TRANSFORMATION ---
         const formattedData = data.map(product => ({
             ...product,
             catalog_categories: product.product_categories?.map(pc => pc.categories).filter(c => c.type === 'catalog') || [],
@@ -126,30 +125,24 @@ export async function GET(request) {
                 });
 
                 const realStock = v.inventory_levels?.[0]?.on_hand || 0;
-
-                // Destructure to remove 'inventory_levels' from the public result
                 const { inventory_levels, ...safeVariant } = v;
 
-                // FIX: If Admin, return raw inventory data (inventory_levels and on_hand)
                 if (isAdmin) {
                     return {
-                        ...v, // Keep original structure including inventory_levels
+                        ...v,
                         attributes,
                         attribute_value_ids,
-                        inventory_levels: v.inventory_levels, // Explicitly keep
-                        on_hand: realStock // Explicit helper for admin UI
+                        inventory_levels: v.inventory_levels,
+                        on_hand: realStock
                     };
                 }
 
-                // PUBLIC View: Apply Masking
                 return {
                     ...safeVariant,
                     attributes,
                     attribute_value_ids,
-                    // Calculated UI Signals
                     in_stock: realStock > 0,
                     low_stock: realStock > 0 && realStock <= 10,
-                    // Fuzzy Stock: Never reveal more than 10
                     stock_display: realStock > 10 ? 10 : realStock
                 };
             }),
@@ -184,6 +177,29 @@ export async function POST(request) {
 
     let newId = null;
     try {
+        // --- 1. SKU VALIDATION ---
+        const skuList = variants.map(v => v.sku);
+
+        // A. Check for duplicates internally in request
+        const uniqueSkus = new Set(skuList);
+        if (uniqueSkus.size !== skuList.length) {
+            return NextResponse.json({ error: 'Danh sách biến thể chứa SKU trùng lặp.' }, { status: 400 });
+        }
+
+        // B. Check for existing SKUs in Database
+        const { data: existingSkus, error: skuCheckError } = await supabase
+            .from('product_variants')
+            .select('sku')
+            .in('sku', skuList);
+
+        if (skuCheckError) throw skuCheckError;
+
+        if (existingSkus && existingSkus.length > 0) {
+            const duplicates = existingSkus.map(item => item.sku).join(', ');
+            return NextResponse.json({ error: `SKU đã tồn tại trong hệ thống: ${duplicates}` }, { status: 400 });
+        }
+        // -------------------------
+
         const { data: product, error: pErr } = await supabase.from('products')
             .insert([{
                 name, description, image_url, seo_title, seo_description, position,
@@ -219,6 +235,6 @@ export async function POST(request) {
         return NextResponse.json(product);
     } catch (error) {
         if (newId) await supabase.from('products').delete().eq('id', newId);
-        return NextResponse.json({ error: 'Tạo sản phẩm thất bại.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Tạo sản phẩm thất bại.' }, { status: 500 });
     }
 }

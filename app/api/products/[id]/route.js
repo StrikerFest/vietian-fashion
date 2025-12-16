@@ -105,6 +105,54 @@ export async function PUT(request, context) {
     } = await request.json();
 
     try {
+        // --- 1. SKU VALIDATION ---
+        const skuList = variants.map(v => v.sku);
+
+        // A. Check internal duplicates
+        const uniqueSkus = new Set(skuList);
+        if (uniqueSkus.size !== skuList.length) {
+            return NextResponse.json({ error: 'Danh sách biến thể chứa SKU trùng lặp.' }, { status: 400 });
+        }
+
+        // B. Check for conflicts in Database
+        // Find existing variants that have these SKUs
+        const { data: conflictVariants, error: skuCheckError } = await supabase
+            .from('product_variants')
+            .select('id, sku, product_id')
+            .in('sku', skuList);
+
+        if (skuCheckError) throw skuCheckError;
+
+        if (conflictVariants && conflictVariants.length > 0) {
+            const duplicates = [];
+
+            for (const conflict of conflictVariants) {
+                // It's a duplicate if:
+                // 1. It belongs to a DIFFERENT product
+                // 2. OR it belongs to the SAME product but is not the variant being updated (handled implicitly if IDs don't match,
+                //    but simpler: check if conflict.product_id !== numericProductId)
+
+                // Allow "duplicate" if it's just the same variant we are updating (variant.id matches conflict.id)
+                // We need to map which input variant corresponds to which existing SKU
+
+                const inputVariant = variants.find(v => v.sku === conflict.sku);
+
+                // If the input variant has an ID (updating existing), it must match the conflict ID.
+                if (inputVariant.id && inputVariant.id !== conflict.id) {
+                     duplicates.push(conflict.sku);
+                }
+                // If the input variant is NEW (no ID), it cannot use an existing SKU at all.
+                else if (!inputVariant.id) {
+                    duplicates.push(conflict.sku);
+                }
+            }
+
+            if (duplicates.length > 0) {
+                return NextResponse.json({ error: `SKU đã tồn tại (dùng cho sản phẩm khác hoặc biến thể khác): ${duplicates.join(', ')}` }, { status: 400 });
+            }
+        }
+        // -------------------------
+
         const updateData = {name, description, status, image_url, seo_title, seo_description};
 
         if (position !== undefined) updateData.position = parseInt(position);
