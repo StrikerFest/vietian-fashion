@@ -1,48 +1,54 @@
 // app/api/checkout/route.js
 import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { createClient } from '@supabase/supabase-js'; // Import direct client
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { updateInventory } from '@/utils/inventory';
-import { calculateItemPrice } from '@/utils/server-pricing';
 import { Resend } from 'resend';
+
+// Helper to format currency
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+};
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request) {
     const cookieStore = await cookies();
 
-    // 1. Standard Client (For Auth Users)
+    // 1. Standard Client
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    // 2. Service Client (For Guest Operations - Bypasses RLS)
+    // 2. Service Client (CRITICAL: Must use Service Role Key)
+    const serviceRoleKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceRoleKey) {
+        return NextResponse.json({ error: 'Server Config Error: Missing Service Role Key' }, { status: 500 });
+    }
+
     const adminSupabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        serviceRoleKey,
         { auth: { persistSession: false } }
     );
 
     const { data: { session } } = await supabase.auth.getSession();
     const authenticatedUserId = session?.user?.id || null;
-    const { cartItems, addressId, discountId, guestAddressData } = await request.json();
-
-    if (!cartItems || cartItems.length === 0) {
-        return NextResponse.json({ error: 'Giỏ hàng trống.' }, { status: 400 });
-    }
-
-    const finalUserId = authenticatedUserId;
-    let finalAddressId = addressId || null;
 
     try {
-        // --- Step 0: Handle Address Logic ---
-        if (!finalUserId) {
-            // --- GUEST CHECKOUT ---
-            if (!guestAddressData) {
-                return NextResponse.json({ error: 'Thanh toán khách vãng lai yêu cầu dữ liệu địa chỉ.' }, { status: 400 });
-            }
+        const body = await request.json();
+        const { cartItems, addressId, discountId, guestAddressData } = body;
 
-            // [FIX] Use 'adminSupabase' (Service Role) to insert guest address.
-            // This prevents "Permission Denied" errors from RLS.
+        if (!cartItems || cartItems.length === 0) {
+            return NextResponse.json({ error: 'Giỏ hàng trống.' }, { status: 400 });
+        }
+
+        const finalUserId = authenticatedUserId;
+        let finalAddressId = addressId || null;
+
+        // --- Step 0: Address Logic ---
+        if (!finalUserId) {
+            if (!guestAddressData) return NextResponse.json({ error: 'Thiếu địa chỉ.' }, { status: 400 });
+
+            // Create Guest Address
             const { data: newAddress, error: addressError } = await adminSupabase
                 .from('addresses')
                 .insert({
@@ -58,49 +64,79 @@ export async function POST(request) {
                 .select('id')
                 .single();
 
-            if (addressError) throw new Error(`Tạo địa chỉ khách vãng lai thất bại: ${addressError.message}`);
+            if (addressError) throw new Error('Không thể tạo địa chỉ: ' + addressError.message);
             finalAddressId = newAddress.id;
-
         } else {
-            // --- AUTHENTICATED CHECKOUT ---
-            // Existing logic is fine here because users own their data
-            if (!finalAddressId) return NextResponse.json({ error: 'Người dùng phải chọn một địa chỉ.' }, { status: 400 });
+            if (!finalAddressId) return NextResponse.json({ error: 'Chưa chọn địa chỉ.' }, { status: 400 });
+        }
 
-            const { data: addressCheck } = await supabase
-                .from('addresses')
-                .select('user_id')
-                .eq('id', finalAddressId)
-                .single();
+        // --- Step 1: Verify Stock ---
+        let subtotal = 0;
+        const verifiedItems = [];
+        const variantIds = [...new Set(cartItems.map(item => item.id))];
 
-            if (!addressCheck || addressCheck.user_id !== finalUserId) {
-                return NextResponse.json({ error: 'Địa chỉ không hợp lệ.' }, { status: 403 });
+        const { data: dbVariants, error: vErr } = await adminSupabase
+            .from('product_variants')
+            .select(`
+                id, price, sku, product_id,
+                product:products(name),
+                inventory_levels(on_hand)
+            `)
+            .in('id', variantIds);
+
+        if (vErr) throw new Error('Lỗi kiểm tra kho.');
+
+        for (const item of cartItems) {
+            const dbVariant = dbVariants.find(v => v.id === item.id);
+            if (!dbVariant) throw new Error(`Sản phẩm #${item.id} không tồn tại.`);
+
+            const stockData = Array.isArray(dbVariant.inventory_levels) ? dbVariant.inventory_levels[0] : dbVariant.inventory_levels;
+            const availableStock = stockData?.on_hand || 0;
+
+            if (availableStock < item.quantity) {
+                throw new Error(`"${dbVariant.product?.name}" không đủ hàng.`);
+            }
+
+            let itemPrice = dbVariant.price;
+            if (item.selectedOptions) {
+                Object.values(item.selectedOptions).forEach(opt => {
+                    if (opt.priceModifier) itemPrice += opt.priceModifier;
+                });
+            }
+
+            subtotal += itemPrice * item.quantity;
+            verifiedItems.push({ ...item, verifiedPrice: itemPrice, productName: dbVariant.product?.name });
+        }
+
+        // --- Step 2: Discount ---
+        let discountAmount = 0;
+        if (discountId) {
+            const { data: discount } = await adminSupabase.from('discounts').select('*').eq('id', discountId).single();
+            if (discount && discount.is_active) {
+                if (discount.type === 'percentage') {
+                    discountAmount = Math.round(subtotal * (discount.value / 100));
+                } else {
+                    discountAmount = discount.value;
+                }
+                if (discountAmount > subtotal) discountAmount = subtotal;
             }
         }
 
-        // ... (Stock Validation, Pricing, Discount logic remains the same) ...
-        // Note: Make sure to use 'adminSupabase' if you encounter any other RLS issues,
-        // but typically reading products/discounts is public and fine.
-
-        // --- Step 1 (re-verified) ---
-        // Verify Stock using Admin Client to ensure we see TRUE stock even if some is "hidden" (optional, but safer)
-        const variantIds = [...new Set(cartItems.map(item => item.id))];
-        const { data: inventoryLevels, error: inventoryError } = await adminSupabase
-            .from('inventory_levels')
-            .select('variant_id, on_hand, committed')
-            .in('variant_id', variantIds);
-
-        // ... (Rest of logic) ...
+        // --- Step 3: Totals ---
+        const taxRate = 0.08;
+        const shippingCost = subtotal > 500000 ? 0 : 30000;
+        const taxableAmount = Math.max(0, subtotal - discountAmount);
+        const taxAmount = Math.round(taxableAmount * taxRate);
+        const totalAmount = taxableAmount + taxAmount + shippingCost;
 
         // --- Step 4: Create Order ---
-        // [FIX] Use adminSupabase for Order Creation to ensure it works for Guests
         const { data: newOrder, error: orderError } = await adminSupabase
             .from('orders')
             .insert({
                 user_id: finalUserId,
                 shipping_address_id: finalAddressId,
-                // ... other fields ...
-                subtotal: subtotal, // Make sure these variables are defined from your existing logic
-                total_amount: totalAmount, // Make sure these variables are defined from your existing logic
+                subtotal,
+                total_amount: totalAmount,
                 tax_amount: taxAmount,
                 shipping_cost: shippingCost,
                 status: 'pending'
@@ -119,18 +155,48 @@ export async function POST(request) {
             custom_options: item.selectedOptions || {}
         }));
 
-        const { error: orderItemsError } = await adminSupabase
-            .from('order_items')
-            .insert(orderItemsToInsert);
+        await adminSupabase.from('order_items').insert(orderItemsToInsert);
 
-        if (orderItemsError) throw orderItemsError;
+        // --- Step 6: Link Discount ---
+        if (discountId) {
+            await adminSupabase.from('order_discounts').insert({ order_id: newOrder.id, discount_id: discountId });
+        }
 
-        // ... (Discount Link, Inventory Update, Email) ...
+        // --- Step 7: Inventory Update ---
+        for (const item of verifiedItems) {
+            await adminSupabase.rpc('decrement_inventory', {
+                p_variant_id: item.id,
+                p_quantity: item.quantity
+            });
+        }
 
-        return NextResponse.json({ success: true, orderId: newOrder.id });
+        // --- Step 8: Email ---
+        if (process.env.RESEND_API_KEY) {
+            resend.emails.send({
+                from: 'Vietian Fashion <orders@vietianfashion.com>',
+                to: ['customer@example.com'],
+                subject: `Xác nhận đơn hàng #${newOrder.id}`,
+                html: `<p>Mã đơn hàng: #${newOrder.id}</p>`
+            }).catch(console.error);
+        }
+
+        // --- RETURN SUCCESS + COOKIE ---
+        const response = NextResponse.json({ success: true, orderId: newOrder.id });
+
+        // [FIX] Set secure cookie so Guest can view this specific order
+        response.cookies.set({
+            name: 'recent_order',
+            value: newOrder.id.toString(),
+            httpOnly: true,
+            path: '/',
+            maxAge: 3600, // 1 hour
+            sameSite: 'lax'
+        });
+
+        return response;
 
     } catch (error) {
         console.error('Checkout error:', error);
-        return NextResponse.json({ error: 'Thanh toán thất bại.', details: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Lỗi thanh toán' }, { status: 500 });
     }
 }

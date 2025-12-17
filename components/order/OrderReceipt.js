@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image'; // [FIX] Import Next.js Image
 import VietQRDisplay from './VietQRDisplay';
 import { formatCurrency } from '@/utils/format';
 
@@ -59,33 +60,55 @@ export default function OrderReceipt({ order }) {
                 <div className="p-6 md:p-8 border-b border-gray-700 bg-gray-800/50">
                     <h2 className="text-xl font-bold text-white mb-4">Tóm tắt đơn hàng</h2>
                     <div className="space-y-4">
-                        {order.order_items.map((item, index) => (
-                            <div key={index} className="flex justify-between items-start">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-gray-700 rounded-md flex items-center justify-center text-xs text-gray-400 shrink-0">IMG</div>
-                                    <div>
-                                        <p className="font-medium text-white">{item.product_variants?.products?.name || 'Sản phẩm'}</p>
-                                        {renderAttributes(item.product_variants)}
-                                        {item.custom_options && Object.keys(item.custom_options).length > 0 && (
-                                            <div className="mt-1 space-y-0.5">
-                                                {Object.entries(item.custom_options).map(([key, opt]) => (
-                                                    <p key={key} className="text-xs text-gray-500">
-                                                        <span className="font-semibold">{opt.label}:</span> <span className="text-gray-300">{opt.value}</span>
-                                                        {opt.priceModifier > 0 && (
-                                                            <span className="text-indigo-400 ml-1">(+{formatCurrency(opt.priceModifier)})</span>
-                                                        )}
-                                                    </p>
-                                                ))}
-                                            </div>
-                                        )}
+                        {order.order_items.map((item, index) => {
+                            // [FIX] Extract Image URL safely
+                            const imageUrl = item.product_variants?.products?.image_url;
+                            const productName = item.product_variants?.products?.name || 'Sản phẩm';
+
+                            return (
+                                <div key={index} className="flex justify-between items-start">
+                                    <div className="flex items-center gap-4">
+                                        {/* [FIX] Replaced Placeholder div with Next.js Image */}
+                                        <div className="relative w-16 h-16 bg-gray-700 rounded-md overflow-hidden shrink-0 border border-gray-600">
+                                            {imageUrl ? (
+                                                <Image
+                                                    src={imageUrl}
+                                                    alt={productName}
+                                                    fill
+                                                    className="object-cover"
+                                                    sizes="64px"
+                                                />
+                                            ) : (
+                                                <div className="flex items-center justify-center w-full h-full text-xs text-gray-400">
+                                                    No Img
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <p className="font-medium text-white">{productName}</p>
+                                            {renderAttributes(item.product_variants)}
+                                            {item.custom_options && Object.keys(item.custom_options).length > 0 && (
+                                                <div className="mt-1 space-y-0.5">
+                                                    {Object.entries(item.custom_options).map(([key, opt]) => (
+                                                        <p key={key} className="text-xs text-gray-500">
+                                                            <span className="font-semibold">{opt.label}:</span> <span className="text-gray-300">{opt.value}</span>
+                                                            {opt.priceModifier > 0 && (
+                                                                <span className="text-indigo-400 ml-1">(+{formatCurrency(opt.priceModifier)})</span>
+                                                            )}
+                                                        </p>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-white font-medium">{formatCurrency(item.price_at_purchase * item.quantity)}</p>
+                                        <p className="text-xs text-gray-500">SL: {item.quantity}</p>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-white font-medium">{formatCurrency(item.price_at_purchase * item.quantity)}</p>
-                                    <p className="text-xs text-gray-500">SL: {item.quantity}</p>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
