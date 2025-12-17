@@ -38,19 +38,7 @@ export default function ProductDetailPage() {
                 if (!response.ok) throw new Error('Product not found');
                 const data = await response.json();
                 setProduct(data);
-
-                // 2. Initialize Variant from URL or Default
-                if (data.product_variants?.length > 0) {
-                    const urlVariantId = searchParams.get('variant');
-                    const foundVariant = data.product_variants.find(v => v.id.toString() === urlVariantId);
-
-                    if (foundVariant) {
-                        setSelectedVariant(foundVariant);
-                    } else {
-                        // Default to first
-                        setSelectedVariant(data.product_variants[0]);
-                    }
-                }
+                // Note: We delegate variant selection to the useEffect below
             } catch (error) {
                 console.error("Failed to fetch product:", error);
                 setProduct(null);
@@ -61,11 +49,36 @@ export default function ProductDetailPage() {
         fetchProduct();
     }, [id]);
 
-    // 3. Sync Selection to URL
+    // 2. Sync Variant Selection (Handles Initial Load + URL Changes)
+    useEffect(() => {
+        if (!product || !product.product_variants || product.product_variants.length === 0) return;
+
+        const urlVariantId = searchParams.get('variant');
+        let targetVariant = null;
+
+        // A. Try to find variant from URL
+        if (urlVariantId) {
+            targetVariant = product.product_variants.find(v => v.id.toString() === urlVariantId);
+        }
+
+        // B. Fallback to first variant if no URL param or invalid ID
+        // (We only force fallback if nothing is selected yet, or if URL is explicitly invalid)
+        if (!targetVariant && !selectedVariant) {
+            targetVariant = product.product_variants[0];
+        }
+
+        // C. Update State if different
+        if (targetVariant && targetVariant.id !== selectedVariant?.id) {
+            setSelectedVariant(targetVariant);
+        }
+    }, [product, searchParams, selectedVariant]);
+
+    // 3. Handle User Selection
     const handleVariantSelect = (variant) => {
+        // Optimistically update state for speed
         setSelectedVariant(variant);
 
-        // Update URL without reloading page
+        // Update URL (this will trigger the effect above, confirming the selection)
         const newParams = new URLSearchParams(searchParams.toString());
         newParams.set('variant', variant.id);
         router.replace(`?${newParams.toString()}`, { scroll: false });
@@ -87,6 +100,29 @@ export default function ProductDetailPage() {
         }
     };
 
+    // --- LOGIC FIX: Handle both Public (masked) and Admin (raw) stock data ---
+    const getStockStatus = (variant) => {
+        if (!variant) return { count: 0, isOutOfStock: true };
+
+        // Public API: Uses 'in_stock' boolean and 'stock_display'
+        if (typeof variant.in_stock === 'boolean') {
+            return {
+                count: variant.stock_display || 0,
+                isOutOfStock: !variant.in_stock
+            };
+        }
+
+        // Admin API: Uses 'inventory_levels' array
+        const rawStock = variant.inventory_levels?.[0]?.on_hand || 0;
+        return {
+            count: rawStock,
+            isOutOfStock: rawStock <= 0
+        };
+    };
+
+    const { count: stockOnHand, isOutOfStock } = getStockStatus(selectedVariant);
+    // -------------------------------------------------------------------------
+
     if (isLoading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Đang tải sản phẩm...</div>;
     if (!product) return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center gap-4">
@@ -94,9 +130,6 @@ export default function ProductDetailPage() {
             <Link href="/products" className="text-indigo-400 hover:underline">Quay lại bộ sưu tập</Link>
         </div>
     );
-
-    const stockOnHand = selectedVariant?.inventory_levels?.[0]?.on_hand || 0;
-    const isOutOfStock = stockOnHand <= 0;
 
     const optionsPrice = Object.values(customOptions).reduce((sum, opt) => sum + (opt.priceModifier || 0), 0);
     const finalPrice = (selectedVariant?.price || 0) + optionsPrice;

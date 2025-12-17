@@ -14,26 +14,35 @@ export default function QuickViewModal({ productId, onClose }) {
     const [selectedVariant, setSelectedVariant] = useState(null);
 
     useEffect(() => {
+        // 1. Reset state immediately when productId changes to prevent stale data
+        setProduct(null);
+        setSelectedVariant(null);
+        setIsLoading(true);
+
         if (!productId) {
-            setProduct(null);
-            setIsLoading(true);
             return;
         }
 
         const fetchProduct = async () => {
-            setIsLoading(true);
             try {
                 const response = await fetch(`/api/products/${productId}`);
                 if (!response.ok) throw new Error('Product not found');
                 const data = await response.json();
+
+                // 2. Set Product AND Selected Variant together in one batch
                 setProduct(data);
 
                 if (data.product_variants && data.product_variants.length > 0) {
+                    // Default to the first variant immediately
                     setSelectedVariant(data.product_variants[0]);
+                } else {
+                    setSelectedVariant(null);
                 }
+
             } catch (error) {
                 console.error("Failed to fetch product for quick view:", error);
                 setProduct(null);
+                setSelectedVariant(null);
                 onClose();
             } finally {
                 setIsLoading(false);
@@ -50,17 +59,34 @@ export default function QuickViewModal({ productId, onClose }) {
         }
     };
 
-    const stockOnHand = selectedVariant?.inventory_levels?.[0]?.on_hand || 0;
-    const isOutOfStock = stockOnHand <= 0;
+    // --- Helper: Handle both Public (masked) and Admin (raw) stock data ---
+    const getStockStatus = (variant) => {
+        if (!variant) return { count: 0, isOutOfStock: true };
 
-    // --- NEW: Helper to generate a display name for the variant ---
+        // Public API: Uses 'in_stock' boolean and 'stock_display'
+        if (typeof variant.in_stock === 'boolean') {
+            return {
+                count: variant.stock_display || 0,
+                isOutOfStock: !variant.in_stock
+            };
+        }
+
+        // Admin API: Uses 'inventory_levels' array
+        const rawStock = variant.inventory_levels?.[0]?.on_hand || 0;
+        return {
+            count: rawStock,
+            isOutOfStock: rawStock <= 0
+        };
+    };
+
+    const { count: stockOnHand, isOutOfStock } = getStockStatus(selectedVariant);
+
+    // --- Helper: Variant Label ---
     const getVariantLabel = (variant) => {
         if (!variant) return '';
-        // If we have dynamic attributes mapped, use them
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
             return Object.values(variant.attributes).join(' / ');
         }
-        // Fallback SKU
         return variant.sku;
     };
 

@@ -59,7 +59,19 @@ export async function GET(request, context) {
                 }
             });
 
-            const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+            // --- FIX: Handle 1:1 Relationship (Object) vs 1:N Relationship (Array) ---
+            // Due to the UNIQUE constraint on variant_id, Supabase may return this as an Object.
+            let stockData = v.inventory_levels;
+
+            if (Array.isArray(stockData)) {
+                // If it returns an array (standard behavior), take the first item
+                stockData = stockData[0];
+            }
+            // If it's an object, we use it directly. If null/undefined, safe access fails gracefully.
+
+            const realStock = stockData?.on_hand || 0;
+            // -------------------------------------------------------------------------
+
             const {inventory_levels, ...safeVariant} = v;
 
             // FIX: Return raw stock for Admins
@@ -68,7 +80,7 @@ export async function GET(request, context) {
                     ...v,
                     attributes,
                     attribute_value_ids,
-                    inventory_levels: v.inventory_levels,
+                    inventory_levels: Array.isArray(v.inventory_levels) ? v.inventory_levels : [v.inventory_levels].filter(Boolean),
                     on_hand: realStock
                 };
             }
@@ -139,7 +151,7 @@ export async function PUT(request, context) {
 
                 // If the input variant has an ID (updating existing), it must match the conflict ID.
                 if (inputVariant.id && inputVariant.id !== conflict.id) {
-                     duplicates.push(conflict.sku);
+                    duplicates.push(conflict.sku);
                 }
                 // If the input variant is NEW (no ID), it cannot use an existing SKU at all.
                 else if (!inputVariant.id) {
