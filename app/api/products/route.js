@@ -11,31 +11,28 @@ export async function GET(request) {
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const scope = searchParams.get('scope'); // 'admin' or null
 
-    // Default: Public View (Active Only)
+    // 1. Determine Status Filter
     let statusFilter = ['active'];
     let isAdmin = false;
 
-    // Admin View: Check Session
     if (scope === 'admin') {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             statusFilter = ['active', 'draft', 'archived'];
-            isAdmin = true; // Mark as admin request
+            isAdmin = true;
         }
     }
-    // ---------------------------
 
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = (page - 1) * limit;
     const search = searchParams.get('search') || '';
     const sort = searchParams.get('sort') || 'created_at-desc';
     const collectionId = searchParams.get('collection_id');
     const categoryId = searchParams.get('category_id');
 
+    // Filter Params
     const reservedParams = ['page', 'limit', 'search', 'sort', 'collection_id', 'category_id', 'scope'];
     const attributeFilters = {};
-
     searchParams.forEach((value, key) => {
         if (!reservedParams.includes(key)) {
             if (!attributeFilters[key]) attributeFilters[key] = [];
@@ -44,6 +41,94 @@ export async function GET(request) {
     });
 
     try {
+        // --- STEP 1: Get Base Product IDs (Before Attribute Filters) ---
+        // We need this set to calculate accurate counts for the sidebar
+        let baseQuery = supabase
+            .from('products')
+            .select('id')
+            .is('deleted_at', null)
+            .in('status', statusFilter);
+
+        if (search) baseQuery = baseQuery.ilike('name', `%${search}%`);
+
+        if (collectionId) {
+            const { data: linked } = await supabase.from('product_collections').select('product_id').eq('collection_id', collectionId);
+            baseQuery = baseQuery.in('id', linked?.map(p => p.product_id) || []);
+        }
+
+        if (categoryId) {
+            const { data: linked } = await supabase.from('product_categories').select('product_id').eq('category_id', categoryId);
+            baseQuery = baseQuery.in('id', linked?.map(p => p.product_id) || []);
+        }
+
+        const { data: baseProducts, error: baseError } = await baseQuery;
+        if (baseError) throw baseError;
+
+        const baseProductIds = baseProducts.map(p => p.id);
+
+        if (baseProductIds.length === 0) {
+            return NextResponse.json({ data: [], meta: { total: 0 }, facets: {} });
+        }
+
+        // --- STEP 2: Calculate Facets (Counts) ---
+        // Fetch all variants for the base products to count attributes
+        const { data: allVariants } = await supabase
+            .from('product_variants')
+            .select(`
+                product_id,
+                variant_attributes!inner (
+                    attribute_value:categories!inner (
+                        slug
+                    )
+                )
+            `)
+            .in('product_id', baseProductIds);
+
+        const facetCounts = {};
+        if (allVariants) {
+            allVariants.forEach(v => {
+                v.variant_attributes?.forEach(va => {
+                    const attrSlug = va.attribute_value?.slug;
+                    if (attrSlug) {
+                        if (!facetCounts[attrSlug]) facetCounts[attrSlug] = new Set();
+                        facetCounts[attrSlug].add(v.product_id); // Count unique products
+                    }
+                });
+            });
+        }
+
+        // Convert Sets to integers
+        const facets = {};
+        Object.keys(facetCounts).forEach(key => {
+            facets[key] = facetCounts[key].size;
+        });
+
+        // --- STEP 3: Apply Attribute Filters ---
+        let finalProductIds = baseProductIds;
+
+        if (Object.keys(attributeFilters).length > 0) {
+            for (const [key, values] of Object.entries(attributeFilters)) {
+                const { data: matchingVariants } = await supabase
+                    .from('variant_attributes')
+                    .select('variant_id, attribute_value:categories!inner(slug)')
+                    .in('attribute_value.slug', values);
+
+                if (matchingVariants && matchingVariants.length > 0) {
+                    const variantIds = matchingVariants.map(v => v.variant_id);
+                    const { data: pIds } = await supabase.from('product_variants').select('product_id').in('id', variantIds);
+                    const validPIds = new Set(pIds.map(p => p.product_id));
+                    finalProductIds = finalProductIds.filter(id => validPIds.has(id));
+                } else {
+                    finalProductIds = [];
+                }
+            }
+        }
+
+        if (finalProductIds.length === 0) {
+            return NextResponse.json({ data: [], meta: { total: 0 }, facets });
+        }
+
+        // --- STEP 4: Fetch Final Data & Pagination ---
         let query = supabase
             .from('products')
             .select(`
@@ -61,50 +146,24 @@ export async function GET(request) {
                     )
                 )
             `, { count: 'exact' })
-            .is('deleted_at', null)
-            .in('status', statusFilter);
+            .in('id', finalProductIds);
 
-        if (search) query = query.ilike('name', `%${search}%`);
-
-        if (collectionId) {
-            const { data: linked } = await supabase.from('product_collections').select('product_id').eq('collection_id', collectionId);
-            query = query.in('id', linked?.map(p => p.product_id) || []);
-        }
-
-        if (categoryId) {
-            const { data: linked } = await supabase.from('product_categories').select('product_id').eq('category_id', categoryId);
-            query = query.in('id', linked?.map(p => p.product_id) || []);
-        }
-
-        if (Object.keys(attributeFilters).length > 0) {
-            for (const [key, values] of Object.entries(attributeFilters)) {
-                const { data: matchingVariants } = await supabase
-                    .from('variant_attributes')
-                    .select('variant_id, attribute_value:categories!inner(name)')
-                    .in('attribute_value.name', values);
-
-                if (matchingVariants && matchingVariants.length > 0) {
-                    const variantIds = matchingVariants.map(v => v.variant_id);
-                    const { data: productIds } = await supabase.from('product_variants').select('product_id').in('id', variantIds);
-                    query = query.in('id', productIds?.map(p => p.product_id) || []);
-                } else {
-                    query = query.in('id', [-1]);
-                }
-            }
-        }
-
+        // Sorting
         switch (sort) {
             case 'position-desc': query = query.order('position', { ascending: false }); break;
             case 'name-asc': query = query.order('name', { ascending: true }); break;
             case 'name-desc': query = query.order('name', { ascending: false }); break;
-            case 'price-asc': query = query.order('name', { ascending: true }); break;
+            case 'price-asc': query = query.order('name', { ascending: true }); break; // Temporary sort key, refined below
             default: query = query.order('created_at', { ascending: false });
         }
 
+        const offset = (page - 1) * limit;
         query = query.range(offset, offset + limit - 1);
+
         const { data, error, count } = await query;
         if (error) throw error;
 
+        // Data Formatting
         const formattedData = data.map(product => ({
             ...product,
             catalog_categories: product.product_categories?.map(pc => pc.categories).filter(c => c.type === 'catalog') || [],
@@ -117,7 +176,6 @@ export async function GET(request) {
                 v.variant_attributes?.forEach(va => {
                     if (va.attribute_value) {
                         attribute_value_ids.push(va.attribute_value.id);
-
                         if (va.attribute_value.parent?.name) {
                             attributes[va.attribute_value.parent.name] = va.attribute_value.name;
                         }
@@ -149,6 +207,7 @@ export async function GET(request) {
             product_categories: undefined
         }));
 
+        // Manual Sort for Price (since it's in a related table)
         if (sort === 'price-asc' || sort === 'price-desc') {
             formattedData.sort((a, b) => {
                 const pA = a.product_variants?.[0]?.price || 0;
@@ -159,13 +218,16 @@ export async function GET(request) {
 
         return NextResponse.json({
             data: formattedData,
-            meta: { page, limit, total: count, totalPages: Math.ceil((count || 0) / limit) }
+            meta: { page, limit, total: count, totalPages: Math.ceil((count || 0) / limit) },
+            facets // <--- Return the counts here
         });
+
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
+// POST handler remains unchanged but must be included
 export async function POST(request) {
     const {
         name, description, image_url, seo_title, seo_description, variants,
@@ -177,16 +239,12 @@ export async function POST(request) {
 
     let newId = null;
     try {
-        // --- 1. SKU VALIDATION ---
         const skuList = variants.map(v => v.sku);
-
-        // A. Check for duplicates internally in request
         const uniqueSkus = new Set(skuList);
         if (uniqueSkus.size !== skuList.length) {
             return NextResponse.json({ error: 'Danh sách biến thể chứa SKU trùng lặp.' }, { status: 400 });
         }
 
-        // B. Check for existing SKUs in Database
         const { data: existingSkus, error: skuCheckError } = await supabase
             .from('product_variants')
             .select('sku')
@@ -198,7 +256,6 @@ export async function POST(request) {
             const duplicates = existingSkus.map(item => item.sku).join(', ');
             return NextResponse.json({ error: `SKU đã tồn tại trong hệ thống: ${duplicates}` }, { status: 400 });
         }
-        // -------------------------
 
         const { data: product, error: pErr } = await supabase.from('products')
             .insert([{

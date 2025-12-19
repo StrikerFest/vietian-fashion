@@ -27,14 +27,14 @@ export async function GET(request, context) {
         const {data: category} = await supabase.from('categories').select('*').eq('slug', categorySlug).single();
         if (!category) return NextResponse.json({error: 'Không tìm thấy danh mục'}, {status: 404});
 
-        // [SECURITY PATCH 1] Time-Fencing
+        // 1. Time-Fencing & Active Check
         const now = new Date();
         if (!category.is_active) return NextResponse.json({error: 'Danh mục không hoạt động'}, {status: 404});
         if (category.start_date && new Date(category.start_date) > now) return NextResponse.json({error: 'Danh mục chưa bắt đầu'}, {status: 404});
         if (category.end_date && new Date(category.end_date) < now) return NextResponse.json({error: 'Danh mục đã hết hạn'}, {status: 404});
 
-        // 2. Find Linked Products
-        let productIds = [];
+        // 2. Find Linked Products (Base Set)
+        let baseProductIds = [];
 
         if (category.type === 'attribute') {
             const {data: variantLinks} = await supabase
@@ -48,39 +48,76 @@ export async function GET(request, context) {
                     .from('product_variants')
                     .select('product_id')
                     .in('id', variantIds);
-                productIds = pIds?.map(p => p.product_id) || [];
+                baseProductIds = pIds?.map(p => p.product_id) || [];
             }
         } else {
             const {data: catLinks} = await supabase
                 .from('product_categories')
                 .select('product_id')
                 .eq('category_id', category.id);
-            productIds = catLinks?.map(l => l.product_id) || [];
+            baseProductIds = catLinks?.map(l => l.product_id) || [];
         }
-        productIds = [...new Set(productIds)];
+        baseProductIds = [...new Set(baseProductIds)];
 
-        if (productIds.length === 0) return NextResponse.json({category, data: [], meta: {total: 0}});
+        if (baseProductIds.length === 0) return NextResponse.json({category, data: [], meta: {total: 0}, facets: {}});
 
-        // 3. Apply Filters
+        // --- NEW: Calculate Facets (Counts) ---
+        // We calculate this on the BASE set so the sidebar shows all available options in this category
+        const { data: allVariants } = await supabase
+            .from('product_variants')
+            .select(`
+                product_id,
+                variant_attributes!inner (
+                    attribute_value:categories!inner (
+                        slug
+                    )
+                )
+            `)
+            .in('product_id', baseProductIds);
+
+        const facetCounts = {};
+        if (allVariants) {
+            allVariants.forEach(v => {
+                v.variant_attributes?.forEach(va => {
+                    const attrSlug = va.attribute_value?.slug;
+                    if (attrSlug) {
+                        if (!facetCounts[attrSlug]) facetCounts[attrSlug] = new Set();
+                        facetCounts[attrSlug].add(v.product_id); // Count unique products, not variants
+                    }
+                });
+            });
+        }
+
+        // Convert Sets to counts
+        const facets = {};
+        Object.keys(facetCounts).forEach(key => {
+            facets[key] = facetCounts[key].size;
+        });
+
+
+        // 3. Apply Filters to get Final Product List
+        let filteredProductIds = baseProductIds;
+
         if (Object.keys(attributeFilters).length > 0) {
             for (const [key, values] of Object.entries(attributeFilters)) {
+                // [FIX] Use 'slug' instead of 'name' to match frontend URLs
                 const {data: matchingVariants} = await supabase
                     .from('variant_attributes')
-                    .select('variant_id, attribute_value:categories!inner(name)')
-                    .in('attribute_value.name', values);
+                    .select('variant_id, attribute_value:categories!inner(slug)')
+                    .in('attribute_value.slug', values);
 
                 if (matchingVariants && matchingVariants.length > 0) {
                     const varIds = matchingVariants.map(v => v.variant_id);
                     const {data: pIds} = await supabase.from('product_variants').select('product_id').in('id', varIds);
                     const validPIds = new Set(pIds.map(p => p.product_id));
-                    productIds = productIds.filter(id => validPIds.has(id));
+                    filteredProductIds = filteredProductIds.filter(id => validPIds.has(id));
                 } else {
-                    productIds = [];
+                    filteredProductIds = [];
                 }
             }
         }
 
-        if (productIds.length === 0) return NextResponse.json({category, data: [], meta: {total: 0}});
+        if (filteredProductIds.length === 0) return NextResponse.json({category, data: [], meta: {total: 0}, facets});
 
         // 4. Fetch Products
         let productQuery = supabase
@@ -95,8 +132,8 @@ export async function GET(request, context) {
                     )
                 )
             `, {count: 'exact'})
-            .in('id', productIds)
-            .eq('status', 'active') // [SECURITY PATCH 2] Status Filter
+            .in('id', filteredProductIds)
+            .eq('status', 'active')
             .is('deleted_at', null);
 
         if (sortBy === 'name-asc') productQuery = productQuery.order('name', {ascending: true});
@@ -108,7 +145,7 @@ export async function GET(request, context) {
         const {data: products, error, count} = await productQuery;
         if (error) throw error;
 
-        // --- DATA TRANSFORMATION & MASKING ---
+        // --- DATA TRANSFORMATION ---
         const formattedData = products.map(p => ({
             ...p,
             product_variants: p.product_variants.map(v => {
@@ -116,8 +153,6 @@ export async function GET(request, context) {
                 v.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) attributes[va.attribute_value.parent.name] = va.attribute_value.name;
                 });
-
-                // [SECURITY PATCH 3] INVENTORY MASKING
                 const realStock = v.inventory_levels?.[0]?.on_hand || 0;
                 const {inventory_levels, ...safeVariant} = v;
 
@@ -143,7 +178,8 @@ export async function GET(request, context) {
         return NextResponse.json({
             category,
             data: formattedData,
-            meta: {page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit)}
+            meta: {page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit)},
+            facets // Return the counts
         });
 
     } catch (error) {

@@ -38,26 +38,26 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
 
-    // --- NEW: Dynamic Attribute Filters ---
-    const [attributeGroups, setAttributeGroups] = useState([]); // Metadata for sidebar (headers)
-    const [selectedFilters, setSelectedFilters] = useState({}); // { "color-slug": ["red-slug"], "size-slug": ["m-slug"] }
+    // Filters
+    const [attributeGroups, setAttributeGroups] = useState([]); // All Metadata
+    const [selectedFilters, setSelectedFilters] = useState({});
     const [sortBy, setSortBy] = useState(searchParams.get('sort') || '');
+
+    // --- NEW: Facets for Counts ---
+    const [facets, setFacets] = useState({});
+
     const [quickViewProductId, setQuickViewProductId] = useState(null);
 
-    // 1. Load Filter Definitions (Attributes) from DB
+    // 1. Load Filter Definitions
     useEffect(() => {
         const fetchAttributes = async () => {
             try {
-                // Fetch categories that are attributes (filters)
-                // Note: You might want to cache this response or fetch it server-side in a real app
                 const res = await fetch('/api/categories?type=attribute&mode=public');
                 const data = await res.json();
 
-                // Organize into Parent -> Options
                 const groups = [];
                 const map = {};
 
-                // First pass: Create headers
                 data.forEach(item => {
                     if (!item.parent_id) {
                         map[item.id] = { ...item, options: [] };
@@ -65,7 +65,6 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                     }
                 });
 
-                // Second pass: Assign options to headers
                 data.forEach(item => {
                     if (item.parent_id && map[item.parent_id]) {
                         map[item.parent_id].options.push(item);
@@ -80,7 +79,7 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
         fetchAttributes();
     }, []);
 
-    // 2. Initialize selected filters from URL
+    // 2. Initialize filters
     useEffect(() => {
         const currentFilters = {};
         for (const [key, value] of searchParams.entries()) {
@@ -101,11 +100,6 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                 limit: limit.toString()
             });
 
-            // Append selected filters to query
-            // Note: The API needs to be smart enough to handle generic keys like ?color=red
-            // or you might need to map these to a specific 'attribute' param in your API.
-            // For now, we pass them as-is, assuming your API ignores unknown params
-            // or you add specific logic in GET /api/products to loop through params.
             Object.entries(selectedFilters).forEach(([key, values]) => {
                 values.forEach(v => queryParams.append(key, v));
             });
@@ -117,9 +111,11 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
 
             const data = await response.json();
 
-            // Support both data structures
             setProducts(data.data || data.products || []);
             setPageInfo(data.category || data.collection || null);
+
+            // --- NEW: Set Facets ---
+            setFacets(data.facets || {});
 
             if (data.meta) {
                 setTotalItems(data.meta.total);
@@ -150,8 +146,6 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
         const newFilters = { ...selectedFilters, [groupSlug]: newOptions };
         setSelectedFilters(newFilters);
         setPage(1);
-
-        // Update URL
         updateQueryString(router, pathname, searchParams, { [groupSlug]: newOptions, page: 1 });
     };
 
@@ -194,48 +188,77 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                             </select>
                         </div>
 
-                        {/* --- Dynamic Attribute Groups --- */}
-                        {attributeGroups.map(group => (
-                            <div key={group.id} className="mb-6">
-                                <h3 className="font-semibold mb-2 text-indigo-300 uppercase text-xs tracking-wider">
-                                    {group.name}
-                                </h3>
-                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                    {group.options.map(option => {
-                                        const isChecked = (selectedFilters[group.slug] || []).includes(option.slug);
+                        {/* --- Dynamic Attribute Groups with Counts --- */}
+                        {attributeGroups.map(group => {
+                            // 1. Filter visible options (count > 0 OR already selected)
+                            // Note: We show selected options even if count is 0 to allow unchecking, or strict hiding.
+                            // Prompt says: "If empty then remove". I will strict hide unless selected (to avoid traps, though user requested remove).
+                            // Actually, let's strict hide options with 0 count.
+                            const visibleOptions = group.options.filter(option => {
+                                const count = facets[option.slug] || 0;
+                                return count > 0;
+                            });
 
-                                        // Render based on display_style
-                                        if (group.display_style === 'swatch') {
+                            // 2. Hide parent if no visible options
+                            if (visibleOptions.length === 0) return null;
+
+                            return (
+                                <div key={group.id} className="mb-6">
+                                    <h3 className="font-semibold mb-2 text-indigo-300 uppercase text-xs tracking-wider">
+                                        {group.name}
+                                    </h3>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                        {visibleOptions.map(option => {
+                                            const isChecked = (selectedFilters[group.slug] || []).includes(option.slug);
+                                            const count = facets[option.slug] || 0;
+
+                                            if (group.display_style === 'swatch') {
+                                                return (
+                                                    <div key={option.id} className="inline-block mr-2 mb-1">
+                                                        <button
+                                                            onClick={() => handleFilterChange(group.slug, option.slug)}
+                                                            className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center text-[10px] text-black font-bold relative ${isChecked ? 'border-white ring-2 ring-indigo-500' : 'border-gray-600'}`}
+                                                            style={{ backgroundColor: option.value || '#ccc' }}
+                                                            title={`${option.name} (${count})`}
+                                                        >
+                                                            {/* Show count on hover or overlay? Swatches are small.
+                                                                Let's add a small badge or just rely on Title.
+                                                                Prompt: "next to the tag". For swatches, it's tricky.
+                                                                I'll add it in title for now, or display counts next to it?
+                                                                Let's keep swatch clean and use Title, or add a number below.
+                                                                Let's stick to tooltip/title for Swatch to preserve design,
+                                                                BUT for normal checkboxes (90% of cases), show text.
+                                                            */}
+                                                        </button>
+                                                    </div>
+                                                );
+                                            }
+
                                             return (
-                                                <div key={option.id} className="inline-block mr-2 mb-1">
-                                                    <button
-                                                        onClick={() => handleFilterChange(group.slug, option.slug)}
-                                                        className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${isChecked ? 'border-white ring-2 ring-indigo-500' : 'border-gray-600'}`}
-                                                        style={{ backgroundColor: option.value || '#ccc' }}
-                                                        title={option.name}
-                                                    />
-                                                </div>
+                                                <label key={option.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-700/50 p-1 rounded transition-colors justify-between group">
+                                                    <div className="flex items-center space-x-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isChecked}
+                                                            onChange={() => handleFilterChange(group.slug, option.slug)}
+                                                            className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
+                                                        />
+                                                        <span className="text-sm text-gray-300 group-hover:text-white">{option.name}</span>
+                                                    </div>
+                                                    {/* Count Badge */}
+                                                    <span className="text-xs text-gray-500 bg-gray-900 px-1.5 py-0.5 rounded-full border border-gray-700">
+                                                        {count}
+                                                    </span>
+                                                </label>
                                             );
-                                        }
-
-                                        // Default Checkbox Style
-                                        return (
-                                            <label key={option.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-700/50 p-1 rounded transition-colors">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isChecked}
-                                                    onChange={() => handleFilterChange(group.slug, option.slug)}
-                                                    className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
-                                                />
-                                                <span className="text-sm text-gray-300">{option.name}</span>
-                                            </label>
-                                        );
-                                    })}
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
 
-                        {attributeGroups.length === 0 && (
+                        {/* If ALL groups were filtered out */}
+                        {attributeGroups.every(g => g.options.every(o => (facets[o.slug] || 0) === 0)) && (
                             <p className="text-xs text-gray-500 italic">Không có bộ lọc nào.</p>
                         )}
                     </aside>

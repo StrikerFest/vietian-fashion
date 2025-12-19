@@ -27,30 +27,64 @@ export async function GET(request, context) {
         if (!collection) return NextResponse.json({ error: 'Không tìm thấy bộ sưu tập' }, { status: 404 });
 
         const { data: links } = await supabase.from('product_collections').select('product_id').eq('collection_id', collection.id);
-        let productIds = links?.map(l => l.product_id) || [];
+        let baseProductIds = links?.map(l => l.product_id) || [];
 
-        if (productIds.length === 0) return NextResponse.json({ collection, data: [], meta: { total: 0 } });
+        if (baseProductIds.length === 0) return NextResponse.json({ collection, data: [], meta: { total: 0 }, facets: {} });
+
+        // --- NEW: Calculate Facets (Counts) ---
+        const { data: allVariants } = await supabase
+            .from('product_variants')
+            .select(`
+                product_id,
+                variant_attributes!inner (
+                    attribute_value:categories!inner (
+                        slug
+                    )
+                )
+            `)
+            .in('product_id', baseProductIds);
+
+        const facetCounts = {};
+        if (allVariants) {
+            allVariants.forEach(v => {
+                v.variant_attributes?.forEach(va => {
+                    const attrSlug = va.attribute_value?.slug;
+                    if (attrSlug) {
+                        if (!facetCounts[attrSlug]) facetCounts[attrSlug] = new Set();
+                        facetCounts[attrSlug].add(v.product_id);
+                    }
+                });
+            });
+        }
+
+        const facets = {};
+        Object.keys(facetCounts).forEach(key => {
+            facets[key] = facetCounts[key].size;
+        });
 
         // Apply Filters
+        let filteredProductIds = baseProductIds;
+
         if (Object.keys(attributeFilters).length > 0) {
             for (const [key, values] of Object.entries(attributeFilters)) {
+                // [FIX] Use slug
                 const { data: matchingVariants } = await supabase
                     .from('variant_attributes')
-                    .select('variant_id, attribute_value:categories!inner(name)')
-                    .in('attribute_value.name', values);
+                    .select('variant_id, attribute_value:categories!inner(slug)')
+                    .in('attribute_value.slug', values);
 
                 if (matchingVariants && matchingVariants.length > 0) {
                     const varIds = matchingVariants.map(v => v.variant_id);
                     const { data: pIds } = await supabase.from('product_variants').select('product_id').in('id', varIds);
                     const validPIds = new Set(pIds.map(p => p.product_id));
-                    productIds = productIds.filter(id => validPIds.has(id));
+                    filteredProductIds = filteredProductIds.filter(id => validPIds.has(id));
                 } else {
-                    productIds = [];
+                    filteredProductIds = [];
                 }
             }
         }
 
-        if (productIds.length === 0) return NextResponse.json({ collection, data: [], meta: { total: 0 } });
+        if (filteredProductIds.length === 0) return NextResponse.json({ collection, data: [], meta: { total: 0 }, facets });
 
         let productQuery = supabase
             .from('products')
@@ -64,8 +98,8 @@ export async function GET(request, context) {
                     )
                 )
             `, { count: 'exact' })
-            .in('id', productIds)
-            .eq('status', 'active') // [SECURITY PATCH 1] Status Filter
+            .in('id', filteredProductIds)
+            .eq('status', 'active')
             .is('deleted_at', null);
 
         if (sortBy === 'name-asc') productQuery = productQuery.order('name', { ascending: true });
@@ -77,7 +111,7 @@ export async function GET(request, context) {
         const { data: products, error, count } = await productQuery;
         if (error) throw error;
 
-        // --- DATA TRANSFORMATION & MASKING ---
+        // --- DATA TRANSFORMATION ---
         const formattedData = products.map(p => ({
             ...p,
             product_variants: p.product_variants.map(v => {
@@ -85,8 +119,6 @@ export async function GET(request, context) {
                 v.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) attributes[va.attribute_value.parent.name] = va.attribute_value.name;
                 });
-
-                // [SECURITY PATCH 2] INVENTORY MASKING
                 const realStock = v.inventory_levels?.[0]?.on_hand || 0;
                 const { inventory_levels, ...safeVariant } = v;
 
@@ -112,7 +144,8 @@ export async function GET(request, context) {
         return NextResponse.json({
             collection,
             data: formattedData,
-            meta: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) }
+            meta: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
+            facets // Return counts
         });
 
     } catch (error) {
