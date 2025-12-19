@@ -42,7 +42,6 @@ export async function GET(request) {
 
     try {
         // --- STEP 1: Get Base Product IDs (Before Attribute Filters) ---
-        // We need this set to calculate accurate counts for the sidebar
         let baseQuery = supabase
             .from('products')
             .select('id')
@@ -71,7 +70,6 @@ export async function GET(request) {
         }
 
         // --- STEP 2: Calculate Facets (Counts) ---
-        // Fetch all variants for the base products to count attributes
         const { data: allVariants } = await supabase
             .from('product_variants')
             .select(`
@@ -97,7 +95,6 @@ export async function GET(request) {
             });
         }
 
-        // Convert Sets to integers
         const facets = {};
         Object.keys(facetCounts).forEach(key => {
             facets[key] = facetCounts[key].size;
@@ -153,7 +150,7 @@ export async function GET(request) {
             case 'position-desc': query = query.order('position', { ascending: false }); break;
             case 'name-asc': query = query.order('name', { ascending: true }); break;
             case 'name-desc': query = query.order('name', { ascending: false }); break;
-            case 'price-asc': query = query.order('name', { ascending: true }); break; // Temporary sort key, refined below
+            case 'price-asc': query = query.order('name', { ascending: true }); break;
             default: query = query.order('created_at', { ascending: false });
         }
 
@@ -207,7 +204,7 @@ export async function GET(request) {
             product_categories: undefined
         }));
 
-        // Manual Sort for Price (since it's in a related table)
+        // Manual Sort for Price
         if (sort === 'price-asc' || sort === 'price-desc') {
             formattedData.sort((a, b) => {
                 const pA = a.product_variants?.[0]?.price || 0;
@@ -219,7 +216,7 @@ export async function GET(request) {
         return NextResponse.json({
             data: formattedData,
             meta: { page, limit, total: count, totalPages: Math.ceil((count || 0) / limit) },
-            facets // <--- Return the counts here
+            facets
         });
 
     } catch (error) {
@@ -227,10 +224,9 @@ export async function GET(request) {
     }
 }
 
-// POST handler remains unchanged but must be included
 export async function POST(request) {
     const {
-        name, description, image_url, seo_title, seo_description, variants,
+        name, description, image_url, images = [], seo_title, seo_description, variants,
         attribute_ids = [], category_id, collection_ids = [], position = 0, status
     } = await request.json();
 
@@ -239,6 +235,7 @@ export async function POST(request) {
 
     let newId = null;
     try {
+        // Check internal duplicates
         const skuList = variants.map(v => v.sku);
         const uniqueSkus = new Set(skuList);
         if (uniqueSkus.size !== skuList.length) {
@@ -257,6 +254,7 @@ export async function POST(request) {
             return NextResponse.json({ error: `SKU đã tồn tại trong hệ thống: ${duplicates}` }, { status: 400 });
         }
 
+        // 1. Insert Product
         const { data: product, error: pErr } = await supabase.from('products')
             .insert([{
                 name, description, image_url, seo_title, seo_description, position,
@@ -266,6 +264,18 @@ export async function POST(request) {
         if (pErr) throw pErr;
         newId = product.id;
 
+        // --- 2. Insert Multiple Images (New Logic) ---
+        if (images && images.length > 0) {
+            const imageInserts = images.map(img => ({
+                product_id: newId,
+                image_url: img.image_url,
+                is_primary: img.is_primary || false,
+                alt_text: img.alt_text || name
+            }));
+            await supabase.from('product_images').insert(imageInserts);
+        }
+
+        // 3. Insert Variants
         for (const v of variants) {
             const { data: newVar, error: vErr } = await supabase.from('product_variants')
                 .insert({ product_id: newId, sku: v.sku, price: v.price })

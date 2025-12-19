@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
+// [MODIFIED] Use the new ProductGallery component
 import ProductGallery from '@/components/product/ProductGallery';
 import VariantSelector from '@/components/product/VariantSelector';
 import ProductReviews from '@/components/product/ProductReviews';
@@ -38,7 +39,6 @@ export default function ProductDetailPage() {
                 if (!response.ok) throw new Error('Product not found');
                 const data = await response.json();
                 setProduct(data);
-                // Note: We delegate variant selection to the useEffect below
             } catch (error) {
                 console.error("Failed to fetch product:", error);
                 setProduct(null);
@@ -49,25 +49,21 @@ export default function ProductDetailPage() {
         fetchProduct();
     }, [id]);
 
-    // 2. Sync Variant Selection (Handles Initial Load + URL Changes)
+    // 2. Sync Variant Selection
     useEffect(() => {
         if (!product || !product.product_variants || product.product_variants.length === 0) return;
 
         const urlVariantId = searchParams.get('variant');
         let targetVariant = null;
 
-        // A. Try to find variant from URL
         if (urlVariantId) {
             targetVariant = product.product_variants.find(v => v.id.toString() === urlVariantId);
         }
 
-        // B. Fallback to first variant if no URL param or invalid ID
-        // (We only force fallback if nothing is selected yet, or if URL is explicitly invalid)
         if (!targetVariant && !selectedVariant) {
             targetVariant = product.product_variants[0];
         }
 
-        // C. Update State if different
         if (targetVariant && targetVariant.id !== selectedVariant?.id) {
             setSelectedVariant(targetVariant);
         }
@@ -75,10 +71,7 @@ export default function ProductDetailPage() {
 
     // 3. Handle User Selection
     const handleVariantSelect = (variant) => {
-        // Optimistically update state for speed
         setSelectedVariant(variant);
-
-        // Update URL (this will trigger the effect above, confirming the selection)
         const newParams = new URLSearchParams(searchParams.toString());
         newParams.set('variant', variant.id);
         router.replace(`?${newParams.toString()}`, { scroll: false });
@@ -100,19 +93,14 @@ export default function ProductDetailPage() {
         }
     };
 
-    // --- LOGIC FIX: Handle both Public (masked) and Admin (raw) stock data ---
     const getStockStatus = (variant) => {
         if (!variant) return { count: 0, isOutOfStock: true };
-
-        // Public API: Uses 'in_stock' boolean and 'stock_display'
         if (typeof variant.in_stock === 'boolean') {
             return {
                 count: variant.stock_display || 0,
                 isOutOfStock: !variant.in_stock
             };
         }
-
-        // Admin API: Uses 'inventory_levels' array
         const rawStock = variant.inventory_levels?.[0]?.on_hand || 0;
         return {
             count: rawStock,
@@ -121,7 +109,6 @@ export default function ProductDetailPage() {
     };
 
     const { count: stockOnHand, isOutOfStock } = getStockStatus(selectedVariant);
-    // -------------------------------------------------------------------------
 
     if (isLoading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Đang tải sản phẩm...</div>;
     if (!product) return (
@@ -144,7 +131,11 @@ export default function ProductDetailPage() {
                 </nav>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
-                    <ProductGallery imageUrl={product.image_url} name={product.name} />
+                    {/* [MODIFIED] Using ProductGallery instead of manual Image mapping */}
+                    <ProductGallery
+                        images={product.product_images}
+                        name={product.name}
+                    />
 
                     <div className="flex flex-col">
                         <h1 className="text-4xl font-extrabold mb-2 text-white">{product.name}</h1>

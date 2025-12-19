@@ -16,8 +16,11 @@ export default function ProductForm({ initialData, categories = [], collections 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [status, setStatus] = useState('draft');
-    const [imageFile, setImageFile] = useState(null);
-    const [currentImageUrl, setCurrentImageUrl] = useState('');
+
+    // [MODIFIED] Replaced single image state with array
+    // Structure: { file: File|null, image_url: string, is_primary: boolean, id: number|null }
+    const [productImages, setProductImages] = useState([]);
+
     const [position, setPosition] = useState(0);
     const [selectedCatalogId, setSelectedCatalogId] = useState('');
     const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
@@ -62,13 +65,30 @@ export default function ProductForm({ initialData, categories = [], collections 
             setName(initialData.name);
             setDescription(initialData.description || '');
             setStatus(initialData.status || 'draft');
-            setCurrentImageUrl(initialData.image_url || '');
             setPosition(initialData.position || 0);
             setSeoTitle(initialData.seo_title || '');
             setSeoDescription(initialData.seo_description || '');
 
             if (initialData.catalog_categories?.[0]) setSelectedCatalogId(initialData.catalog_categories[0].id);
             if (initialData.collections) setSelectedCollectionIds(initialData.collections.map(c => c.id));
+
+            // [MODIFIED] Load Multiple Images
+            if (initialData.product_images && initialData.product_images.length > 0) {
+                setProductImages(initialData.product_images.map(img => ({
+                    file: null,
+                    image_url: img.image_url,
+                    is_primary: img.is_primary,
+                    id: img.id
+                })));
+            } else if (initialData.image_url) {
+                // Fallback for legacy single image
+                setProductImages([{
+                    file: null,
+                    image_url: initialData.image_url,
+                    is_primary: true,
+                    id: null
+                }]);
+            }
 
             if (initialData.attributes) {
                 const loadedTags = initialData.attributes.map(attr => {
@@ -155,11 +175,16 @@ export default function ProductForm({ initialData, categories = [], collections 
         }
     };
 
+    // [MODIFIED] Update AI Image getter to use Primary Image from list
     const getImageForAI = async () => {
-        if (imageFile) return imageFile;
-        if (currentImageUrl) {
+        const primaryImg = productImages.find(img => img.is_primary) || productImages[0];
+        if (!primaryImg) return null;
+
+        if (primaryImg.file) return primaryImg.file;
+
+        if (primaryImg.image_url) {
             try {
-                const response = await fetch(currentImageUrl);
+                const response = await fetch(primaryImg.image_url);
                 const blob = await response.blob();
                 return new File([blob], "existing_image.jpg", { type: blob.type });
             } catch (err) {
@@ -264,12 +289,48 @@ export default function ProductForm({ initialData, categories = [], collections 
         return data.publicUrl;
     };
 
+    // [MODIFIED] New Image Handlers
+    const handleImageUpload = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        const newImages = files.map(file => ({
+            file,
+            image_url: URL.createObjectURL(file),
+            is_primary: productImages.length === 0,
+            id: null
+        }));
+
+        setProductImages(prev => {
+            const hasPrimary = prev.some(img => img.is_primary);
+            if (!hasPrimary && newImages.length > 0) newImages[0].is_primary = true;
+            return [...prev, ...newImages];
+        });
+    };
+
+    const removeImage = (index) => {
+        setProductImages(prev => {
+            const newStats = prev.filter((_, i) => i !== index);
+            if (prev[index].is_primary && newStats.length > 0) {
+                newStats[0].is_primary = true;
+            }
+            return newStats;
+        });
+    };
+
+    const setPrimaryImage = (index) => {
+        setProductImages(prev => prev.map((img, i) => ({
+            ...img,
+            is_primary: i === index
+        })));
+    };
+
     // --- SUBMIT ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // --- NEW: Front-end SKU Validation ---
+        // --- SKU Validation ---
         const skuCounts = {};
         let hasDuplicateSku = false;
 
@@ -321,9 +382,17 @@ export default function ProductForm({ initialData, categories = [], collections 
 
             const finalAttributeIds = [...existingTagIds, ...createdTagIds];
 
-            // 2. Upload Image
-            let finalImageUrl = currentImageUrl;
-            if (imageFile) finalImageUrl = await uploadImage(imageFile);
+            // [MODIFIED] 2. Upload Images
+            const finalImages = await Promise.all(productImages.map(async (img) => {
+                if (img.file) {
+                    const url = await uploadImage(img.file);
+                    return { ...img, image_url: url };
+                }
+                return img;
+            }));
+
+            const primaryImage = finalImages.find(img => img.is_primary) || finalImages[0];
+            const primaryImageUrl = primaryImage ? primaryImage.image_url : null;
 
             // 3. Name Formatting
             let finalName = name;
@@ -346,7 +415,12 @@ export default function ProductForm({ initialData, categories = [], collections 
                 name: finalName,
                 description,
                 status,
-                image_url: finalImageUrl,
+                image_url: primaryImageUrl, // Legacy / Main
+                images: finalImages.map(img => ({
+                    image_url: img.image_url,
+                    is_primary: img.is_primary,
+                    alt_text: name
+                })),
                 seo_title: seoTitle,
                 seo_description: seoDescription,
                 position: parseInt(position),
@@ -433,14 +507,49 @@ export default function ProductForm({ initialData, categories = [], collections 
                             <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white" rows="4" />
                         </div>
                     </div>
+
+                    {/* [MODIFIED] New Image Upload Section */}
                     <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
-                        <label className="block text-sm text-gray-400 mb-2">Hình ảnh sản phẩm</label>
-                        <input type="file" onChange={e => setImageFile(e.target.files[0])} className="w-full text-sm text-gray-300" />
-                        {currentImageUrl && (
-                            <div className="mt-4 relative h-48 w-full border border-gray-700 rounded overflow-hidden">
-                                <Image src={currentImageUrl} alt="Preview" fill className="object-cover" />
-                            </div>
-                        )}
+                        <label className="block text-sm text-gray-400 mb-2">Hình ảnh sản phẩm (Nhiều ảnh)</label>
+                        <input
+                            type="file"
+                            multiple
+                            onChange={handleImageUpload}
+                            className="w-full text-sm text-gray-300 mb-4"
+                            accept="image/*"
+                        />
+
+                        <div className="grid grid-cols-3 gap-3">
+                            {productImages.map((img, idx) => (
+                                <div key={idx} className={`relative group border-2 rounded overflow-hidden h-24 ${img.is_primary ? 'border-indigo-500' : 'border-gray-600'}`}>
+                                    <Image src={img.image_url} alt="preview" fill className="object-cover" />
+
+                                    {/* Overlay Actions */}
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                        {!img.is_primary && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setPrimaryImage(idx)}
+                                                className="text-xs bg-indigo-600 text-white px-2 py-1 rounded"
+                                            >
+                                                Đặt chính
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeImage(idx)}
+                                            className="text-xs bg-red-600 text-white px-2 py-1 rounded"
+                                        >
+                                            Xóa
+                                        </button>
+                                    </div>
+
+                                    {img.is_primary && (
+                                        <div className="absolute top-0 right-0 bg-indigo-500 text-white text-[10px] px-1">Chính</div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -467,7 +576,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                         </div>
                     </div>
 
-                    {/* REFACTORED ATTRIBUTE/TAG SECTION */}
+                    {/* Attribute/Tag Section */}
                     <div className="col-span-1 md:col-span-1">
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="font-semibold text-purple-400">Thuộc tính / Thẻ</h3>

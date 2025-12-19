@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+// [MODIFIED] Import the new ProductGallery
+import ProductGallery from '@/components/product/ProductGallery';
 import { useCart } from '@/context/CartContext';
 import { formatCurrency } from '@/utils/format';
 
@@ -14,14 +15,11 @@ export default function QuickViewModal({ productId, onClose }) {
     const [selectedVariant, setSelectedVariant] = useState(null);
 
     useEffect(() => {
-        // 1. Reset state immediately when productId changes to prevent stale data
         setProduct(null);
         setSelectedVariant(null);
         setIsLoading(true);
 
-        if (!productId) {
-            return;
-        }
+        if (!productId) return;
 
         const fetchProduct = async () => {
             try {
@@ -29,11 +27,9 @@ export default function QuickViewModal({ productId, onClose }) {
                 if (!response.ok) throw new Error('Product not found');
                 const data = await response.json();
 
-                // 2. Set Product AND Selected Variant together in one batch
                 setProduct(data);
 
                 if (data.product_variants && data.product_variants.length > 0) {
-                    // Default to the first variant immediately
                     setSelectedVariant(data.product_variants[0]);
                 } else {
                     setSelectedVariant(null);
@@ -59,29 +55,22 @@ export default function QuickViewModal({ productId, onClose }) {
         }
     };
 
-    // --- Helper: Handle both Public (masked) and Admin (raw) stock data ---
     const getStockStatus = (variant) => {
         if (!variant) return { count: 0, isOutOfStock: true };
 
-        // Public API: Uses 'in_stock' boolean and 'stock_display'
-        if (typeof variant.in_stock === 'boolean') {
-            return {
-                count: variant.stock_display || 0,
-                isOutOfStock: !variant.in_stock
-            };
-        }
+        // Handle both public (masked) and admin (raw) data structures
+        const stock = typeof variant.in_stock === 'boolean'
+            ? (variant.stock_display || 0)
+            : (variant.inventory_levels?.[0]?.on_hand || 0);
 
-        // Admin API: Uses 'inventory_levels' array
-        const rawStock = variant.inventory_levels?.[0]?.on_hand || 0;
         return {
-            count: rawStock,
-            isOutOfStock: rawStock <= 0
+            count: stock,
+            isOutOfStock: stock <= 0
         };
     };
 
     const { count: stockOnHand, isOutOfStock } = getStockStatus(selectedVariant);
 
-    // --- Helper: Variant Label ---
     const getVariantLabel = (variant) => {
         if (!variant) return '';
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
@@ -103,7 +92,7 @@ export default function QuickViewModal({ productId, onClose }) {
             >
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl z-10"
+                    className="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl z-20 bg-gray-900/50 rounded-full w-8 h-8 flex items-center justify-center"
                     aria-label="Close"
                 >
                     &times;
@@ -113,18 +102,14 @@ export default function QuickViewModal({ productId, onClose }) {
                     <div className="p-8 text-center">Đang tải sản phẩm...</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
-                        {/* Image Column */}
-                        <div className="relative h-64 md:h-auto w-full">
-                            <Image
-                                src={product.image_url || 'https://placehold.co/600x400/1F2937/FFFFFF?text=No+Image'}
-                                alt={product.name}
-                                fill
-                                className="rounded-lg shadow-lg object-cover"
-                                sizes="(max-width: 768px) 100vw, 50vw"
+                        {/* [MODIFIED] Replaced simple Image with ProductGallery */}
+                        <div className="relative w-full">
+                            <ProductGallery
+                                images={product.product_images}
+                                name={product.name}
                             />
                         </div>
 
-                        {/* Details Column */}
                         <div className="flex flex-col">
                             <h1 className="text-3xl font-extrabold mb-2">{product.name}</h1>
                             <p className="text-2xl font-semibold text-indigo-400 mb-4">
