@@ -7,6 +7,7 @@ import Link from 'next/link';
 import UserAddresses from '@/components/admin/UserAddresses';
 import UserOrders from '@/components/admin/UserOrders';
 import { useToast } from '@/context/ToastContext';
+import { formatDate } from '@/utils/format'; // [MODIFIED] Import formatDate
 
 export default function UserDetailsPage() {
     const params = useParams();
@@ -68,7 +69,8 @@ export default function UserDetailsPage() {
                             <span className="text-gray-600">•</span>
                             <span className="text-gray-400">ID: {user.id}</span>
                             <span className="text-gray-600">•</span>
-                            <span className="text-gray-400">Tham gia ngày {new Date(user.created_at).toLocaleDateString('vi-VN')}</span>
+                            {/* [MODIFIED] Use standardized Vietnam Time */}
+                            <span className="text-gray-400">Tham gia ngày {formatDate(user.created_at)}</span>
                         </div>
                     </div>
                 </div>

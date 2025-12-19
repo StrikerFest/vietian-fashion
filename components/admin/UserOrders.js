@@ -1,6 +1,6 @@
 // components/admin/UserOrders.js
 import OrderStatusBadge from '@/components/OrderStatusBadge';
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency, formatDate } from '@/utils/format'; // [MODIFIED] Imported formatDate
 
 export default function UserOrders({ orders }) {
     return (
@@ -23,8 +23,9 @@ export default function UserOrders({ orders }) {
                         {orders.map(order => (
                             <tr key={order.id} className="hover:bg-gray-700/50">
                                 <td className="p-3 font-mono text-indigo-400">#{order.id}</td>
+                                {/* [MODIFIED] Use format util */}
                                 <td className="p-3 text-gray-300">
-                                    {new Date(order.created_at).toLocaleDateString('vi-VN')}
+                                    {formatDate(order.created_at)}
                                 </td>
                                 <td className="p-3 font-medium text-white">
                                     {formatCurrency(order.total_amount)}

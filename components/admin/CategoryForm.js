@@ -1,326 +1,131 @@
 // components/admin/CategoryForm.js
 'use client';
+import { useState } from 'react';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+export default function CategoryForm({ initialData, onSubmit, onCancel }) {
+    const [formData, setFormData] = useState({
+        name: initialData?.name || '',
+        slug: initialData?.slug || '',
+        description: initialData?.description || '',
+        parent_id: initialData?.parent_id || '',
+        image_url: initialData?.image_url || '',
+        type: initialData?.type || 'catalog',
+        is_active: initialData?.is_active ?? true,
+        // Ensure we slice correctly for datetime-local input
+        start_date: initialData?.start_date ? new Date(initialData.start_date).toISOString().slice(0, 16) : '',
+        end_date: initialData?.end_date ? new Date(initialData.end_date).toISOString().slice(0, 16) : ''
+    });
 
-export default function CategoryForm({ initialData, categories, onSuccess, onCancel }) {
-    const { addToast } = useToast(); // --- NEW ---
-    // Basic Fields
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [parentId, setParentId] = useState('');
-
-    // Unified Taxonomy Fields
-    const [type, setType] = useState('catalog'); // 'catalog' or 'attribute'
-    const [displayStyle, setDisplayStyle] = useState('list'); // 'list', 'swatch', 'pill'
-    const [value, setValue] = useState(''); // Hex code or meta value
-    const [isActive, setIsActive] = useState(true);
-    const [sortOrder, setSortOrder] = useState(0);
-
-    // Time Fencing
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-
-    // SEO
-    const [seoTitle, setSeoTitle] = useState('');
-    const [seoDescription, setSeoDescription] = useState('');
-
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [activeTab, setActiveTab] = useState('general'); // 'general', 'settings', 'seo'
-
-    useEffect(() => {
-        if (initialData) {
-            setName(initialData.name);
-            setDescription(initialData.description || '');
-            setParentId(initialData.parent_id || '');
-
-            setType(initialData.type || 'catalog');
-            setDisplayStyle(initialData.display_style || 'list');
-            setValue(initialData.value || '');
-            setIsActive(initialData.is_active ?? true);
-            setSortOrder(initialData.sort_order || 0);
-
-            setStartDate(initialData.start_date ? new Date(initialData.start_date).toISOString().slice(0, 16) : '');
-            setEndDate(initialData.end_date ? new Date(initialData.end_date).toISOString().slice(0, 16) : '');
-
-            setSeoTitle(initialData.seo_title || '');
-            setSeoDescription(initialData.seo_description || '');
-        }
-    }, [initialData]);
-
-    // Filter parents based on selected type (Catalog shouldn't be a child of an Attribute)
-    const eligibleParents = useMemo(() => {
-        return categories.filter(c =>
-            c.type === type && // Only same type
-            c.id !== initialData?.id // Prevent self-parenting
-        );
-    }, [categories, type, initialData]);
-
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
+        const payload = { ...formData };
 
-        const url = initialData ? `/api/categories/${initialData.id}` : '/api/categories';
-        const method = initialData ? 'PUT' : 'POST';
+        if (!payload.parent_id) payload.parent_id = null;
+        if (!payload.start_date) payload.start_date = null;
+        if (!payload.end_date) payload.end_date = null;
 
-        const body = {
-            name,
-            description,
-            parent_id: parentId || null,
-            type,
-            display_style: displayStyle,
-            value: value || null,
-            is_active: isActive,
-            sort_order: parseInt(sortOrder),
-            start_date: startDate ? new Date(startDate).toISOString() : null,
-            end_date: endDate ? new Date(endDate).toISOString() : null,
-            seo_title: seoTitle || null,
-            seo_description: seoDescription || null,
-        };
-
-        try {
-            const response = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Thao tác thất bại');
-            }
-
-            onSuccess(initialData ? 'Cập nhật danh mục thành công!' : 'Tạo danh mục thành công!');
-        } catch (error) {
-            addToast(error.message, 'error'); // --- FIXED: Replaced alert() ---
-        } finally {
-            setIsSubmitting(false);
+        // [MODIFIED] Enforce Vietnam Timezone (+07:00) on Save
+        // This ensures that if you pick 10:00 AM, it is saved as 10:00 AM VN Time (03:00 UTC)
+        // instead of 10:00 AM UTC (17:00 VN Time).
+        if (payload.start_date && !payload.start_date.includes('Z') && !payload.start_date.includes('+')) {
+            payload.start_date = `${payload.start_date}:00+07:00`;
         }
+        if (payload.end_date && !payload.end_date.includes('Z') && !payload.end_date.includes('+')) {
+            payload.end_date = `${payload.end_date}:00+07:00`;
+        }
+
+        onSubmit(payload);
     };
 
     return (
-        <div className="bg-gray-800 p-6 rounded-lg mb-8 border border-gray-700 sticky top-6">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">{initialData ? 'Sửa Danh mục' : 'Thêm Danh mục Mới'}</h2>
-                <button onClick={onCancel} className="text-gray-400 hover:text-white">&times;</button>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex border-b border-gray-700 mb-6">
-                {[
-                    { key: 'general', label: 'Chung' },
-                    { key: 'settings', label: 'Cài đặt' },
-                    { key: 'seo', label: 'SEO' }
-                ].map((tab) => (
-                    <button
-                        key={tab.key}
-                        onClick={() => setActiveTab(tab.key)}
-                        className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${
-                            activeTab === tab.key ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-white'
-                        }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-
-                {/* --- Tab: General --- */}
-                {activeTab === 'general' && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-300">Tên danh mục</label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-300">Mô tả</label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                rows="3"
-                            ></textarea>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-300">Loại</label>
-                                <select
-                                    value={type}
-                                    onChange={(e) => { setType(e.target.value); setParentId(''); }}
-                                    className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                >
-                                    <option value="catalog">Danh mục (Điều hướng)</option>
-                                    <option value="attribute">Thuộc tính (Bộ lọc)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-300">Danh mục cha</label>
-                                <select
-                                    value={parentId}
-                                    onChange={(e) => setParentId(e.target.value)}
-                                    className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                >
-                                    <option value="">-- Gốc (Cấp cao nhất) --</option>
-                                    {eligibleParents.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {/* --- Tab: Settings (Control) --- */}
-                {activeTab === 'settings' && (
-                    <>
-                        <div className="flex items-center justify-between p-3 bg-gray-900/50 rounded border border-gray-700">
-                            <label className="text-sm font-medium text-gray-300">Kích hoạt?</label>
-                            <div className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={isActive}
-                                    onChange={(e) => setIsActive(e.target.checked)}
-                                    className="h-5 w-5 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <span className="ml-2 text-xs text-gray-500">{isActive ? 'Hiển thị' : 'Ẩn'}</span>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-300">Thứ tự sắp xếp</label>
-                                <input
-                                    type="number"
-                                    value={sortOrder}
-                                    onChange={(e) => setSortOrder(e.target.value)}
-                                    className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                    placeholder="0 (Đầu tiên)"
-                                />
-                            </div>
-
-                            {/* Show Style options only for Attributes */}
-                            {type === 'attribute' ? (
-                                <div>
-                                    <label className="block text-sm font-medium mb-1 text-gray-300">Kiểu hiển thị</label>
-                                    <select
-                                        value={displayStyle}
-                                        onChange={(e) => setDisplayStyle(e.target.value)}
-                                        className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                    >
-                                        <option value="list">Danh sách (Hộp kiểm)</option>
-                                        <option value="pill">Nút bấm (Pill)</option>
-                                        <option value="swatch">Mẫu màu (Swatch)</option>
-                                    </select>
-                                </div>
-                            ) : (
-                                <div className="opacity-50">
-                                    <label className="block text-sm font-medium mb-1 text-gray-500">Kiểu hiển thị</label>
-                                    <input disabled value="N/A" className="w-full bg-gray-800 p-2 rounded border border-gray-700 text-gray-500" />
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Show Value input only if relevant (e.g. Color Swatch) */}
-                        {type === 'attribute' && displayStyle === 'swatch' && (
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-300">Màu Swatch (Hex)</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="color"
-                                        value={value || '#000000'}
-                                        onChange={(e) => setValue(e.target.value)}
-                                        className="h-10 w-14 p-1 bg-gray-700 border border-gray-600 rounded"
-                                    />
-                                    <input
-                                        type="text"
-                                        value={value}
-                                        onChange={(e) => setValue(e.target.value)}
-                                        className="flex-grow bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                        placeholder="#FFFFFF"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="pt-2 border-t border-gray-700 mt-2">
-                            <p className="text-xs text-gray-400 mb-2 uppercase font-bold">Lên lịch hiển thị (Tùy chọn)</p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs mb-1 text-gray-500">Ngày bắt đầu</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-xs"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs mb-1 text-gray-500">Ngày kết thúc</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                        min={startDate || ''}
-                                        className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-xs"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {/* --- Tab: SEO --- */}
-                {activeTab === 'seo' && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-300">Tiêu đề SEO</label>
-                            <input
-                                type="text"
-                                value={seoTitle}
-                                onChange={(e) => setSeoTitle(e.target.value)}
-                                className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                placeholder="Thẻ tiêu đề..."
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-300">Mô tả Meta</label>
-                            <textarea
-                                value={seoDescription}
-                                onChange={(e) => setSeoDescription(e.target.value)}
-                                className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white"
-                                rows="3"
-                                placeholder="Mô tả meta..."
-                            ></textarea>
-                        </div>
-                    </>
-                )}
-
-                {/* Footer Actions */}
-                <div className="flex gap-3 pt-4 border-t border-gray-700 mt-4">
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors"
-                    >
-                        Hủy
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-600"
-                    >
-                        {isSubmitting ? 'Đang lưu...' : (initialData ? 'Cập nhật' : 'Tạo mới')}
-                    </button>
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+                {/* Basic Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Tên danh mục</label>
+                        <input
+                            type="text"
+                            required
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Slug (URL)</label>
+                        <input
+                            type="text"
+                            required
+                            value={formData.slug}
+                            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500"
+                        />
+                    </div>
                 </div>
-            </form>
-        </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Mô tả</label>
+                    <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        rows={3}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500"
+                    />
+                </div>
+
+                {/* Time Fencing Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-700 pt-4">
+                    <div>
+                        <label className="block text-sm font-medium text-indigo-400 mb-1">Ngày bắt đầu (VN Time)</label>
+                        <input
+                            type="datetime-local"
+                            value={formData.start_date}
+                            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-indigo-400 mb-1">Ngày kết thúc (VN Time)</label>
+                        <input
+                            type="datetime-local"
+                            value={formData.end_date}
+                            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500"
+                        />
+                    </div>
+                </div>
+
+                {/* Status Toggle */}
+                <div className="flex items-center gap-3 pt-2">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                        />
+                        <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <span className="ml-3 text-sm font-medium text-gray-300">Kích hoạt ngay</span>
+                    </label>
+                </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                    Hủy
+                </button>
+                <button
+                    type="submit"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors"
+                >
+                    Lưu danh mục
+                </button>
+            </div>
+        </form>
     );
 }

@@ -7,9 +7,10 @@ import OrderDetailsModal from '@/components/admin/OrderDetailsModal';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import PaginationControls from '@/components/ui/PaginationControls';
 import { useToast } from '@/context/ToastContext';
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency, formatDate } from '@/utils/format'; // [MODIFIED] Imported formatDate
 
 export default function OrdersPage() {
+    // ... (State and Fetch logic remains unchanged) ...
     const { addToast } = useToast();
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -92,7 +93,8 @@ export default function OrdersPage() {
                                 {orders.map(order => (
                                     <tr key={order.id} className="hover:bg-gray-700/50 text-sm">
                                         <td className="p-3 font-mono text-gray-300">#{order.id}</td>
-                                        <td className="p-3 text-gray-300">{new Date(order.created_at).toLocaleDateString('vi-VN')}</td>
+                                        {/* [MODIFIED] Use format util */}
+                                        <td className="p-3 text-gray-300">{formatDate(order.created_at)}</td>
                                         <td className="p-3 font-medium">{order.users?.email || 'Khách vãng lai'}</td>
                                         <td className="p-3 text-white font-semibold">{formatCurrency(order.total_amount)}</td>
                                         <td className="p-3"><OrderStatusBadge status={order.status} /></td>

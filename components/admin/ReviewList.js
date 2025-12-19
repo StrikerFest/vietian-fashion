@@ -2,6 +2,7 @@
 'use client';
 
 import StarRating from '@/components/StarRating';
+import { formatDate } from '@/utils/format'; // [MODIFIED] Imported
 
 export default function ReviewList({ reviews, onApprove, onDelete }) {
     if (reviews.length === 0) {
@@ -25,7 +26,8 @@ export default function ReviewList({ reviews, onApprove, onDelete }) {
                 {reviews.map(review => (
                     <tr key={review.id} className="hover:bg-gray-700/50 text-sm align-top">
                         <td className="p-3 text-gray-400 whitespace-nowrap">
-                            {new Date(review.created_at).toLocaleDateString('vi-VN')}
+                            {/* [MODIFIED] Use format util */}
+                            {formatDate(review.created_at)}
                         </td>
                         <td className="p-3 font-medium text-white">
                             {review.products?.name || <span className="text-gray-500">Sản phẩm không xác định</span>}

@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import { formatDate } from '@/utils/format'; // [MODIFIED] Imported
 
 export default function UsersTable({ users, onArchive }) {
     if (users.length === 0) {
@@ -34,8 +35,9 @@ export default function UsersTable({ users, onArchive }) {
                                     {user.order_count}
                                 </span>
                         </td>
+                        {/* [MODIFIED] Use format util */}
                         <td className="p-3 text-gray-300">
-                            {new Date(user.created_at).toLocaleDateString('vi-VN')}
+                            {formatDate(user.created_at)}
                         </td>
                         <td className="p-3 text-right space-x-3">
                             <Link

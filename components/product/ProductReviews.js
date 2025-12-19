@@ -2,9 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import StarRating from '@/components/StarRating'; // Reuse the admin component
+import StarRating from '@/components/StarRating';
+import { formatDate } from '@/utils/format'; // [MODIFIED] Imported
 
-// Internal helper for input
+// ... (StarRatingInput helper remains unchanged) ...
 function StarRatingInput({ rating, setRating }) {
     return (
         <div className="flex space-x-1">
@@ -34,6 +35,7 @@ export default function ProductReviews({ productId }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
+    // ... (useEffect and handleSubmit logic remain unchanged) ...
     // Fetch Reviews
     useEffect(() => {
         const fetchReviews = async () => {
@@ -94,7 +96,7 @@ export default function ProductReviews({ productId }) {
             <h2 className="text-2xl font-bold mb-8 text-white">Đánh giá của khách hàng</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                {/* Review Form */}
+                {/* ... (Review Form JSX remains unchanged) ... */}
                 <div className="bg-gray-800 p-6 rounded-lg h-fit border border-gray-700">
                     <h3 className="text-lg font-semibold mb-4 text-white">Viết đánh giá</h3>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -149,7 +151,8 @@ export default function ProductReviews({ productId }) {
                                             <StarRating rating={review.rating} />
                                         </div>
                                     </div>
-                                    <span className="text-xs text-gray-500">{new Date(review.created_at).toLocaleDateString()}</span>
+                                    {/* [MODIFIED] Use format util */}
+                                    <span className="text-xs text-gray-500">{formatDate(review.created_at)}</span>
                                 </div>
                                 <p className="text-gray-300 text-sm leading-relaxed mt-3">
                                     {review.comment || <span className="italic text-gray-600">Không có bình luận bằng lời.</span>}

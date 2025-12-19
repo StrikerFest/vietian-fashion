@@ -88,7 +88,24 @@ export default function PurchaseOrderBuilder({ suppliers, products, onSubmit }) 
         }
 
         setIsSubmitting(true);
-        await onSubmit({ supplierId, expectedDate, items });
+
+        // --- TIMEZONE FIX START ---
+        // Force the date to be interpreted as Vietnam Time (GMT+7)
+        // If user picks "2025-12-20", we send "2025-12-20T00:00:00+07:00"
+        // This ensures the DB stores the correct instant (Start of day in VN).
+
+        let formattedExpectedDate = null;
+        if (expectedDate) {
+            formattedExpectedDate = `${expectedDate}T00:00:00+07:00`;
+        }
+        // --------------------------
+
+        await onSubmit({
+            supplierId,
+            expectedDate: formattedExpectedDate,
+            items
+        });
+
         setIsSubmitting(false);
     };
 

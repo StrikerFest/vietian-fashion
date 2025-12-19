@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency, formatDate } from '@/utils/format'; // [MODIFIED] Imported formatDate
 
 export default function OrderHistory({ orders, isLoading }) {
 
@@ -44,7 +44,8 @@ export default function OrderHistory({ orders, isLoading }) {
                                         Đơn hàng <Link href={`/order-confirmation/${order.id}`} className="font-mono text-indigo-400 hover:underline">#{order.id}</Link>
                                     </h3>
                                     <p className="text-xs text-gray-400 mt-1">
-                                        Ngày đặt: {new Date(order.created_at).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                        {/* [MODIFIED] Use standardized Vietnam Time */}
+                                        Ngày đặt: {formatDate(order.created_at)}
                                     </p>
                                 </div>
                                 <OrderStatusBadge status={order.status} />

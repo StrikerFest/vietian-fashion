@@ -9,6 +9,7 @@ import LowStockAlert from '@/components/admin/LowStockAlert';
 import { formatCurrency } from '@/utils/format';
 
 function StatCard({ title, value, color = "text-white" }) {
+    // ... (unchanged)
     return (
         <div className="block p-6 bg-gray-800 rounded-lg shadow-md">
             <h3 className="text-sm font-medium text-gray-400 mb-1">{title}</h3>
@@ -28,6 +29,7 @@ export default function AdminDashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        // ... (fetch logic unchanged)
         const fetchAnalytics = async () => {
             setIsLoading(true);
             try {
@@ -51,8 +53,13 @@ export default function AdminDashboardPage() {
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="flex justify-between items-end mb-8">
                 <h1 className="text-3xl font-bold">Tổng quan bảng điều khiển</h1>
-                <p className="text-gray-400 text-sm">Cập nhật lần cuối: {new Date().toLocaleTimeString('vi-VN')}</p>
+                {/* [MODIFIED] Use explicit Vietnam Time for clock */}
+                <p className="text-gray-400 text-sm">
+                    Cập nhật lần cuối: {new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                </p>
             </div>
+
+            {/* ... (Rest of the JSX remains unchanged) ... */}
 
             {/* 1. Key Metrics Row */}
             <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">

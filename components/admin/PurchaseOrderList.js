@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import { formatDate } from '@/utils/format'; // [MODIFIED] Imported
 
 export default function PurchaseOrderList({ orders, onStatusChange, onDelete }) {
     const getStatusColor = (status) => {
@@ -35,10 +36,12 @@ export default function PurchaseOrderList({ orders, onStatusChange, onDelete }) 
                 {orders.map(po => (
                     <tr key={po.id} className="hover:bg-gray-700/50 text-sm">
                         <td className="p-3 font-mono text-indigo-400">#{po.id}</td>
-                        <td className="p-3 text-gray-300">{new Date(po.created_at).toLocaleDateString()}</td>
+                        {/* [MODIFIED] Use format util */}
+                        <td className="p-3 text-gray-300">{formatDate(po.created_at)}</td>
                         <td className="p-3 font-medium text-white">{po.suppliers?.name}</td>
                         <td className="p-3 text-gray-400">
-                            {po.expected_date ? new Date(po.expected_date).toLocaleDateString() : '-'}
+                            {/* [MODIFIED] Use format util */}
+                            {po.expected_date ? formatDate(po.expected_date) : '-'}
                         </td>
                         <td className="p-3">
                                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(po.status)}`}>

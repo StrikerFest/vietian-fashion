@@ -1,14 +1,12 @@
 // components/admin/DiscountList.js
 'use client';
 
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency, formatDate } from '@/utils/format'; // [MODIFIED] Imported formatDate
 
 export default function DiscountList({ discounts, onEdit, onDelete }) {
 
-    const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleString('vi-VN');
-    };
+    // [REMOVED] Local helper function
+    // const formatDate = (dateString) => ...
 
     if (discounts.length === 0) {
         return <p className="text-gray-500 mt-4 text-center">Chưa có mã giảm giá nào được tạo.</p>;
@@ -43,6 +41,7 @@ export default function DiscountList({ discounts, onEdit, onDelete }) {
                                     {discount.is_active ? 'Hoạt động' : 'Không hoạt động'}
                                 </span>
                         </td>
+                        {/* [MODIFIED] Use imported format util */}
                         <td className="p-3 text-gray-400">{formatDate(discount.start_date)}</td>
                         <td className="p-3 text-gray-400">{formatDate(discount.end_date)}</td>
                         <td className="p-3 text-right space-x-3">

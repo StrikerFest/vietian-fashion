@@ -1,6 +1,8 @@
 // components/admin/InventoryLogList.js
 'use client';
 
+import { formatDateTime } from '@/utils/format'; // [MODIFIED] Imported formatDateTime
+
 export default function InventoryLogList({ logs }) {
     if (logs.length === 0) {
         return <p className="text-gray-500 text-center p-4">Không tìm thấy lịch sử nào.</p>;
@@ -22,7 +24,8 @@ export default function InventoryLogList({ logs }) {
                 {logs.map(log => (
                     <tr key={log.id} className="hover:bg-gray-700/30">
                         <td className="p-3 text-gray-400 whitespace-nowrap">
-                            {new Date(log.created_at).toLocaleString('vi-VN')}
+                            {/* [MODIFIED] Use standardized DateTime format */}
+                            {formatDateTime(log.created_at)}
                         </td>
                         <td className="p-3 text-gray-300">
                             {log.users ? `${log.users.first_name || ''} ${log.users.last_name || ''}`.trim() || log.users.email : 'Hệ thống'}

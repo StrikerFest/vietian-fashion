@@ -19,12 +19,12 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
             setCode(initialData.code);
             setType(initialData.type);
             setValue(initialData.value);
-            // Format dates for datetime-local input (YYYY-MM-DDTHH:mm)
+            // Format for datetime-local (YYYY-MM-DDTHH:mm)
+            // We slice to get the raw time value for the input
             setStartDate(initialData.start_date ? new Date(initialData.start_date).toISOString().slice(0, 16) : '');
             setEndDate(initialData.end_date ? new Date(initialData.end_date).toISOString().slice(0, 16) : '');
             setIsActive(initialData.is_active);
         }
-    }, [initialData]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -48,12 +48,24 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
         const url = isEditing ? `/api/discounts/${initialData.id}` : '/api/discounts';
         const method = isEditing ? 'PUT' : 'POST';
 
+        // --- TIMEZONE FIX START ---
+        // The input 'startDate' is in format "YYYY-MM-DDTHH:mm" (local literal).
+        // If we use new Date(startDate).toISOString(), the browser converts this Local Time -> UTC.
+        // We want to force this literal time to be treated as Vietnam Time (+07:00).
+
+        const formatAsVietnamTime = (dateString) => {
+            if (!dateString) return null;
+            // Append seconds and +07:00 timezone offset explicitly
+            return `${dateString}:00+07:00`;
+        };
+        // --------------------------
+
         const body = {
             code,
             type,
             value: parseFloat(value),
-            start_date: startDate ? new Date(startDate).toISOString() : null,
-            end_date: endDate ? new Date(endDate).toISOString() : null,
+            start_date: formatAsVietnamTime(startDate), // [MODIFIED]
+            end_date: formatAsVietnamTime(endDate),     // [MODIFIED]
             is_active: isActive,
         };
 
@@ -123,7 +135,7 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="start_date" className="block text-sm font-medium mb-1">Ngày bắt đầu (Tùy chọn)</label>
+                        <label htmlFor="start_date" className="block text-sm font-medium mb-1 text-indigo-300">Ngày bắt đầu (Giờ VN)</label>
                         <input
                             id="start_date"
                             type="datetime-local"
@@ -133,7 +145,7 @@ export default function DiscountForm({ initialData, onSuccess, onCancel }) {
                         />
                     </div>
                     <div>
-                        <label htmlFor="end_date" className="block text-sm font-medium mb-1">Ngày kết thúc (Tùy chọn)</label>
+                        <label htmlFor="end_date" className="block text-sm font-medium mb-1 text-indigo-300">Ngày kết thúc (Giờ VN)</label>
                         <input
                             id="end_date"
                             type="datetime-local"

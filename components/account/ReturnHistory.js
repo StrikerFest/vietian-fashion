@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatDate } from '@/utils/format'; // [MODIFIED] Imported
 
 export default function ReturnHistory({ returns }) {
     const getStatusColor = (status) => {
@@ -48,7 +49,8 @@ export default function ReturnHistory({ returns }) {
                                 </span>
                             </div>
                             <p className="text-sm text-gray-400">
-                                Đã yêu cầu vào {new Date(req.created_at).toLocaleDateString()} •
+                                {/* [MODIFIED] Use format util */}
+                                Đã yêu cầu vào {formatDate(req.created_at)} •
                                 Cho đơn hàng <Link href={`/order-confirmation/${req.order_id}`} className="text-indigo-400 hover:underline">#{req.order_id}</Link>
                             </p>
                         </div>

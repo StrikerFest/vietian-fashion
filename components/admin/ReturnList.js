@@ -1,6 +1,8 @@
 // components/admin/ReturnList.js
 'use client';
 
+import { formatDate } from '@/utils/format'; // [MODIFIED] Imported
+
 export default function ReturnList({ requests, onView }) {
     const getStatusBadge = (status) => {
         const base = "px-2 py-1 text-xs font-semibold rounded-full";
@@ -31,7 +33,8 @@ export default function ReturnList({ requests, onView }) {
                 {requests.map(req => (
                     <tr key={req.id} className="hover:bg-gray-700/50 text-sm">
                         <td className="p-3 font-mono text-indigo-400">#{req.id}</td>
-                        <td className="p-3 text-gray-300">{new Date(req.created_at).toLocaleDateString('vi-VN')}</td>
+                        {/* [MODIFIED] Use format util */}
+                        <td className="p-3 text-gray-300">{formatDate(req.created_at)}</td>
                         <td className="p-3 font-mono">#{req.order_id}</td>
                         <td className="p-3 font-medium text-white">{req.users?.email || 'Khách vãng lai'}</td>
                         <td className="p-3 text-gray-300">{req.return_items?.reduce((sum, i) => sum + i.quantity, 0)}</td>
