@@ -5,13 +5,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
-// [MODIFIED] Use the new ProductGallery component
 import ProductGallery from '@/components/product/ProductGallery';
 import VariantSelector from '@/components/product/VariantSelector';
 import ProductReviews from '@/components/product/ProductReviews';
 import ProductOptions from '@/components/product/ProductOptions';
 import { useToast } from '@/context/ToastContext';
 import { formatCurrency } from '@/utils/format';
+// [MODIFIED] Import shared helper
+import { getVariantStockStatus } from '@/utils/product-helper';
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -93,22 +94,8 @@ export default function ProductDetailPage() {
         }
     };
 
-    const getStockStatus = (variant) => {
-        if (!variant) return { count: 0, isOutOfStock: true };
-        if (typeof variant.in_stock === 'boolean') {
-            return {
-                count: variant.stock_display || 0,
-                isOutOfStock: !variant.in_stock
-            };
-        }
-        const rawStock = variant.inventory_levels?.[0]?.on_hand || 0;
-        return {
-            count: rawStock,
-            isOutOfStock: rawStock <= 0
-        };
-    };
-
-    const { count: stockOnHand, isOutOfStock } = getStockStatus(selectedVariant);
+    // [MODIFIED] Use shared helper
+    const { count: stockOnHand, isOutOfStock } = getVariantStockStatus(selectedVariant);
 
     if (isLoading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Đang tải sản phẩm...</div>;
     if (!product) return (
@@ -131,7 +118,6 @@ export default function ProductDetailPage() {
                 </nav>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
-                    {/* [MODIFIED] Using ProductGallery instead of manual Image mapping */}
                     <ProductGallery
                         images={product.product_images}
                         name={product.name}

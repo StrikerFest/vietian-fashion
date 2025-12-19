@@ -3,10 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-// [MODIFIED] Import the new ProductGallery
 import ProductGallery from '@/components/product/ProductGallery';
 import { useCart } from '@/context/CartContext';
 import { formatCurrency } from '@/utils/format';
+// [MODIFIED] Import shared stock helper
+import { getVariantStockStatus } from '@/utils/product-helper';
 
 export default function QuickViewModal({ productId, onClose }) {
     const { addToCart } = useCart();
@@ -55,21 +56,8 @@ export default function QuickViewModal({ productId, onClose }) {
         }
     };
 
-    const getStockStatus = (variant) => {
-        if (!variant) return { count: 0, isOutOfStock: true };
-
-        // Handle both public (masked) and admin (raw) data structures
-        const stock = typeof variant.in_stock === 'boolean'
-            ? (variant.stock_display || 0)
-            : (variant.inventory_levels?.[0]?.on_hand || 0);
-
-        return {
-            count: stock,
-            isOutOfStock: stock <= 0
-        };
-    };
-
-    const { count: stockOnHand, isOutOfStock } = getStockStatus(selectedVariant);
+    // [MODIFIED] Use shared helper instead of local logic
+    const { count: stockOnHand, isOutOfStock } = getVariantStockStatus(selectedVariant);
 
     const getVariantLabel = (variant) => {
         if (!variant) return '';
@@ -102,7 +90,6 @@ export default function QuickViewModal({ productId, onClose }) {
                     <div className="p-8 text-center">Đang tải sản phẩm...</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
-                        {/* [MODIFIED] Replaced simple Image with ProductGallery */}
                         <div className="relative w-full">
                             <ProductGallery
                                 images={product.product_images}
@@ -112,6 +99,9 @@ export default function QuickViewModal({ productId, onClose }) {
 
                         <div className="flex flex-col">
                             <h1 className="text-3xl font-extrabold mb-2">{product.name}</h1>
+
+                            {/* Note: In QuickView/Detail, we usually show the specific variant price
+                                because one is selected by default. The "From...To" is used on Cards. */}
                             <p className="text-2xl font-semibold text-indigo-400 mb-4">
                                 {formatCurrency(selectedVariant?.price)}
                             </p>

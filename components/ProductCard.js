@@ -2,10 +2,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import WishlistButton from '@/components/product/WishlistButton';
-import { formatCurrency } from '@/utils/format';
+import PriceDisplay from '@/components/product/PriceDisplay';
 
 export default function ProductCard({ product, onQuickViewClick }) {
-    const firstVariant = product.product_variants?.[0];
     const imageUrl = product.image_url || 'https://placehold.co/600x400/1F2937/FFFFFF?text=No+Image';
 
     const handleQuickViewClick = (e) => {
@@ -42,15 +41,8 @@ export default function ProductCard({ product, onQuickViewClick }) {
                     </Link>
                 </h3>
 
-                {firstVariant ? (
-                    <p className="mt-1 text-md font-medium text-indigo-400">
-                        {formatCurrency(firstVariant.price)}
-                    </p>
-                ) : (
-                    <p className="mt-1 text-md text-gray-500">
-                        Không có sẵn
-                    </p>
-                )}
+                {/* [MODIFIED] Use shared PriceDisplay component for From-To and OOS logic */}
+                <PriceDisplay product={product} />
 
                 <button
                     onClick={handleQuickViewClick}
