@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image'; // [FIX] Import Next.js Image
+import Image from 'next/image';
 import VietQRDisplay from './VietQRDisplay';
 import { formatCurrency } from '@/utils/format';
 
@@ -32,8 +32,13 @@ export default function OrderReceipt({ order }) {
         return <span className="text-sm text-gray-500">{variant.sku}</span>;
     };
 
-    // --- Check if we need to show payment info ---
-    const showPaymentQR = order.status === 'pending';
+    // --- LOGIC: Determine Payment Method from 'shipping_carrier' workaround ---
+    // We check if the carrier string contains the payment method tag we saved earlier.
+    const isVietQR = order.shipping_carrier?.includes('VIETQR');
+    const isCOD = order.shipping_carrier?.includes('COD') || !order.shipping_carrier; // Default to COD if null
+
+    // Show QR only if it's VietQR AND the order is still pending
+    const showPaymentQR = order.status === 'pending' && isVietQR;
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -45,11 +50,24 @@ export default function OrderReceipt({ order }) {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                     )}
                 </div>
-                <h1 className="text-4xl font-extrabold text-white mb-2">{showPaymentQR ? 'Đã đặt hàng!' : 'Đơn hàng đã xác nhận!'}</h1>
-                <p className="text-gray-400">Đơn hàng <span className="font-mono text-indigo-400">#{order.id}</span> đã được {showPaymentQR ? 'tiếp nhận' : 'xử lý'}.</p>
+
+                <h1 className="text-4xl font-extrabold text-white mb-2">
+                    {showPaymentQR ? 'Chờ thanh toán' : 'Đặt hàng thành công!'}
+                </h1>
+
+                <p className="text-gray-400">
+                    Đơn hàng <span className="font-mono text-indigo-400">#{order.id}</span> đã được {showPaymentQR ? 'khởi tạo' : 'tiếp nhận'}.
+                </p>
+
+                {/* COD Message */}
+                {isCOD && order.status === 'pending' && (
+                    <p className="text-gray-300 mt-2 bg-gray-800 inline-block px-4 py-2 rounded-lg border border-gray-700">
+                        🚚 Bạn vui lòng chuẩn bị số tiền <strong>{formatCurrency(order.total_amount)}</strong> khi nhận hàng.
+                    </p>
+                )}
             </div>
 
-            {/* --- NEW: VietQR Integration --- */}
+            {/* --- VietQR Integration --- */}
             {showPaymentQR && (
                 <div className="mb-12">
                     <VietQRDisplay order={order} />
@@ -61,14 +79,12 @@ export default function OrderReceipt({ order }) {
                     <h2 className="text-xl font-bold text-white mb-4">Tóm tắt đơn hàng</h2>
                     <div className="space-y-4">
                         {order.order_items.map((item, index) => {
-                            // [FIX] Extract Image URL safely
                             const imageUrl = item.product_variants?.products?.image_url;
                             const productName = item.product_variants?.products?.name || 'Sản phẩm';
 
                             return (
                                 <div key={index} className="flex justify-between items-start">
                                     <div className="flex items-center gap-4">
-                                        {/* [FIX] Replaced Placeholder div with Next.js Image */}
                                         <div className="relative w-16 h-16 bg-gray-700 rounded-md overflow-hidden shrink-0 border border-gray-600">
                                             {imageUrl ? (
                                                 <Image
@@ -124,11 +140,17 @@ export default function OrderReceipt({ order }) {
                                 <p className="font-bold mt-2">{shippingAddress.country}</p>
                             </div>
                         ) : <p className="text-gray-500 italic">Thanh toán kỹ thuật số / Khách vãng lai</p>}
+
                         <div className="mt-6 pt-6 border-t border-gray-700">
                             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Trạng thái</h3>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${showPaymentQR ? 'bg-yellow-900 text-yellow-200' : 'bg-green-900 text-green-200'}`}>
-                                {order.status}
-                            </span>
+                            <div className="flex gap-2">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${showPaymentQR ? 'bg-yellow-900 text-yellow-200' : 'bg-green-900 text-green-200'}`}>
+                                    {order.status}
+                                </span>
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
+                                    {isVietQR ? 'Chuyển khoản' : 'COD'}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <div className="p-6 md:p-8 bg-gray-700/10">

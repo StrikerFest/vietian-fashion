@@ -13,7 +13,10 @@ export default function CartSummary({
                                         onCheckout,
                                         isCheckingOut,
                                         session,
-                                        hasSelectedAddress
+                                        hasSelectedAddress,
+                                        // --- NEW PROPS ---
+                                        paymentMethod,
+                                        setPaymentMethod
                                     }) {
     const [discountInput, setDiscountInput] = useState('');
     const [discountMessage, setDiscountMessage] = useState({ type: '', text: '' });
@@ -151,6 +154,47 @@ export default function CartSummary({
                 <div className="border-t border-gray-700 pt-4 mt-4 flex justify-between items-end">
                     <span className="text-white font-bold text-lg">Tổng cộng</span>
                     <span className="text-2xl font-extrabold text-white">{formatCurrency(finalTotal)}</span>
+                </div>
+            </div>
+
+            {/* --- PAYMENT METHOD SELECTION --- */}
+            <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Phương thức thanh toán</h3>
+                <div className="space-y-3">
+                    {/* Option 1: COD */}
+                    <label className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${paymentMethod === 'cod' ? 'bg-indigo-900/20 border-indigo-500' : 'bg-gray-900 border-gray-700 hover:border-gray-600'}`}>
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="radio"
+                                name="paymentMethod"
+                                value="cod"
+                                checked={paymentMethod === 'cod'}
+                                onChange={() => setPaymentMethod('cod')}
+                                className="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-500 focus:ring-indigo-500 focus:ring-2"
+                            />
+                            <span className="text-sm font-medium text-white">Thanh toán khi nhận hàng (COD)</span>
+                        </div>
+                        <span className="text-xl">🚚</span>
+                    </label>
+
+                    {/* Option 2: VietQR */}
+                    <label className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${paymentMethod === 'vietqr' ? 'bg-indigo-900/20 border-indigo-500' : 'bg-gray-900 border-gray-700 hover:border-gray-600'}`}>
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="radio"
+                                name="paymentMethod"
+                                value="vietqr"
+                                checked={paymentMethod === 'vietqr'}
+                                onChange={() => setPaymentMethod('vietqr')}
+                                className="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-500 focus:ring-indigo-500 focus:ring-2"
+                            />
+                            <div className="flex flex-col">
+                                <span className="text-sm font-medium text-white">Chuyển khoản ngân hàng</span>
+                                <span className="text-xs text-indigo-400">Quét mã QR VietQR</span>
+                            </div>
+                        </div>
+                        <span className="text-xl">🏦</span>
+                    </label>
                 </div>
             </div>
 

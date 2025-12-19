@@ -3,14 +3,15 @@ import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
-// [FIX] Define keys that are SAFE for the public to read
+// [MODIFIED] Added 'payment_config' to public keys
 const PUBLIC_KEYS = [
-    'homepage_config',      // Required for Homepage Banners/Layout
-    'ai_search_attributes', // Required for AI Search
+    'homepage_config',
+    'ai_search_attributes',
     'site_name',
     'contact_email',
-    'tax_config',           // Required for Cart/Checkout calculation
-    'shipping_config'       // Required for Cart/Checkout calculation
+    'tax_config',
+    'shipping_config',
+    'payment_config' // <--- Added this so VietQRDisplay works for guests
 ];
 
 export async function GET(request) {

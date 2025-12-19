@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import CartItemList from '@/components/cart/CartItemList';
 import CartSummary from '@/components/cart/CartSummary';
 import ShippingAddressSelector from '@/components/cart/ShippingAddressSelector';
-import GuestAddressForm from '@/components/cart/GuestAddressForm'; // --- NEW IMPORT ---
+import GuestAddressForm from '@/components/cart/GuestAddressForm';
 import AddressModal from '@/components/AddressModal';
 import { useToast } from '@/context/ToastContext';
 
@@ -39,10 +39,12 @@ export default function CartPage() {
     const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
     const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
-    // --- NEW GUEST ADDRESS STATE ---
+    // --- Guest Address State ---
     const [guestAddressData, setGuestAddressData] = useState(null);
     const [isGuestAddressValid, setIsGuestAddressValid] = useState(false);
 
+    // --- NEW: Payment Method State ---
+    const [paymentMethod, setPaymentMethod] = useState('cod'); // Default to COD
 
     // --- Address Logic ---
     const fetchAddresses = useCallback(async () => {
@@ -84,7 +86,6 @@ export default function CartPage() {
     const handleCheckout = async () => {
         let finalAddressId = null;
         let finalGuestAddress = null;
-        let requiresAddress = true; // Assume physical goods
 
         if (session) {
             if (!selectedAddressId) {
@@ -111,8 +112,9 @@ export default function CartPage() {
                     discountId: appliedDiscount?.id || null,
                     userId: session?.user?.id || null,
                     addressId: finalAddressId,
-                    // --- NEW: Pass raw address data for guest checkout ---
-                    guestAddressData: finalGuestAddress
+                    guestAddressData: finalGuestAddress,
+                    // --- NEW: Pass Payment Method ---
+                    paymentMethod
                 }),
             });
 
@@ -153,10 +155,7 @@ export default function CartPage() {
         );
     }
 
-    // Check if the user is logged in AND has selected a valid address OR if they are a guest AND have a valid guest address
-    const hasValidAddress = session
-        ? !!selectedAddressId
-        : isGuestAddressValid;
+    const hasValidAddress = session ? !!selectedAddressId : isGuestAddressValid;
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -184,7 +183,6 @@ export default function CartPage() {
                             onSelect={setSelectedAddressId}
                             onAddNew={() => setIsAddressModalOpen(true)}
                         >
-                            {/* --- NEW: Pass Guest Form as Child if no session --- */}
                             {!session && (
                                 <GuestAddressForm
                                     onChange={setGuestAddressData}
@@ -194,7 +192,7 @@ export default function CartPage() {
                         </ShippingAddressSelector>
                     </div>
 
-                    {/* Right Column: Summary */}
+                    {/* Right Column: Summary & Payment */}
                     <div className="lg:col-span-1">
                         <CartSummary
                             subtotal={subtotal}
@@ -206,14 +204,16 @@ export default function CartPage() {
                             onCheckout={handleCheckout}
                             isCheckingOut={isCheckingOut}
                             session={session}
-                            // --- MODIFIED: Use the combined validation ---
                             hasSelectedAddress={hasValidAddress}
+
+                            // --- NEW: Props for Payment Selection ---
+                            paymentMethod={paymentMethod}
+                            setPaymentMethod={setPaymentMethod}
                         />
                     </div>
                 </div>
             </div>
 
-            {/* Address Modal */}
             <AddressModal
                 isOpen={isAddressModalOpen}
                 onClose={() => setIsAddressModalOpen(false)}

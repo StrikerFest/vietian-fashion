@@ -5,11 +5,6 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { Resend } from 'resend';
 
-// Helper to format currency
-const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-};
-
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request) {
@@ -35,7 +30,8 @@ export async function POST(request) {
 
     try {
         const body = await request.json();
-        const { cartItems, addressId, discountId, guestAddressData } = body;
+        // --- NEW: Destructure paymentMethod ---
+        const { cartItems, addressId, discountId, guestAddressData, paymentMethod } = body;
 
         if (!cartItems || cartItems.length === 0) {
             return NextResponse.json({ error: 'Giỏ hàng trống.' }, { status: 400 });
@@ -129,7 +125,11 @@ export async function POST(request) {
         const taxAmount = Math.round(taxableAmount * taxRate);
         const totalAmount = taxableAmount + taxAmount + shippingCost;
 
-        // --- Step 4: Create Order ---
+        // --- Step 4: Create Order & Store Payment Method ---
+        // [STRATEGY] We store the payment method in 'shipping_carrier' as a prefix
+        // This makes it visible in the Admin Dashboard without new columns.
+        const paymentLabel = paymentMethod === 'vietqr' ? 'METHOD: VIETQR' : 'METHOD: COD';
+
         const { data: newOrder, error: orderError } = await adminSupabase
             .from('orders')
             .insert({
@@ -139,7 +139,9 @@ export async function POST(request) {
                 total_amount: totalAmount,
                 tax_amount: taxAmount,
                 shipping_cost: shippingCost,
-                status: 'pending'
+                status: 'pending',
+                // [MODIFIED] Store Payment Method here
+                shipping_carrier: paymentLabel
             })
             .select()
             .single();
@@ -172,24 +174,29 @@ export async function POST(request) {
 
         // --- Step 8: Email ---
         if (process.env.RESEND_API_KEY) {
+            const paymentText = paymentMethod === 'vietqr' ? 'Chuyển khoản VietQR' : 'Thanh toán khi nhận hàng (COD)';
             resend.emails.send({
                 from: 'Vietian Fashion <orders@vietianfashion.com>',
-                to: ['customer@example.com'],
+                to: ['customer@example.com'], // In production use user's email
                 subject: `Xác nhận đơn hàng #${newOrder.id}`,
-                html: `<p>Mã đơn hàng: #${newOrder.id}</p>`
+                html: `
+                    <h1>Cảm ơn bạn đã đặt hàng!</h1>
+                    <p>Mã đơn hàng: <strong>#${newOrder.id}</strong></p>
+                    <p>Phương thức thanh toán: <strong>${paymentText}</strong></p>
+                    ${paymentMethod === 'vietqr' ? '<p>Vui lòng quét mã QR trên trang xác nhận để hoàn tất thanh toán.</p>' : ''}
+                `
             }).catch(console.error);
         }
 
         // --- RETURN SUCCESS + COOKIE ---
         const response = NextResponse.json({ success: true, orderId: newOrder.id });
 
-        // [FIX] Set secure cookie so Guest can view this specific order
         response.cookies.set({
             name: 'recent_order',
             value: newOrder.id.toString(),
             httpOnly: true,
             path: '/',
-            maxAge: 3600, // 1 hour
+            maxAge: 3600,
             sameSite: 'lax'
         });
 
