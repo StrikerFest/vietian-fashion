@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { DEFAULT_PRODUCT_GENERATE_PROMPT } from '@/utils/ai-prompts';
+import { generateSlug } from '@/utils/format'; // [FIX] Import the robust slug utility
 
 // 1. Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -19,15 +20,8 @@ async function fileToGenerativePart(file) {
     };
 }
 
-// Helper: Create a slug from a name
-function generateSlug(name) {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '') // Remove non-word chars
-        .replace(/[\s_-]+/g, '-') // Replace spaces with dashes
-        .replace(/^-+|-+$/g, ''); // Trim dashes
-}
+// [FIX] Removed local 'generateSlug' function.
+// We now use the imported one which handles Vietnamese characters (Á -> a) correctly.
 
 // Helper: Ensure SKU Uniqueness
 async function ensureUniqueSku(supabase) {

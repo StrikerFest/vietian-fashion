@@ -1,21 +1,38 @@
 // utils/ai-prompts.js
 
-export const DEFAULT_PRODUCT_GENERATE_PROMPT = `Bạn là một chuyên gia quản trị hàng hóa thời trang tại Việt Nam. Hãy phân tích hình ảnh này và trích xuất dữ liệu sản phẩm cho cơ sở dữ liệu thương mại điện tử.
+export const DEFAULT_PRODUCT_GENERATE_PROMPT = `
+Bạn là một chuyên gia thời trang AI. Nhiệm vụ của bạn là phân tích hình ảnh sản phẩm và tạo ra dữ liệu JSON có cấu trúc cho hệ thống thương mại điện tử.
 
-Hãy trả về một JSON object hợp lệ với các trường sau (Tất cả giá trị phải là Tiếng Việt chuẩn):
-1. "name": Tên sản phẩm sáng tạo, chuẩn SEO (tối đa 60 ký tự). Ví dụ: "Áo Sơ Mi Oxford Form Rộng".
-2. "description": Mô tả marketing hấp dẫn gồm 2-3 câu, tập trung vào lợi ích và phong cách.
-3. "category": Danh mục sản phẩm chính xác nhất (Dùng cho menu điều hướng). Ví dụ: "Áo Khoác Bomber", "Đầm Maxi", "Túi Tote".
-4. "attributes": Một object chứa các cặp Key-Value về thuộc tính sản phẩm. 
-   - Key là Tên Nhóm Thuộc Tính. Ưu tiên sử dụng các nhóm sau nếu phù hợp:
+YÊU CẦU QUAN TRỌNG VỀ THUỘC TÍNH (ATTRIBUTES):
+1. **Ngắn gọn (Short Tags):** Mỗi giá trị thuộc tính chỉ được dài từ 1-4 từ. Tuyệt đối không viết câu dài.
+   - SAI: "Thích hợp cho đi biển mùa hè", "Vải cotton mềm mại thấm hút mồ hôi"
+   - ĐÚNG: "Đi biển", "Mùa hè", "Cotton", "Mềm mại", "Thấm hút tốt"
+   
+2. **Số lượng (Quantity):** Hãy tạo ra NHIỀU thẻ (tags) chi tiết để mô tả sản phẩm.
+   - Mục tiêu: 8 - 12 thuộc tính/tags cho mỗi sản phẩm.
+   - Hãy phân tích kỹ: Kiểu cổ áo, Kiểu tay, Họa tiết, Phong cách, Dịp sử dụng.
+
+3. **Định dạng:** Trả về JSON thuần túy, không dùng Markdown (chỉ {}).
+
+Cấu trúc JSON mong muốn:
+{
+  "name": "Tên sản phẩm ngắn gọn, chuẩn SEO",
+  "price_estimate": 0,
+  "description": "Mô tả hấp dẫn khoảng 2-3 câu.",
+  "category": "Danh mục chính (Ví dụ: Áo Thun, Váy, Quần Jeans)",
+  "attributes": {
+    "Màu sắc": ["Xanh Navy", "Trắng"],
+    "Chất liệu": ["Cotton", "Spandex"],
+    "Kiểu dáng": ["Form rộng", "Cổ tròn", "Tay lỡ"],
+    "Phong cách": ["Hàn Quốc", "Streetwear", "Tối giản"],
+    "Họa tiết": ["Trơn", "Kẻ sọc"],
+    "Dịp sử dụng": ["Đi học", "Đi chơi"]
+  }
+}
+
+Hãy ưu tiên sử dụng các thuộc tính có sẵn dưới đây nếu phù hợp, nhưng hãy tự do thêm các thuộc tính mới ngắn gọn để mô tả chính xác ảnh:
 {{attributeList}}
-   - Value là Giá trị cụ thể. Có thể là chuỗi hoặc mảng chuỗi (nếu có nhiều giá trị). Ví dụ: "Xanh Navy" hoặc ["Xanh Navy", "Trắng"].
-   - Hãy cố gắng trích xuất chi tiết nhất có thể.
-5. "price_estimate": Giá bán ước tính bằng VNĐ (số nguyên, ví dụ: 450000).
-
-QUAN TRỌNG: 
-- Chỉ trả về JSON thô. Không dùng markdown formatting.
-- Ngôn ngữ hoàn toàn là Tiếng Việt.`;
+`;
 
 export const DEFAULT_TAGS_PROMPT = `Bạn là một chuyên gia thời trang tại Việt Nam. 
 Hãy phân tích hình ảnh, tên và mô tả của sản phẩm này.
@@ -29,7 +46,7 @@ Nhiệm vụ của bạn là phân loại sản phẩm này theo các Nhóm Thu�
 Hướng dẫn quan trọng:
 1. **Ngôn ngữ**: Tất cả các giá trị (values) trả về PHẢI là Tiếng Việt chuẩn.
 2. **Định dạng**: Trả về duy nhất một JSON object hợp lệ.
-3. **Keys**: Tên các key trong JSON phải KHỚP CHÍNH XÁC với tên Nhóm Thuộc Tính được liệt kê ở trên.
+3. **Ngắn gọn**: Các tag chỉ được phép từ 1-4 từ. KHÔNG viết câu.
 4. **Values**: Giá trị phải là mảng các chuỗi (Array of Strings).
    - Ví dụ: Thay vì "Blue", hãy trả về ["Xanh dương"].
    - Thay vì "Cotton", hãy trả về ["Vải Cotton", "Thoáng mát"].

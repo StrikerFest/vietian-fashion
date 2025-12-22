@@ -1,7 +1,7 @@
 // components/admin/BulkImportModal.js
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
 
 export default function BulkImportModal({ isOpen, onClose, onComplete }) {
@@ -11,7 +11,22 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
     const [files, setFiles] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState({ total: 0, completed: 0, successful: 0 });
-    const [logs, setLogs] = useState([]); // To show specific "Created 'Blue Shirt'" messages
+    const [logs, setLogs] = useState([]);
+
+    // [MODIFIED] Helper to clear state
+    const resetState = () => {
+        setFiles([]);
+        setLogs([]);
+        setProgress({ total: 0, completed: 0, successful: 0 });
+        setIsProcessing(false);
+    };
+
+    // [MODIFIED] Auto-reset when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            resetState();
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -103,12 +118,6 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
         for (let i = 0; i < Math.min(CONCURRENT_LIMIT, files.length); i++) {
             next();
         }
-    };
-
-    const reset = () => {
-        setFiles([]);
-        setLogs([]);
-        setProgress({ total: 0, completed: 0, successful: 0 });
     };
 
     return (
@@ -208,7 +217,7 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                 {/* Footer Actions */}
                 <div className="p-6 border-t border-gray-800 bg-gray-900/50 flex justify-between">
                     <button
-                        onClick={reset}
+                        onClick={resetState}
                         disabled={isProcessing || files.length === 0}
                         className="text-sm text-gray-500 hover:text-white disabled:opacity-30"
                     >
