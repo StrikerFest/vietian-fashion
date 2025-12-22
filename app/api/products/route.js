@@ -29,9 +29,10 @@ export async function GET(request) {
     const sort = searchParams.get('sort') || 'created_at-desc';
     const collectionId = searchParams.get('collection_id');
     const categoryId = searchParams.get('category_id');
+    const type = searchParams.get('type'); // [FIX] New parameter 'ai' or 'standard'
 
     // Filter Params
-    const reservedParams = ['page', 'limit', 'search', 'sort', 'collection_id', 'category_id', 'scope'];
+    const reservedParams = ['page', 'limit', 'search', 'sort', 'collection_id', 'category_id', 'scope', 'type'];
     const attributeFilters = {};
     searchParams.forEach((value, key) => {
         if (!reservedParams.includes(key)) {
@@ -49,6 +50,13 @@ export async function GET(request) {
             .in('status', statusFilter);
 
         if (search) baseQuery = baseQuery.ilike('name', `%${search}%`);
+
+        // [FIX] Apply AI Filter logic on Server Side
+        if (type === 'ai') {
+            baseQuery = baseQuery.ilike('name', '[AI]%');
+        } else if (type === 'standard') {
+            baseQuery = baseQuery.not('name', 'ilike', '[AI]%');
+        }
 
         if (collectionId) {
             const { data: linked } = await supabase.from('product_collections').select('product_id').eq('collection_id', collectionId);

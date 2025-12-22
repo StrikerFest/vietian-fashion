@@ -26,7 +26,7 @@ export default function AdminProductsPage() {
     const [editingProduct, setEditingProduct] = useState(null);
     const [selectedProductIds, setSelectedProductIds] = useState([]);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState('all');
+    const [activeTab, setActiveTab] = useState('all'); // 'all' (Standard) | 'generated' (AI)
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
@@ -38,11 +38,13 @@ export default function AdminProductsPage() {
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
+            // [FIX] Send 'type' to server so pagination counts are correct for the specific tab
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: limit.toString(),
                 search: searchQuery,
-                scope: 'admin'
+                scope: 'admin',
+                type: activeTab === 'generated' ? 'ai' : 'standard'
             });
 
             const [productsRes, categoriesRes, collectionsRes] = await Promise.all([
@@ -67,7 +69,6 @@ export default function AdminProductsPage() {
 
             setCategories(await categoriesRes.json() || []);
 
-            // FIX: collections API returns { data: [...], meta: ... }
             const collectionsData = await collectionsRes.json();
             setCollections(collectionsData.data || []);
 
@@ -77,7 +78,7 @@ export default function AdminProductsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, searchQuery, addToast]);
+    }, [page, limit, searchQuery, activeTab, addToast]); // [FIX] Added activeTab dependency
 
     useEffect(() => {
         const timeout = setTimeout(() => {
@@ -106,15 +107,8 @@ export default function AdminProductsPage() {
     const filteredAndSortedProducts = useMemo(() => {
         let result = [...products];
 
-        if (activeTab === 'generated') {
-            // UPDATED: Look for [AI] prefix
-            result = result.filter(p => p.name.startsWith('[AI]'));
-        } else {
-            // UPDATED: Filter out [AI] unless specifically searched for
-            if (!searchQuery.includes('[AI]')) {
-                result = result.filter(p => !p.name.startsWith('[AI]'));
-            }
-        }
+        // [FIX] Removed client-side [AI] filtering.
+        // The server now returns exactly what we need for the current page & tab.
 
         if (filterCategory) {
             result = result.filter(p => p.catalog_categories?.some(c => c.id.toString() === filterCategory));
@@ -167,7 +161,7 @@ export default function AdminProductsPage() {
         });
 
         return result;
-    }, [products, filterCategory, filterCollection, filterAttribute, filterStock, sortOption, activeTab, searchQuery]);
+    }, [products, filterCategory, filterCollection, filterAttribute, filterStock, sortOption, searchQuery]);
 
     const allVisibleProductsSelected = filteredAndSortedProducts.length > 0 &&
         filteredAndSortedProducts.every(p => selectedProductIds.includes(p.id));
@@ -218,6 +212,12 @@ export default function AdminProductsPage() {
     const handleLimitChange = (newLimit) => {
         setLimit(newLimit);
         setPage(1);
+    };
+
+    // [FIX] Handle Tab Change properly
+    const handleTabChange = (newTab) => {
+        setActiveTab(newTab);
+        setPage(1); // Reset to page 1 to avoid "Page 5 of 2" errors
     };
 
     return (
@@ -271,7 +271,7 @@ export default function AdminProductsPage() {
                 <>
                     <div className="flex gap-1 bg-gray-800/50 p-1 rounded-lg w-fit mb-6 border border-gray-700">
                         <button
-                            onClick={() => setActiveTab('all')}
+                            onClick={() => handleTabChange('all')}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
                                 activeTab === 'all'
                                     ? 'bg-gray-700 text-white shadow-sm'
@@ -281,7 +281,7 @@ export default function AdminProductsPage() {
                             Sản phẩm tiêu chuẩn
                         </button>
                         <button
-                            onClick={() => setActiveTab('generated')}
+                            onClick={() => handleTabChange('generated')}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
                                 activeTab === 'generated'
                                     ? 'bg-indigo-900/50 text-indigo-300 border border-indigo-500/30 shadow-sm'
@@ -372,7 +372,6 @@ export default function AdminProductsPage() {
                                                                 <img src={product.image_url} alt="" className="w-10 h-10 rounded object-cover border border-gray-700"/>
                                                             )}
                                                             <div>
-                                                                {/* UPDATED: Check for [AI] prefix */}
                                                                 <span className={`${product.name.startsWith('[AI]') ? 'text-indigo-300' : 'text-white'} text-base block`}>
                                                                     {product.name}
                                                                 </span>
