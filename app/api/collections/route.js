@@ -1,7 +1,8 @@
 // app/api/collections/route.js
 import {NextResponse} from 'next/server';
-import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'; // Use dynamic
+import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs';
 import {cookies} from 'next/headers';
+import { generateSlug } from '@/utils/format'; // [MODIFIED] Import Helper
 
 // GET all active collections (Public)
 export async function GET(request) {
@@ -43,18 +44,17 @@ export async function POST(request) {
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
-    // [SECURITY PATCH] ADMIN ONLY
     const {data: {session}} = await supabase.auth.getSession();
     if (!session) {
         return NextResponse.json({error: 'Unauthorized'}, {status: 401});
     }
-    // ----------------------------
 
     const {name, description, is_featured, seo_title, seo_description} = await request.json();
 
     if (!name) return NextResponse.json({error: 'Yêu cầu Tên'}, {status: 400});
 
-    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    // [MODIFIED] Use shared helper
+    const slug = generateSlug(name);
 
     try {
         // Check existing

@@ -7,9 +7,10 @@ Hãy trả về một JSON object hợp lệ với các trường sau (Tất c�
 2. "description": Mô tả marketing hấp dẫn gồm 2-3 câu, tập trung vào lợi ích và phong cách.
 3. "category": Danh mục sản phẩm chính xác nhất (Dùng cho menu điều hướng). Ví dụ: "Áo Khoác Bomber", "Đầm Maxi", "Túi Tote".
 4. "attributes": Một object chứa các cặp Key-Value về thuộc tính sản phẩm. 
-   - Key là Tên Nhóm Thuộc Tính (Ví dụ: "Màu sắc", "Chất liệu", "Phong cách", "Họa tiết", "Dịp sử dụng").
-   - Value là Giá trị cụ thể (Ví dụ: "Xanh Navy", "Vải Lụa", "Vintage", "Kẻ Sọc", "Dạo phố").
-   - Hãy cố gắng trích xuất ít nhất 3-5 thuộc tính quan trọng.
+   - Key là Tên Nhóm Thuộc Tính. Ưu tiên sử dụng các nhóm sau nếu phù hợp:
+{{attributeList}}
+   - Value là Giá trị cụ thể. Có thể là chuỗi hoặc mảng chuỗi (nếu có nhiều giá trị). Ví dụ: "Xanh Navy" hoặc ["Xanh Navy", "Trắng"].
+   - Hãy cố gắng trích xuất chi tiết nhất có thể.
 5. "price_estimate": Giá bán ước tính bằng VNĐ (số nguyên, ví dụ: 450000).
 
 QUAN TRỌNG: 

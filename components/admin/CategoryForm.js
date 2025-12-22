@@ -1,6 +1,8 @@
 // components/admin/CategoryForm.js
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+// [MODIFIED] Import shared helper
+import { generateSlug } from '@/utils/format';
 
 export default function CategoryForm({ initialData, onSubmit, onCancel }) {
     const [formData, setFormData] = useState({
@@ -11,10 +13,26 @@ export default function CategoryForm({ initialData, onSubmit, onCancel }) {
         image_url: initialData?.image_url || '',
         type: initialData?.type || 'catalog',
         is_active: initialData?.is_active ?? true,
-        // Ensure we slice correctly for datetime-local input
         start_date: initialData?.start_date ? new Date(initialData.start_date).toISOString().slice(0, 16) : '',
         end_date: initialData?.end_date ? new Date(initialData.end_date).toISOString().slice(0, 16) : ''
     });
+
+    const [isManuallyEdited, setIsManuallyEdited] = useState(!!initialData?.slug);
+
+    // [MODIFIED] Auto-generate slug when name changes, UNLESS user manually edited the slug
+    useEffect(() => {
+        if (!isManuallyEdited && formData.name) {
+            setFormData(prev => ({
+                ...prev,
+                slug: generateSlug(formData.name)
+            }));
+        }
+    }, [formData.name, isManuallyEdited]);
+
+    const handleSlugChange = (e) => {
+        setFormData({ ...formData, slug: e.target.value });
+        setIsManuallyEdited(true); // Stop auto-generating once user touches this field
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -24,9 +42,6 @@ export default function CategoryForm({ initialData, onSubmit, onCancel }) {
         if (!payload.start_date) payload.start_date = null;
         if (!payload.end_date) payload.end_date = null;
 
-        // [MODIFIED] Enforce Vietnam Timezone (+07:00) on Save
-        // This ensures that if you pick 10:00 AM, it is saved as 10:00 AM VN Time (03:00 UTC)
-        // instead of 10:00 AM UTC (17:00 VN Time).
         if (payload.start_date && !payload.start_date.includes('Z') && !payload.start_date.includes('+')) {
             payload.start_date = `${payload.start_date}:00+07:00`;
         }
@@ -40,7 +55,6 @@ export default function CategoryForm({ initialData, onSubmit, onCancel }) {
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
-                {/* Basic Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-400 mb-1">Tên danh mục</label>
@@ -58,9 +72,11 @@ export default function CategoryForm({ initialData, onSubmit, onCancel }) {
                             type="text"
                             required
                             value={formData.slug}
-                            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                            className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500"
+                            onChange={handleSlugChange}
+                            placeholder="tự-động-tạo"
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
                         />
+                        <p className="text-[10px] text-gray-500 mt-1">Sẽ tự động tạo từ tên nếu để trống.</p>
                     </div>
                 </div>
 
@@ -74,7 +90,6 @@ export default function CategoryForm({ initialData, onSubmit, onCancel }) {
                     />
                 </div>
 
-                {/* Time Fencing Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-700 pt-4">
                     <div>
                         <label className="block text-sm font-medium text-indigo-400 mb-1">Ngày bắt đầu (VN Time)</label>
@@ -96,7 +111,6 @@ export default function CategoryForm({ initialData, onSubmit, onCancel }) {
                     </div>
                 </div>
 
-                {/* Status Toggle */}
                 <div className="flex items-center gap-3 pt-2">
                     <label className="relative inline-flex items-center cursor-pointer">
                         <input

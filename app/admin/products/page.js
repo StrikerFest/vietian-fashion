@@ -107,10 +107,12 @@ export default function AdminProductsPage() {
         let result = [...products];
 
         if (activeTab === 'generated') {
-            result = result.filter(p => p.name.startsWith('[G]'));
+            // UPDATED: Look for [AI] prefix
+            result = result.filter(p => p.name.startsWith('[AI]'));
         } else {
-            if (!searchQuery.includes('[G]')) {
-                result = result.filter(p => !p.name.startsWith('[G]'));
+            // UPDATED: Filter out [AI] unless specifically searched for
+            if (!searchQuery.includes('[AI]')) {
+                result = result.filter(p => !p.name.startsWith('[AI]'));
             }
         }
 
@@ -370,7 +372,8 @@ export default function AdminProductsPage() {
                                                                 <img src={product.image_url} alt="" className="w-10 h-10 rounded object-cover border border-gray-700"/>
                                                             )}
                                                             <div>
-                                                                <span className={`${product.name.startsWith('[G]') ? 'text-indigo-300' : 'text-white'} text-base block`}>
+                                                                {/* UPDATED: Check for [AI] prefix */}
+                                                                <span className={`${product.name.startsWith('[AI]') ? 'text-indigo-300' : 'text-white'} text-base block`}>
                                                                     {product.name}
                                                                 </span>
                                                                 {/* Status Badge */}

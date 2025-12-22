@@ -29,28 +29,24 @@ function generateSlug(name) {
         .replace(/^-+|-+$/g, ''); // Trim dashes
 }
 
-// --- NEW: Helper to ensure SKU Uniqueness ---
+// Helper: Ensure SKU Uniqueness
 async function ensureUniqueSku(supabase) {
     let isUnique = false;
     let sku = '';
     let attempts = 0;
 
     while (!isUnique && attempts < 5) {
-        // Generate candidate: GEN-{timestamp}-{random}
         sku = `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-        // Check DB
         const { data } = await supabase
             .from('product_variants')
             .select('sku')
             .eq('sku', sku)
-            .maybeSingle(); // distinct from .single(), doesn't throw if not found
+            .maybeSingle();
 
         if (!data) {
             isUnique = true;
         } else {
             attempts++;
-            // Wait 1ms to ensure Date.now() changes if loop runs fast
             await new Promise(r => setTimeout(r, 2));
         }
     }
@@ -58,7 +54,6 @@ async function ensureUniqueSku(supabase) {
     if (!isUnique) throw new Error("Không thể tạo SKU duy nhất sau nhiều lần thử.");
     return sku;
 }
-// ---------------------------------------------
 
 export async function POST(request) {
     const cookieStore = await cookies();
@@ -95,14 +90,27 @@ export async function POST(request) {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const imagePart = await fileToGenerativePart(imageFile);
 
-        // Fetch Prompt
+        // 1. Fetch Dynamic Attributes for Prompt
+        const { data: attributes } = await supabase
+            .from('categories')
+            .select('name')
+            .eq('type', 'attribute')
+            .is('parent_id', null)
+            .eq('is_active', true);
+
+        const attributeList = attributes && attributes.length > 0
+            ? attributes.map(a => `- ${a.name}`).join('\n')
+            : '- Màu sắc\n- Chất liệu\n- Kiểu dáng';
+
+        // 2. Fetch Prompt Setting
         const { data: promptSetting } = await supabase
             .from('settings')
             .select('value')
             .eq('key', 'prompt_product_generate')
             .single();
 
-        const prompt = promptSetting?.value || DEFAULT_PRODUCT_GENERATE_PROMPT;
+        let prompt = promptSetting?.value || DEFAULT_PRODUCT_GENERATE_PROMPT;
+        prompt = prompt.replace('{{attributeList}}', attributeList);
 
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;
@@ -133,7 +141,7 @@ export async function POST(request) {
                 query = query.is('parent_id', null);
             }
 
-            const { data: existing } = await query.maybeSingle(); // Changed to maybeSingle for safety
+            const { data: existing } = await query.maybeSingle();
             if (existing) return existing.id;
 
             const { data: newCat, error } = await supabase
@@ -159,11 +167,17 @@ export async function POST(request) {
 
         const attributeIds = [];
         if (aiData.attributes && typeof aiData.attributes === 'object') {
-            for (const [groupName, valueName] of Object.entries(aiData.attributes)) {
+            for (const [groupName, rawValue] of Object.entries(aiData.attributes)) {
                 const groupId = await ensureCategory(groupName, 'attribute', null);
-                if (groupId && valueName) {
-                    const valueId = await ensureCategory(valueName, 'attribute', groupId);
-                    if (valueId) attributeIds.push(valueId);
+
+                if (groupId && rawValue) {
+                    // Handle both String and Array of Strings
+                    const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+
+                    for (const val of values) {
+                        const valueId = await ensureCategory(val, 'attribute', groupId);
+                        if (valueId) attributeIds.push(valueId);
+                    }
                 }
             }
         }
@@ -192,14 +206,13 @@ export async function POST(request) {
             is_primary: true
         });
 
-        // 3. Insert Default Variant (WITH VALIDATED UNIQUE SKU)
+        // 3. Insert Default Variant
         const uniqueSku = await ensureUniqueSku(supabase);
-
         const { data: variant, error: varError } = await supabase
             .from('product_variants')
             .insert({
                 product_id: product.id,
-                sku: uniqueSku, // Used the checked SKU
+                sku: uniqueSku,
                 price: aiData.price_estimate || 0
             })
             .select()
@@ -213,15 +226,35 @@ export async function POST(request) {
             on_hand: 0
         });
 
-        // 5. Link Main Category
+        // 5. Link Categories (Main Catalog + Attributes)
+        const categoryLinks = [];
+
+        // Link Main Category
         if (mainCategoryId) {
-            await supabase.from('product_categories').insert({
+            categoryLinks.push({
                 product_id: product.id,
                 category_id: mainCategoryId
             });
         }
 
-        // 6. Link Attributes
+        // Link Attributes as Product Tags (so they show in ProductForm)
+        if (attributeIds.length > 0) {
+            attributeIds.forEach(attrId => {
+                // Prevent duplicate linking if mainCategoryId happens to be an attribute (unlikely but safe)
+                if (attrId !== mainCategoryId) {
+                    categoryLinks.push({
+                        product_id: product.id,
+                        category_id: attrId
+                    });
+                }
+            });
+        }
+
+        if (categoryLinks.length > 0) {
+            await supabase.from('product_categories').insert(categoryLinks);
+        }
+
+        // 6. Link Attributes to Variant (Specifics)
         if (attributeIds.length > 0) {
             const variantAttributes = attributeIds.map(attrId => ({
                 variant_id: variant.id,

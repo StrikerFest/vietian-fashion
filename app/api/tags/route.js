@@ -2,16 +2,17 @@
 import {NextResponse} from 'next/server';
 import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs';
 import {cookies} from 'next/headers';
-
-// REFACTORED: Now uses 'categories' table with type='tag' since 'tags' table is deprecated.
+import { generateSlug } from '@/utils/format';
 
 export async function GET() {
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({cookies: () => cookieStore});
 
     try {
-        // Fetch categories that are used as tags
-        // We filter by type='tag' to separate them from Catalog/Attributes
+        // Fetch categories that act as tags (attributes)
+        // We filter by type='attribute'.
+        // You might want to filter by display_style='pill' if you distinguish them that way,
+        // but for now we'll fetch all attributes to be safe.
         const {data, error} = await supabase
             .from('categories')
             .select('*')
@@ -47,16 +48,16 @@ export async function POST(request) {
     }
 
     const tagName = name.trim();
-    // Auto-generate slug for the category
-    const slug = tagName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    // Use the Vietnamese-safe slug generator
+    const slug = generateSlug(tagName);
 
     try {
-        // Check for existing tag (in categories)
+        // Check for existing tag (attribute)
         const {data: existing, error: checkError} = await supabase
             .from('categories')
             .select('id, deleted_at')
             .eq('slug', slug)
-            .eq('type', 'attribute') // Ensure we only check tags
+            .eq('type', 'attribute')
             .single();
 
         if (checkError && checkError.code !== 'PGRST116') {
@@ -76,20 +77,19 @@ export async function POST(request) {
                 if (restoreError) throw restoreError;
                 return NextResponse.json(restored);
             } else {
-                // Tag exists
                 return NextResponse.json({error: 'Thẻ đã tồn tại.'}, {status: 409});
             }
         }
 
-        // Create new category as tag
+        // Create new category as Attribute (acting as Tag)
         const {data, error} = await supabase
             .from('categories')
             .insert([{
                 name: tagName,
                 slug: slug,
-                type: 'tag',      // Important: Set type to 'tag'
+                type: 'attribute',    // [FIXED] Must be 'attribute' to match Schema
                 is_active: true,
-                display_style: 'pill' // Default style for tags
+                display_style: 'pill' // UI hint that this is a tag
             }])
             .select()
             .single();

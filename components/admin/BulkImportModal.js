@@ -73,7 +73,7 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                 const formData = new FormData();
                 formData.append('image', task.file);
 
-                const res = await fetch('/app/api/products/generate', {
+                const res = await fetch('/api/products/generate', {
                     method: 'POST',
                     body: formData,
                 });

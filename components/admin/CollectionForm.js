@@ -2,26 +2,44 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/context/ToastContext'; // --- NEW ---
+import { useToast } from '@/context/ToastContext';
+// [MODIFIED] Import shared helper
+import { generateSlug } from '@/utils/format';
 
 export default function CollectionForm({ initialData, onSuccess, onCancel }) {
-    const { addToast } = useToast(); // --- NEW ---
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [isFeatured, setIsFeatured] = useState(false);
-    const [seoTitle, setSeoTitle] = useState('');
-    const [seoDescription, setSeoDescription] = useState('');
+    const { addToast } = useToast();
+
+    // [MODIFIED] Added slug state
+    const [formData, setFormData] = useState({
+        name: initialData?.name || '',
+        slug: initialData?.slug || '',
+        description: initialData?.description || '',
+        is_featured: initialData?.is_featured || false,
+        seo_title: initialData?.seo_title || '',
+        seo_description: initialData?.seo_description || ''
+    });
+
+    const [isManuallyEdited, setIsManuallyEdited] = useState(!!initialData?.slug);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // [MODIFIED] Auto-generate slug when name changes, UNLESS user manually edited the slug
     useEffect(() => {
-        if (initialData) {
-            setName(initialData.name);
-            setDescription(initialData.description || '');
-            setIsFeatured(initialData.is_featured || false);
-            setSeoTitle(initialData.seo_title || '');
-            setSeoDescription(initialData.seo_description || '');
+        if (!isManuallyEdited && formData.name) {
+            setFormData(prev => ({
+                ...prev,
+                slug: generateSlug(formData.name)
+            }));
         }
-    }, [initialData]);
+    }, [formData.name, isManuallyEdited]);
+
+    const handleChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSlugChange = (e) => {
+        handleChange('slug', e.target.value);
+        setIsManuallyEdited(true);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -31,19 +49,12 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
         const url = isEditing ? `/api/collections/${initialData.id}` : '/api/collections';
         const method = isEditing ? 'PUT' : 'POST';
 
-        const body = {
-            name,
-            description,
-            is_featured: isFeatured,
-            seo_title: seoTitle || null,
-            seo_description: seoDescription || null,
-        };
-
+        // [MODIFIED] Send the complete formData including slug
         try {
             const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify(formData),
             });
 
             if (!response.ok) {
@@ -53,7 +64,7 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
 
             onSuccess(isEditing ? 'Cập nhật bộ sưu tập thành công!' : 'Tạo bộ sưu tập thành công!');
         } catch (error) {
-            addToast(`Lỗi: ${error.message}`, 'error'); // --- FIXED: Replaced alert() ---
+            addToast(`Lỗi: ${error.message}`, 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -63,23 +74,39 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
         <div className="bg-gray-800 p-6 rounded-lg mb-8 border border-gray-700">
             <h2 className="text-xl font-semibold mb-4">{initialData ? 'Sửa Bộ sưu tập' : 'Thêm Bộ sưu tập Mới'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                    <label htmlFor="name" className="block text-sm font-medium mb-1">Tên bộ sưu tập</label>
-                    <input
-                        id="name"
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500"
-                        required
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="name" className="block text-sm font-medium mb-1">Tên bộ sưu tập</label>
+                        <input
+                            id="name"
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => handleChange('name', e.target.value)}
+                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500"
+                            required
+                        />
+                    </div>
+                    {/* [MODIFIED] Added Slug Field */}
+                    <div>
+                        <label htmlFor="slug" className="block text-sm font-medium mb-1">Slug (URL)</label>
+                        <input
+                            id="slug"
+                            type="text"
+                            value={formData.slug}
+                            onChange={handleSlugChange}
+                            className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 font-mono text-sm text-gray-300"
+                            placeholder="tu-dong-tao"
+                            required
+                        />
+                    </div>
                 </div>
+
                 <div>
                     <label htmlFor="description" className="block text-sm font-medium mb-1">Mô tả</label>
                     <textarea
                         id="description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        value={formData.description}
+                        onChange={(e) => handleChange('description', e.target.value)}
                         className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500"
                         rows="3"
                     ></textarea>
@@ -89,8 +116,8 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
                     <input
                         id="isFeatured"
                         type="checkbox"
-                        checked={isFeatured}
-                        onChange={(e) => setIsFeatured(e.target.checked)}
+                        checked={formData.is_featured}
+                        onChange={(e) => handleChange('is_featured', e.target.checked)}
                         className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500"
                     />
                     <label htmlFor="isFeatured" className="ml-2 block text-sm font-medium cursor-pointer">Hiển thị nổi bật trên trang chủ</label>
@@ -104,8 +131,8 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
                         <input
                             id="seoTitle"
                             type="text"
-                            value={seoTitle}
-                            onChange={(e) => setSeoTitle(e.target.value)}
+                            value={formData.seo_title}
+                            onChange={(e) => handleChange('seo_title', e.target.value)}
                             placeholder="Tối đa 60 ký tự"
                             className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm"
                         />
@@ -114,8 +141,8 @@ export default function CollectionForm({ initialData, onSuccess, onCancel }) {
                         <label htmlFor="seoDescription" className="block text-xs font-medium mb-1 text-gray-300">Mô tả Meta</label>
                         <textarea
                             id="seoDescription"
-                            value={seoDescription}
-                            onChange={(e) => setSeoDescription(e.target.value)}
+                            value={formData.seo_description}
+                            onChange={(e) => handleChange('seo_description', e.target.value)}
                             placeholder="Tối đa 160 ký tự"
                             className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-sm"
                             rows="2"

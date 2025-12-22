@@ -2,64 +2,79 @@
 import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { generateSlug } from '@/utils/format'; // [MODIFIED] Import Helper
 
-// PUT (Update)
+// PUT: Update a Tag (Rename)
 export async function PUT(request, context) {
-    const params = await context.params;
-    const { id } = params;
-    const { name } = await request.json();
-
+    const { id } = await context.params;
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    // [SECURITY PATCH] ADMIN ONLY
+    // [SECURITY] Admin Only
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // ----------------------------
 
-    if (!id || !name) return NextResponse.json({ error: 'ID and Name required' }, { status: 400 });
+    const { name } = await request.json();
+    if (!name) return NextResponse.json({ error: 'Missing name' }, { status: 400 });
 
     try {
+        // [MODIFIED] Generate new slug from new name
+        const slug = generateSlug(name);
+
+        // Check for duplicates (excluding current tag)
+        const { data: existing } = await supabase
+            .from('categories')
+            .select('id')
+            .eq('slug', slug)
+            .eq('type', 'attribute') // Tags are attributes
+            .neq('id', id)
+            .single();
+
+        if (existing) {
+            return NextResponse.json({ error: 'Tên thẻ này đã tồn tại.' }, { status: 409 });
+        }
+
         const { data, error } = await supabase
-            .from('tags')
-            .update({ name: name.toLowerCase().trim() })
-            .eq('id', parseInt(id))
+            .from('categories')
+            .update({
+                name: name.trim(),
+                slug: slug,
+                // Ensure type stays correct just in case
+                type: 'attribute',
+                display_style: 'pill'
+            })
+            .eq('id', id)
             .select()
             .single();
 
-        if (error) {
-            if (error.code === '23505') return NextResponse.json({ error: 'Tên đã tồn tại.' }, { status: 409 });
-            throw error;
-        }
+        if (error) throw error;
         return NextResponse.json(data);
+
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
-// DELETE (Archive)
+// DELETE: Remove a Tag
 export async function DELETE(request, context) {
-    const params = await context.params;
-    const { id } = params;
-
+    const { id } = await context.params;
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    // [SECURITY PATCH] ADMIN ONLY
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // ----------------------------
-
-    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     try {
+        // Soft delete
         const { error } = await supabase
-            .from('tags')
+            .from('categories')
             .update({ deleted_at: new Date().toISOString() })
-            .eq('id', parseInt(id));
+            .eq('id', id)
+            .eq('type', 'attribute'); // Security check
 
         if (error) throw error;
-        return NextResponse.json({ message: 'Đã lưu trữ thẻ.' });
+        return NextResponse.json({ success: true });
+
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

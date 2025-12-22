@@ -29,3 +29,25 @@ export function formatDateTime(dateString) {
         timeZone: 'Asia/Ho_Chi_Minh'
     });
 }
+
+/**
+ * Generates a URL-safe slug from a string, supporting Vietnamese characters.
+ * Example: "Áo Thun Cổ Tròn" -> "ao-thun-co-tron"
+ */
+export function generateSlug(text) {
+    if (!text) return '';
+    return text
+        .toLowerCase()
+        // 1. Normalize: Decompose combined chars (e.g., "á" becomes "a" + accent)
+        .normalize("NFD")
+        // 2. Remove Diacritics: Strip the accent marks
+        .replace(/[\u0300-\u036f]/g, "")
+        // 3. Handle Special Vietnamese Chars (đ/Đ)
+        .replace(/[đĐ]/g, 'd')
+        // 4. Clean up: Remove anything that isn't a word char, space, or hyphen
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        // 5. Format: Replace spaces with hyphens
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
