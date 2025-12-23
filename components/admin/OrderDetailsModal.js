@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { formatCurrency } from '@/utils/format';
+// Import the new modal
+import CreateReturnModal from '@/components/admin/CreateReturnModal';
 
 export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
     const { addToast } = useToast();
@@ -13,6 +15,9 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
     const [isSavingTracking, setIsSavingTracking] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
     const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
+
+    // State for the new Return Modal
+    const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
 
     useEffect(() => {
         if (order) {
@@ -23,6 +28,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
     if (!order) return null;
 
+    // ... [EXISTING HELPER FUNCTIONS: renderVariantLabel, getDiscountDetails] ...
     const renderVariantLabel = (variant) => {
         if (!variant) return 'Biến thể không xác định';
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
@@ -59,8 +65,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
     const shippingCost = order.shipping_cost || 0;
     const taxAmount = order.tax_amount || 0;
 
-    // --- Action Handlers ---
-
+    // ... [EXISTING HANDLERS: handleSaveTracking, handleConfirmPayment, handleCancelOrder] ...
     const handleSaveTracking = async () => {
         if (!shippingCarrier && !trackingNumber) {
             addToast('Vui lòng nhập Đơn vị vận chuyển hoặc Mã vận đơn.', 'error');
@@ -124,6 +129,18 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
         }
     };
 
+    // Callback to refresh order details after return creation
+    const handleReturnCreated = async () => {
+        // Fetch fresh order data to update returned quantities visually
+        try {
+            const res = await fetch(`/api/orders/${order.id}`);
+            if(res.ok) {
+                const { order: refreshedOrder } = await res.json();
+                onUpdateOrder(refreshedOrder);
+            }
+        } catch(e) { console.error(e); }
+    };
+
     return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700" onClick={(e) => e.stopPropagation()}>
@@ -174,6 +191,14 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                                 {renderVariantLabel(item.product_variants)}
                                             </span>
                                         </p>
+
+                                        {/* Display Returned Info */}
+                                        {item.returned_quantity > 0 && (
+                                            <span className="inline-block mt-1 text-xs text-orange-400 bg-orange-900/30 px-2 py-0.5 rounded border border-orange-800">
+                                                Đã trả: {item.returned_quantity}
+                                             </span>
+                                        )}
+
                                         {item.custom_options && Object.keys(item.custom_options).length > 0 && (
                                             <div className="mt-2 pl-2 border-l-2 border-indigo-500/50">
                                                 {Object.entries(item.custom_options).map(([key, opt]) => (
@@ -196,6 +221,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                         </div>
                     </div>
 
+                    {/* ... [EXISTING UI SECTIONS: Payment Details, Customer Info, Tracking] ... */}
                     {/* Payment Details */}
                     <div>
                         <h3 className="font-semibold mb-2 text-lg text-white">Chi tiết thanh toán</h3>
@@ -216,7 +242,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                         </div>
                     </div>
 
-                    {/* --- NEW: Customer Information Section --- */}
+                    {/* Customer Information Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Address */}
                         <div>
@@ -266,6 +292,16 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                 <div className="p-4 bg-gray-900/50 flex justify-between rounded-b-lg">
                     {/* Actions Area */}
                     <div className="flex gap-3">
+                        {/* New Return Button */}
+                        {order.status !== 'cancelled' && order.status !== 'pending' && (
+                            <button
+                                onClick={() => setIsReturnModalOpen(true)}
+                                className="bg-orange-700 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded text-sm flex items-center gap-2 border border-orange-600"
+                            >
+                                ↩ Tạo Yêu Cầu Trả Hàng
+                            </button>
+                        )}
+
                         {order.status === 'pending' && (
                             <button
                                 onClick={handleConfirmPayment}
@@ -290,6 +326,15 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                     <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded text-sm">Đóng</button>
                 </div>
             </div>
+
+            {/* Nested Return Modal */}
+            {isReturnModalOpen && (
+                <CreateReturnModal
+                    order={order}
+                    onClose={() => setIsReturnModalOpen(false)}
+                    onSuccess={handleReturnCreated}
+                />
+            )}
         </div>
     );
 }
