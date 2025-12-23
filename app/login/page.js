@@ -21,7 +21,6 @@ export default function LoginPage() {
         }
     }, [session, isAuthLoading, router]);
 
-    // --- NEW: Handler for Password Mismatch from AuthForm ---
     const handlePasswordMismatch = () => {
         setMessage({ type: 'error', text: 'Lỗi: Mật khẩu không khớp.' });
     };
@@ -34,15 +33,52 @@ export default function LoginPage() {
         let error = null;
 
         if (isSignUp) {
+            // 1. Attempt Standard Sign Up
             const { error: signUpError } = await supabase.auth.signUp({
                 email,
                 password,
+                options: {
+                    emailRedirectTo: `${window.location.origin}/auth/callback`,
+                }
             });
-            error = signUpError;
-            if (!error) {
+
+            if (signUpError) {
+                // 2. Check if error is "User already registered"
+                // Supabase error message for this is usually "User already registered"
+                if (signUpError.message.includes('already registered') || signUpError.status === 422) { // 422 is common for duplicate
+
+                    try {
+                        // 3. Check if it's a Ghost Account via our API
+                        const checkResponse = await fetch('/api/auth/claim-ghost', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email })
+                        });
+
+                        const checkData = await checkResponse.json();
+
+                        if (checkData.isGhost) {
+                            setMessage({
+                                type: 'success',
+                                text: 'Email này đã được tạo tự động từ đơn hàng trước đây. Chúng tôi đã gửi liên kết đặt lại mật khẩu vào email để bạn kích hoạt tài khoản.'
+                            });
+                            // Stop here, don't show the generic error
+                            setIsLoading(false);
+                            return;
+                        }
+                    } catch (ghostCheckError) {
+                        console.error("Ghost check failed", ghostCheckError);
+                        // Fall through to show original error
+                    }
+                }
+
+                // If not ghost or check failed, show original error
+                error = signUpError;
+            } else {
                 setMessage({ type: 'success', text: 'Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.' });
             }
         } else {
+            // Standard Sign In
             const { error: signInError } = await supabase.auth.signInWithPassword({
                 email,
                 password,
@@ -77,7 +113,7 @@ export default function LoginPage() {
                     onSubmit={handleAuth}
                     isLoading={isLoading}
                     message={message}
-                    onPasswordMismatch={handlePasswordMismatch} // --- MODIFIED: Pass new handler ---
+                    onPasswordMismatch={handlePasswordMismatch}
                 />
             </div>
         </main>

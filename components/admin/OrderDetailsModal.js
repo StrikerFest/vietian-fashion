@@ -137,7 +137,7 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                 </div>
 
                 <div className="p-6 space-y-6">
-                    {/* --- NEW: Payment Verification Helper --- */}
+                    {/* Payment Verification Helper */}
                     {order.status === 'pending' && (
                         <div className="bg-yellow-900/20 border border-yellow-700/50 p-4 rounded-lg">
                             <h3 className="text-yellow-500 font-bold text-sm uppercase mb-2 flex items-center gap-2">
@@ -216,17 +216,39 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                         </div>
                     </div>
 
-                    {/* Address */}
-                    <div>
-                        <h3 className="font-semibold mb-2 text-lg text-white">Địa chỉ giao hàng</h3>
-                        {order.addresses ? (
-                            <div className="text-sm text-gray-300 bg-gray-900/50 p-4 rounded border border-gray-700">
-                                <p className="font-medium text-white mb-1">{order.addresses.address_line_1}</p>
-                                {order.addresses.address_line_2 && <p>{order.addresses.address_line_2}</p>}
-                                <p>{order.addresses.city}, {order.addresses.state_province_region} {order.addresses.postal_code}</p>
-                                <p>{order.addresses.country}</p>
+                    {/* --- NEW: Customer Information Section --- */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Address */}
+                        <div>
+                            <h3 className="font-semibold mb-2 text-lg text-white">Địa chỉ giao hàng</h3>
+                            {order.addresses ? (
+                                <div className="text-sm text-gray-300 bg-gray-900/50 p-4 rounded border border-gray-700 h-full">
+                                    <p className="font-medium text-white mb-1">{order.addresses.address_line_1}</p>
+                                    {order.addresses.address_line_2 && <p>{order.addresses.address_line_2}</p>}
+                                    <p>{order.addresses.city}, {order.addresses.state_province_region} {order.addresses.postal_code}</p>
+                                    <p>{order.addresses.country}</p>
+                                </div>
+                            ) : <p className="text-sm text-gray-500 italic">Không có địa chỉ.</p>}
+                        </div>
+
+                        {/* Contact Info */}
+                        <div>
+                            <h3 className="font-semibold mb-2 text-lg text-white">Khách hàng</h3>
+                            <div className="text-sm text-gray-300 bg-gray-900/50 p-4 rounded border border-gray-700 h-full space-y-2">
+                                <div className="flex justify-between border-b border-gray-700 pb-2">
+                                    <span className="text-gray-500">ID:</span>
+                                    <span className="font-mono text-xs">{order.user_id || 'GUEST'}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-gray-500 text-xs uppercase mb-0.5">Email</span>
+                                    <span className="text-white">{order.order_email || order.user?.email || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-gray-500 text-xs uppercase mb-0.5">Điện thoại</span>
+                                    <span className="text-white font-mono">{order.receiver_phone || order.user?.phone || 'N/A'}</span>
+                                </div>
                             </div>
-                        ) : <p className="text-sm text-gray-500 italic">Không có địa chỉ nào được cung cấp.</p>}
+                        </div>
                     </div>
 
                     {/* Tracking */}

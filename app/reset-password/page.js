@@ -51,8 +51,19 @@ export default function ResetPasswordPage() {
         }
 
         try {
-            // This relies on the session already being set by the Supabase redirect hook
-            const { error } = await supabase.auth.updateUser({ password });
+            // Check if user has the Guest marker
+            const { data: { user } } = await supabase.auth.getUser();
+            let updatePayload = { password };
+
+            // If they are a ghost user, clean their name while setting the password
+            if (user?.user_metadata?.first_name?.includes('[!!GUEST]')) {
+                const cleanFirstName = user.user_metadata.first_name.replace('[!!GUEST]', '').trim();
+                updatePayload.data = {
+                    first_name: cleanFirstName
+                };
+            }
+
+            const { error } = await supabase.auth.updateUser(updatePayload);
 
             if (error) throw error;
 

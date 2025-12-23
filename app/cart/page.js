@@ -39,12 +39,12 @@ export default function CartPage() {
     const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
     const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
-    // --- Guest Address State ---
-    const [guestAddressData, setGuestAddressData] = useState(null);
-    const [isGuestAddressValid, setIsGuestAddressValid] = useState(false);
+    // --- Guest Data State (Now includes Email + Phone + Address) ---
+    const [guestData, setGuestData] = useState(null);
+    const [isGuestValid, setIsGuestValid] = useState(false);
 
-    // --- NEW: Payment Method State ---
-    const [paymentMethod, setPaymentMethod] = useState('cod'); // Default to COD
+    // --- Payment Method State ---
+    const [paymentMethod, setPaymentMethod] = useState('cod');
 
     // --- Address Logic ---
     const fetchAddresses = useCallback(async () => {
@@ -85,7 +85,7 @@ export default function CartPage() {
     // --- Checkout Logic ---
     const handleCheckout = async () => {
         let finalAddressId = null;
-        let finalGuestAddress = null;
+        let finalGuestData = null;
 
         if (session) {
             if (!selectedAddressId) {
@@ -95,11 +95,11 @@ export default function CartPage() {
             finalAddressId = selectedAddressId;
         } else {
             // Guest Checkout
-            if (!isGuestAddressValid || !guestAddressData) {
-                addToast('Vui lòng điền đầy đủ địa chỉ giao hàng.', 'error');
+            if (!isGuestValid || !guestData) {
+                addToast('Vui lòng điền đầy đủ thông tin giao hàng và liên hệ.', 'error');
                 return;
             }
-            finalGuestAddress = guestAddressData;
+            finalGuestData = guestData;
         }
 
         setIsCheckingOut(true);
@@ -112,8 +112,7 @@ export default function CartPage() {
                     discountId: appliedDiscount?.id || null,
                     userId: session?.user?.id || null,
                     addressId: finalAddressId,
-                    guestAddressData: finalGuestAddress,
-                    // --- NEW: Pass Payment Method ---
+                    guestData: finalGuestData, // Contains { email, phone, ...address }
                     paymentMethod
                 }),
             });
@@ -155,7 +154,8 @@ export default function CartPage() {
         );
     }
 
-    const hasValidAddress = session ? !!selectedAddressId : isGuestAddressValid;
+    // Determine if we have valid info to enable checkout button
+    const hasValidInfo = session ? !!selectedAddressId : isGuestValid;
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -185,8 +185,8 @@ export default function CartPage() {
                         >
                             {!session && (
                                 <GuestAddressForm
-                                    onChange={setGuestAddressData}
-                                    setIsValid={setIsGuestAddressValid}
+                                    onChange={setGuestData}
+                                    setIsValid={setIsGuestValid}
                                 />
                             )}
                         </ShippingAddressSelector>
@@ -204,9 +204,7 @@ export default function CartPage() {
                             onCheckout={handleCheckout}
                             isCheckingOut={isCheckingOut}
                             session={session}
-                            hasSelectedAddress={hasValidAddress}
-
-                            // --- NEW: Props for Payment Selection ---
+                            hasSelectedAddress={hasValidInfo}
                             paymentMethod={paymentMethod}
                             setPaymentMethod={setPaymentMethod}
                         />

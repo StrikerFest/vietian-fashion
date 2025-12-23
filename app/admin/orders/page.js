@@ -95,9 +95,18 @@ export default function OrdersPage() {
                                         <td className="p-3 font-mono text-gray-300">#{order.id}</td>
                                         {/* [MODIFIED] Use format util */}
                                         <td className="p-3 text-gray-300">{formatDate(order.created_at)}</td>
-                                        <td className="p-3 font-medium">{order.users?.email || 'Khách vãng lai'}</td>
+                                        <td className="p-3 font-medium">
+                                            <div className="flex flex-col">
+                                                {/* Show order specific email first (Guest), fallback to user account email */}
+                                                <span>{order.order_email || order.users?.email || 'N/A'}</span>
+                                                {/* Optional: Show phone if available */}
+                                                {order.receiver_phone && (
+                                                    <span className="text-xs text-gray-500">{order.receiver_phone}</span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="p-3 text-white font-semibold">{formatCurrency(order.total_amount)}</td>
-                                        <td className="p-3"><OrderStatusBadge status={order.status} /></td>
+                                        <td className="p-3"><OrderStatusBadge status={order.status}/></td>
                                         <td className="p-3 text-right">
                                             <button
                                                 onClick={() => setSelectedOrder(order)}

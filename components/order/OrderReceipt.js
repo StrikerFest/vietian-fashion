@@ -33,9 +33,8 @@ export default function OrderReceipt({ order }) {
     };
 
     // --- LOGIC: Determine Payment Method from 'shipping_carrier' workaround ---
-    // We check if the carrier string contains the payment method tag we saved earlier.
     const isVietQR = order.shipping_carrier?.includes('VIETQR');
-    const isCOD = order.shipping_carrier?.includes('COD') || !order.shipping_carrier; // Default to COD if null
+    const isCOD = order.shipping_carrier?.includes('COD') || !order.shipping_carrier;
 
     // Show QR only if it's VietQR AND the order is still pending
     const showPaymentQR = order.status === 'pending' && isVietQR;
@@ -131,15 +130,29 @@ export default function OrderReceipt({ order }) {
                 {/* Totals & Address Block */}
                 <div className="grid grid-cols-1 md:grid-cols-2">
                     <div className="p-6 md:p-8 border-r border-gray-700">
-                        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Thông tin giao hàng</h3>
-                        {shippingAddress ? (
-                            <div className="text-white space-y-1">
-                                <p>{shippingAddress.address_line_1}</p>
-                                {shippingAddress.address_line_2 && <p>{shippingAddress.address_line_2}</p>}
-                                <p>{shippingAddress.city}, {shippingAddress.state_province_region} {shippingAddress.postal_code}</p>
-                                <p className="font-bold mt-2">{shippingAddress.country}</p>
+                        <div className="space-y-6">
+                            {/* Shipping Address */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Thông tin giao hàng</h3>
+                                {shippingAddress ? (
+                                    <div className="text-white space-y-1">
+                                        <p>{shippingAddress.address_line_1}</p>
+                                        {shippingAddress.address_line_2 && <p>{shippingAddress.address_line_2}</p>}
+                                        <p>{shippingAddress.city}, {shippingAddress.state_province_region} {shippingAddress.postal_code}</p>
+                                        <p className="font-bold mt-1">{shippingAddress.country}</p>
+                                    </div>
+                                ) : <p className="text-gray-500 italic">Thanh toán kỹ thuật số / Khách vãng lai</p>}
                             </div>
-                        ) : <p className="text-gray-500 italic">Thanh toán kỹ thuật số / Khách vãng lai</p>}
+
+                            {/* --- NEW: Contact Info --- */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Liên hệ</h3>
+                                <div className="text-gray-300 text-sm space-y-1">
+                                    <p><span className="text-gray-500 inline-block w-12">Email:</span> {order.order_email || 'N/A'}</p>
+                                    <p><span className="text-gray-500 inline-block w-12">SĐT:</span> {order.receiver_phone || 'N/A'}</p>
+                                </div>
+                            </div>
+                        </div>
 
                         <div className="mt-6 pt-6 border-t border-gray-700">
                             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Trạng thái</h3>

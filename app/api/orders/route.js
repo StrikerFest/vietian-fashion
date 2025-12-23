@@ -8,7 +8,6 @@ export async function GET(request) {
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    // Admin Check
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -18,8 +17,8 @@ export async function GET(request) {
     const paymentStatus = searchParams.get('payment_status');
     const search = searchParams.get('search');
 
-    const fromDate = searchParams.get('from_date'); // YYYY-MM-DD
-    const toDate = searchParams.get('to_date');     // YYYY-MM-DD
+    const fromDate = searchParams.get('from_date');
+    const toDate = searchParams.get('to_date');
 
     try {
         let query = supabase
@@ -31,13 +30,8 @@ export async function GET(request) {
             `, { count: 'exact' });
 
         if (status) query = query.eq('status', status);
-        if (paymentStatus) query = query.eq('payment_status', paymentStatus);
 
-        // --- DATE FILTERING (VIETNAM TIMEZONE FIX) ---
-        // Vietnam is UTC+7.
-        // 00:00 VN = 17:00 UTC (Previous Day).
-        // We shift the input date back by 7 hours to align with DB UTC timestamps.
-
+        // --- Date Logic (Unchanged) ---
         if (fromDate) {
             const startObj = new Date(fromDate + 'T00:00:00Z');
             startObj.setHours(startObj.getHours() - 7);
@@ -48,11 +42,19 @@ export async function GET(request) {
             endObj.setHours(endObj.getHours() - 7);
             query = query.lte('created_at', endObj.toISOString());
         }
-        // ---------------------------------------------
 
+        // --- UPDATED SEARCH LOGIC ---
         if (search) {
+            // If numeric, check ID or Phone
             if (!isNaN(search)) {
-                query = query.eq('id', search);
+                // Note: syntax is "column.operator.value"
+                // checking id (exact) OR receiver_phone (contains)
+                query = query.or(`id.eq.${search},receiver_phone.ilike.%${search}%`);
+            } else {
+                // If text, check Email (order_email or user email)
+                // Note: Searching across joined tables (user.email) is complex in one OR statement.
+                // We focus on the Order table fields first for performance and guest support.
+                query = query.or(`order_email.ilike.%${search}%`);
             }
         }
 
