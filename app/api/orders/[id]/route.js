@@ -3,11 +3,27 @@ import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { Resend } from 'resend';
 
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Helper to replace {{variables}} in text
+const processTemplate = (text, variables) => {
+    if (!text) return '';
+    let processed = text;
+    Object.keys(variables).forEach(key => {
+        // Replace {{key}} case-insensitively
+        const regex = new RegExp(`{{${key}}}`, 'gi');
+        processed = processed.replace(regex, variables[key] || '');
+    });
+    return processed;
+};
+
+// ... [Keep GET handler unchanged] ...
 export async function GET(request, context) {
     const params = await context.params;
     const { id } = params;
-    const orderId =     parseInt(id);
+    const orderId = parseInt(id);
 
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
@@ -23,7 +39,7 @@ export async function GET(request, context) {
     let orderError = null;
 
     if (session) {
-        // Authenticated: Standard fetch (RLS handles security)
+        // Authenticated: Standard fetch
         const res = await supabase
             .from('orders')
             .select(`
@@ -45,10 +61,10 @@ export async function GET(request, context) {
         orderError = res.error;
     }
     else if (isGuestAccess) {
-        // Guest with Cookie: Use Admin Client to bypass RLS
+        // Guest with Cookie: Use Admin Client
         const adminSupabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY, // Must exist!
+            process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
             { auth: { persistSession: false } }
         );
 
@@ -69,7 +85,6 @@ export async function GET(request, context) {
             .eq('id', orderId)
             .single();
 
-        // Double check: Only show if it's actually a guest order (no user_id)
         if (res.data && res.data.user_id === null) {
             orderData = res.data;
         } else {
@@ -84,7 +99,6 @@ export async function GET(request, context) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Transform Data
     const formattedOrder = {
         ...orderData,
         tax_amount: orderData.tax_amount || 0,
@@ -104,4 +118,98 @@ export async function GET(request, context) {
     };
 
     return NextResponse.json(formattedOrder);
+}
+
+export async function PUT(request, context) {
+    const params = await context.params;
+    const { id } = params;
+    const orderId = parseInt(id);
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // 1. Check Admin Auth
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    try {
+        const body = await request.json();
+
+        // 2. Update Order
+        const { data: updatedOrder, error } = await supabase
+            .from('orders')
+            .update(body)
+            .eq('id', orderId)
+            .select('*, users(email, full_name)')
+            .single();
+
+        if (error) throw error;
+
+        // 3. Send Notification Email
+        const userEmail = updatedOrder.order_email || updatedOrder.users?.email;
+
+        if (userEmail && body.status) {
+            // Determine Template Type based on status
+            const templateType = `order_${body.status}`; // e.g., order_paid, order_shipped
+
+            // Fetch Template from DB using 'type' and 'body_html'
+            const { data: template } = await supabase
+                .from('email_templates')
+                .select('*')
+                .eq('type', templateType) // Changed from 'code' to 'type'
+                .eq('is_active', true)
+                .single();
+
+            // Prepare Variables
+            const variables = {
+                order_id: updatedOrder.id,
+                customer_name: updatedOrder.users?.full_name || 'Khách hàng',
+                total_amount: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(updatedOrder.total_amount),
+                shipping_carrier: updatedOrder.shipping_carrier || 'Đơn vị vận chuyển',
+                tracking_number: updatedOrder.tracking_number || 'Chưa cập nhật',
+                status: updatedOrder.status,
+                site_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://vietianfashion.com'
+            };
+
+            let subject = '';
+            let htmlContent = '';
+
+            if (template) {
+                // USE DB TEMPLATE
+                subject = processTemplate(template.subject, variables);
+                htmlContent = processTemplate(template.body_html, variables); // Changed from 'body' to 'body_html'
+            } else {
+                // FALLBACK
+                console.warn(`Email template '${templateType}' not found. Using fallback.`);
+                if (body.status === 'paid') {
+                    subject = `Thanh toán thành công - Đơn hàng #${orderId}`;
+                    htmlContent = `<p>Đã nhận được thanh toán cho đơn hàng #${orderId}. Tổng cộng: ${variables.total_amount}</p>`;
+                } else if (body.status === 'shipped') {
+                    subject = `Đơn hàng #${orderId} đang được vận chuyển`;
+                    htmlContent = `<p>Đơn hàng của bạn đang được giao bởi ${variables.shipping_carrier}. Mã vận đơn: ${variables.tracking_number}</p>`;
+                } else if (body.status === 'delivered') {
+                    subject = `Giao hàng thành công - Đơn hàng #${orderId}`;
+                    htmlContent = `<p>Đơn hàng #${orderId} đã được giao thành công.</p>`;
+                } else if (body.status === 'cancelled') {
+                    subject = `Đơn hàng #${orderId} đã bị hủy`;
+                    htmlContent = `<p>Đơn hàng #${orderId} đã bị hủy.</p>`;
+                }
+            }
+
+            // Send Email
+            if (subject && htmlContent) {
+                await resend.emails.send({
+                    from: 'Vietian Fashion <orders@vietianfashion.com>',
+                    to: [userEmail],
+                    subject: subject,
+                    html: htmlContent
+                });
+            }
+        }
+
+        return NextResponse.json({ order: updatedOrder });
+
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 }
