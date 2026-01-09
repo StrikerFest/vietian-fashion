@@ -233,13 +233,19 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // [SECURITY] Check for Admin Session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized: Admin access required' }, { status: 401 });
+    }
+
     const {
         name, description, image_url, images = [], seo_title, seo_description, variants,
         attribute_ids = [], category_id, collection_ids = [], position = 0, status
     } = await request.json();
-
-    const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     let newId = null;
     try {
