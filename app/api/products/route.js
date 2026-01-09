@@ -247,75 +247,37 @@ export async function POST(request) {
         attribute_ids = [], category_id, collection_ids = [], position = 0, status
     } = await request.json();
 
-    let newId = null;
     try {
-        // Check internal duplicates
-        const skuList = variants.map(v => v.sku);
-        const uniqueSkus = new Set(skuList);
-        if (uniqueSkus.size !== skuList.length) {
-            return NextResponse.json({ error: 'Danh sách biến thể chứa SKU trùng lặp.' }, { status: 400 });
-        }
+        // Construct Payload for RPC
+        const payload = {
+            name,
+            description,
+            status,
+            image_url, // Legacy Main Image
+            seo_title,
+            seo_description,
+            position,
+            images, // Array of { image_url, is_primary, alt_text }
+            variants: variants.map(v => ({
+                sku: v.sku,
+                price: v.price,
+                on_hand: v.on_hand,
+                attribute_value_ids: v.attribute_value_ids // Array of IDs
+            })),
+            collection_ids,
+            category_id,
+            attribute_ids
+        };
 
-        const { data: existingSkus, error: skuCheckError } = await supabase
-            .from('product_variants')
-            .select('sku')
-            .in('sku', skuList);
+        // Call Atomic RPC
+        const { data: product, error } = await supabase.rpc('create_product_full', { payload });
 
-        if (skuCheckError) throw skuCheckError;
-
-        if (existingSkus && existingSkus.length > 0) {
-            const duplicates = existingSkus.map(item => item.sku).join(', ');
-            return NextResponse.json({ error: `SKU đã tồn tại trong hệ thống: ${duplicates}` }, { status: 400 });
-        }
-
-        // 1. Insert Product
-        const { data: product, error: pErr } = await supabase.from('products')
-            .insert([{
-                name, description, image_url, seo_title, seo_description, position,
-                status: status || 'draft'
-            }]).select().single();
-
-        if (pErr) throw pErr;
-        newId = product.id;
-
-        // --- 2. Insert Multiple Images (New Logic) ---
-        if (images && images.length > 0) {
-            const imageInserts = images.map(img => ({
-                product_id: newId,
-                image_url: img.image_url,
-                is_primary: img.is_primary || false,
-                alt_text: img.alt_text || name
-            }));
-            await supabase.from('product_images').insert(imageInserts);
-        }
-
-        // 3. Insert Variants
-        for (const v of variants) {
-            const { data: newVar, error: vErr } = await supabase.from('product_variants')
-                .insert({ product_id: newId, sku: v.sku, price: v.price })
-                .select().single();
-
-            if (vErr) throw vErr;
-            await supabase.from('inventory_levels').insert({ variant_id: newVar.id, on_hand: v.on_hand ?? 0 });
-
-            if (v.attribute_value_ids && Array.isArray(v.attribute_value_ids)) {
-                const attrInserts = v.attribute_value_ids.map(catId => ({
-                    variant_id: newVar.id, attribute_value_id: catId
-                }));
-                if (attrInserts.length > 0) await supabase.from('variant_attributes').insert(attrInserts);
-            }
-        }
-
-        if (collection_ids.length) await supabase.from('product_collections').insert(collection_ids.map(cid => ({ product_id: newId, collection_id: cid })));
-
-        const cats = [];
-        if (category_id) cats.push({ product_id: newId, category_id });
-        attribute_ids.forEach(aid => { if (parseInt(aid) !== parseInt(category_id)) cats.push({ product_id: newId, category_id: aid }); });
-        if (cats.length) await supabase.from('product_categories').insert(cats);
+        if (error) throw error;
 
         return NextResponse.json(product);
+
     } catch (error) {
-        if (newId) await supabase.from('products').delete().eq('id', newId);
+        console.error('Create Product Error:', error);
         return NextResponse.json({ error: error.message || 'Tạo sản phẩm thất bại.' }, { status: 500 });
     }
 }

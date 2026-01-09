@@ -286,7 +286,7 @@ export default function ProductForm({ initialData, categories = [], collections 
         const { error } = await supabase.storage.from('products').upload(fileName, file);
         if (error) throw error;
         const { data } = supabase.storage.from('products').getPublicUrl(fileName);
-        return data.publicUrl;
+        return { publicUrl: data.publicUrl, path: fileName };
     };
 
     // [MODIFIED] New Image Handlers
@@ -355,6 +355,8 @@ export default function ProductForm({ initialData, categories = [], collections 
         }
         // -------------------------------------
 
+        const uploadedPaths = [];
+
         try {
             // 1. Handle "New" Tags Creation
             const newTags = selectedTags.filter(t => t.isNew);
@@ -384,11 +386,16 @@ export default function ProductForm({ initialData, categories = [], collections 
 
             const finalAttributeIds = [...existingTagIds, ...createdTagIds];
 
-            // [MODIFIED] 2. Upload Images
+            // [MODIFIED] 2. Upload Images with Cleanup Tracking
             const finalImages = await Promise.all(productImages.map(async (img) => {
                 if (img.file) {
-                    const url = await uploadImage(img.file);
-                    return { ...img, image_url: url };
+                    try {
+                        const { publicUrl, path } = await uploadImage(img.file);
+                        uploadedPaths.push(path);
+                        return { ...img, image_url: publicUrl };
+                    } catch (err) {
+                        throw new Error(`Lỗi tải ảnh "${img.file.name}": ${err.message}`);
+                    }
                 }
                 return img;
             }));
@@ -466,6 +473,11 @@ export default function ProductForm({ initialData, categories = [], collections 
             }
 
         } catch (error) {
+            // [CLEANUP] Delete uploaded images if submission fails
+            if (uploadedPaths.length > 0) {
+                await supabase.storage.from('products').remove(uploadedPaths);
+                console.warn('Cleaned up orphaned images:', uploadedPaths);
+            }
             addToast(error.message, 'error');
         } finally {
             setIsSubmitting(false);
