@@ -146,7 +146,7 @@ export default function ProductForm({ initialData, categories = [], collections 
         );
 
         const newTagObj = {
-            id: existingOption ? existingOption.id : null,
+            id: existingOption ? existingOption.id : `NEW-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             name: existingOption ? existingOption.name : cleanName,
             groupId: group.id,
             isNew: !existingOption
@@ -359,6 +359,7 @@ export default function ProductForm({ initialData, categories = [], collections 
             // 1. Handle "New" Tags Creation
             const newTags = selectedTags.filter(t => t.isNew);
             const existingTagIds = selectedTags.filter(t => !t.isNew).map(t => t.id);
+            const tempIdToRealIdMap = {};
             const createdTagIds = [];
 
             if (newTags.length > 0) {
@@ -376,6 +377,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                     if (res.ok) {
                         const data = await res.json();
                         createdTagIds.push(data.id);
+                        tempIdToRealIdMap[tag.id] = data.id; // Map TEMP ID to REAL ID
                     }
                 }));
             }
@@ -402,7 +404,20 @@ export default function ProductForm({ initialData, categories = [], collections 
 
             // 4. Variant Formatting
             const processedVariants = variants.map(v => {
-                const attrIds = Object.values(v.attribute_value_ids).filter(id => id);
+                // Replace Temp IDs with Real IDs in attribute_value_ids
+                const processedAttrIds = {};
+                Object.entries(v.attribute_value_ids).forEach(([groupId, valId]) => {
+                    if (valId && valId.toString().startsWith('NEW-')) {
+                         if (tempIdToRealIdMap[valId]) {
+                             processedAttrIds[groupId] = tempIdToRealIdMap[valId];
+                         }
+                         // If map failed, we drop it to avoid foreign key error
+                    } else {
+                        processedAttrIds[groupId] = valId;
+                    }
+                });
+
+                const attrIds = Object.values(processedAttrIds).filter(id => id);
                 return {
                     ...v,
                     price: parseFloat(v.price),
@@ -694,7 +709,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                                                 <option value="">- Chọn -</option>
                                                 {group?.options.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
                                                 {selectedTags.filter(t => t.groupId === groupId && t.isNew).map((t, i) => (
-                                                    <option key={`new-${i}`} disabled>⚠️ {t.name} (Lưu trước)</option>
+                                                    <option key={`new-${i}`} value={t.id}>✨ {t.name} (Mới)</option>
                                                 ))}
                                             </select>
                                         </div>
