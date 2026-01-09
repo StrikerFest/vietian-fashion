@@ -114,7 +114,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                     }
                     return {
                         ...v,
-                        on_hand: v.inventory_levels?.[0]?.on_hand ?? 0,
+                        on_hand: v.on_hand ?? v.inventory_levels?.[0]?.on_hand ?? 0,
                         attribute_value_ids: attrMap
                     };
                 });
@@ -733,7 +733,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                                 </div>
                                 <div className="w-24">
                                     <label className="text-xs text-gray-500 mb-1 block">Tồn kho</label>
-                                    <input type="number" value={variant?.inventory_levels?.on_hand || 0} onChange={e => handleVariantChange(index, 'on_hand', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required />
+                                    <input type="number" value={variant.on_hand} onChange={e => handleVariantChange(index, 'on_hand', e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white text-sm" required />
                                 </div>
                                 <button type="button" onClick={() => removeVariant(index)} disabled={variants.length <= 1} className="bg-red-900/50 hover:bg-red-900 text-red-200 rounded px-3 py-2 h-[38px] border border-red-800 transition-colors">×</button>
                             </div>

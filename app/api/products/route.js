@@ -187,7 +187,8 @@ export async function GET(request) {
                     }
                 });
 
-                const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+                const inventoryLevels = Array.isArray(v.inventory_levels) ? v.inventory_levels[0] : v.inventory_levels;
+                const realStock = inventoryLevels?.on_hand || 0;
                 const { inventory_levels, ...safeVariant } = v;
 
                 if (isAdmin) {
