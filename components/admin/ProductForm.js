@@ -532,7 +532,18 @@ export default function ProductForm({ initialData, categories = [], collections 
                                     <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingDesc} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 disabled:opacity-50">
                                         ✨ Auto-Write
                                     </button>
-                                    <FalseProgressBar isLoading={isGeneratingDesc} label="Đang viết..." duration={6000} />
+                                    <FalseProgressBar 
+                                        isLoading={isGeneratingDesc} 
+                                        label="Đang viết..." 
+                                        duration={6000} 
+                                        flavor={[
+                                            "Phân tích đặc điểm hình ảnh...", 
+                                            "Trích xuất chi tiết chính...", 
+                                            "Phác thảo nội dung...", 
+                                            "Tối ưu hóa từ khóa SEO...", 
+                                            "Hoàn thiện văn bản..."
+                                        ]}
+                                    />
                                 </div>
                             </div>
                             <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white" rows="4" />
@@ -620,7 +631,17 @@ export default function ProductForm({ initialData, categories = [], collections 
                                 ✨ Suggest
                             </button>
                         </div>
-                        <FalseProgressBar isLoading={isGeneratingTags} label="Đang phân tích..." duration={6000} />
+                        <FalseProgressBar 
+                            isLoading={isGeneratingTags} 
+                            label="Đang phân tích..." 
+                            duration={6000} 
+                            flavor={[
+                                "Quét cấu trúc danh mục...", 
+                                "Nhận diện chất liệu & kiểu dáng...", 
+                                "Đối chiếu thuộc tính...", 
+                                "Đề xuất thẻ phù hợp..."
+                            ]}
+                        />
                         <p className="text-xs text-gray-500 mb-4">Nhập thủ công hoặc dùng AI gợi ý.</p>
 
                         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">

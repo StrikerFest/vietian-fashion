@@ -7,6 +7,7 @@ import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 import QuickViewModal from '@/components/QuickViewModal';
 import TopLoadingBar from '@/components/ui/TopLoadingBar';
+import LoadingText from '@/components/ui/LoadingText';
 
 export default function SearchPage() {
     const searchParams = useSearchParams();
@@ -78,6 +79,17 @@ export default function SearchPage() {
                     <h1 className="text-3xl font-bold mt-2">
                         {mode === 'keyword' ? 'Kết quả từ khóa' : 'Gợi ý từ AI'} cho <span className="text-indigo-400">{`"${queryText}"`}</span>
                     </h1>
+                    
+                    <LoadingText 
+                        isLoading={isLoading} 
+                        messages={[
+                            "Khởi động bộ máy ngữ nghĩa...",
+                            "Phân tích vector truy vấn...",
+                            "Quét dữ liệu tương đồng...",
+                            "Sắp xếp theo độ liên quan...",
+                            "Tổng hợp thông tin sản phẩm..."
+                        ]} 
+                    />
                 </div>
 
                 {isLoading ? (

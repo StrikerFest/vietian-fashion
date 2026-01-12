@@ -2,8 +2,19 @@
 
 import { useState, useEffect } from 'react';
 
-export default function FalseProgressBar({ isLoading, label = "Processing...", duration = 5000, onComplete }) {
+export default function FalseProgressBar({ isLoading, label = "Processing...", duration = 5000, flavor = null }) {
     const [progress, setProgress] = useState(0);
+
+    // Default Buzzwords if flavor is 'default' or specific types
+    const getFlavorText = (p) => {
+        if (!flavor || typeof flavor === 'string') return label; // Fallback or simple label
+        
+        // Map progress 0-100 to array index
+        const index = Math.min(Math.floor((p / 100) * flavor.length), flavor.length - 1);
+        return flavor[index] || label;
+    };
+
+    const currentLabel = Array.isArray(flavor) ? getFlavorText(progress) : label;
 
     useEffect(() => {
         if (!isLoading) {
@@ -54,7 +65,7 @@ export default function FalseProgressBar({ isLoading, label = "Processing...", d
     return (
         <div className="w-full mt-2">
             <div className="flex justify-between text-xs text-indigo-300 mb-1">
-                <span>{label}</span>
+                <span className="transition-all duration-300 ease-in-out min-w-[120px]">{currentLabel}</span>
                 <span>{Math.round(progress)}%</span>
             </div>
             <div className="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
