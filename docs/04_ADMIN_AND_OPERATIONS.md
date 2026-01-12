@@ -29,7 +29,9 @@ The system uses a transactional inventory model rather than simple static counte
         3.  The Order status is updated to `refunded` or `partially-refunded`.
 
 ## 4. Product & Catalog Operations
-* **CRUD**: Full management via `components/admin/ProductForm.js` including multi-image uploads and variant generation.
+* **CRUD**: Full management via `components/admin/ProductForm.js`.
+    * **Atomic Creation**: Uses the `create_product_full` RPC to ensure data integrity.
+    * **AI Assistance**: Features "Auto-Write" description and "Suggest" tags with simulated progress bars ("Analyzing visual cortex...") to improve UX during generation.
 * **Bulk Operations**:
     * **Import/Export**: `app/api/products/bulk-import` and `bulk-export` allow for mass updates using CSV files, managed by `components/admin/ProductImportExport.js`.
 * **Option Sets**: Admins define reusable size/color charts in `app/admin/options/page.js`. These are dynamically applied to products based on matching rules (e.g., "Apply 'Adult Sizes' to all items in category 'Shirts'").
@@ -39,3 +41,7 @@ Configuration is managed dynamically without code changes via `app/admin/setting
 * **Tax**: Configure rates and rules.
 * **Shipping**: Manage carriers and costs.
 * **AI Prompts**: Tune the system prompts used for product description generation.
+* **Product Guides**:
+    * **Size Charts**: Admins can build dynamic tables (e.g., "T-Shirt Size Chart") and link them to Catalog Categories.
+    * **Care Instructions**: Admins define text instructions (e.g., "Cotton Care") and link them to Product Attributes (Materials).
+    * **Auto-Matching**: The frontend automatically displays the correct guide based on the product's category/attributes—no manual tagging required per product.

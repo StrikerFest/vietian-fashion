@@ -13,6 +13,11 @@ The database is hosted on PostgreSQL via Supabase. It utilizes modern extensions
     * `attribute`: Used for filtering (e.g., "Material", "Style") and AI matching.
 * **`option_sets`** & **`product_options`**: Defines configurable options (Size, Color) and rules for when they apply.
 * **`collections`**: Curated groups of products (featured, seasonal).
+* **`settings` (Configuration)**:
+    * Stores global configuration like `tax_config`, `payment_config`.
+    * **Product Guides**: Stores `guide_settings` (JSON) which contains:
+        * **Size Charts**: Dynamic table definitions mapped to Product Categories.
+        * **Care Instructions**: Text guides mapped to Product Attributes (Materials).
 
 ### Inventory & Supply Chain
 * **`inventory_levels`**: Tracks `on_hand` and `committed` stock per variant.
@@ -41,6 +46,10 @@ The database handles complex business logic directly via PL/pgSQL functions to e
     * Automatically restocks inventory if `should_restock` is true.
     * Logs the adjustment in `inventory_adjustments`.
     * Updates the parent order status (Refunded/Partially Refunded).
+* **`create_product_full(payload)`**:
+    * **Atomic Transaction**: Creates a Product, its Images, Variants, Inventory, and Taxonomy links in a single database transaction.
+    * **Rollback**: Ensures no partial data (e.g., product without variants) is left behind if any step fails.
+    * **Input**: Accepts a comprehensive JSONB payload.
 * **`get_applicable_option_sets(product_id, variant_id)`**:
     * Dynamic logic to find which Size/Color charts apply to a product based on its category, collection, or price rules.
 * **`search_products_by_tags(tag_names)`**:
