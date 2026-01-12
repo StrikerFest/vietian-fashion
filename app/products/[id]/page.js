@@ -9,6 +9,7 @@ import ProductGallery from '@/components/product/ProductGallery';
 import VariantSelector from '@/components/product/VariantSelector';
 import ProductReviews from '@/components/product/ProductReviews';
 import ProductOptions from '@/components/product/ProductOptions';
+import ProductDetails from '@/components/product/ProductDetails';
 import { useToast } from '@/context/ToastContext';
 import { formatCurrency } from '@/utils/format';
 // [MODIFIED] Import shared helper
@@ -178,6 +179,8 @@ export default function ProductDetailPage() {
                         </div>
                     </div>
                 </div>
+
+                <ProductDetails product={product} />
 
                 <ProductReviews productId={product.id} />
             </div>

@@ -11,7 +11,8 @@ const PUBLIC_KEYS = [
     'contact_email',
     'tax_config',
     'shipping_config',
-    'payment_config' // <--- Added this so VietQRDisplay works for guests
+    'payment_config', // <--- Added this so VietQRDisplay works for guests
+    'guide_settings' // Size Charts & Care Instructions
 ];
 
 export async function GET(request) {

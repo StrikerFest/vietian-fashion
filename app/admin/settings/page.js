@@ -8,6 +8,7 @@ import EmailSettings from '@/components/admin/settings/EmailSettings';
 import TaxSettings from '@/components/admin/settings/TaxSettings';
 import PaymentSettings from '@/components/admin/settings/PaymentSettings';
 import AiPromptSettings from '@/components/admin/settings/AiPromptSettings'; // --- NEW ---
+import GuideSettings from '@/components/admin/settings/GuideSettings'; // --- NEW ---
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('homepage');
@@ -15,6 +16,7 @@ export default function SettingsPage() {
     const tabs = [
         { id: 'homepage', label: 'Giao diện Trang chủ' },
         { id: 'ai_prompts', label: 'Cấu hình AI Prompt' }, // --- NEW ---
+        { id: 'guides', label: 'Bảng Size & Bảo quản' }, // --- NEW ---
         { id: 'recommendation', label: 'Gợi ý AI' },
         { id: 'email', label: 'Cấu hình Email' },
         { id: 'tax', label: 'Thuế & Vận chuyển' },
@@ -50,6 +52,8 @@ export default function SettingsPage() {
                 {activeTab === 'homepage' && <HomepageSettings />}
 
                 {activeTab === 'ai_prompts' && <AiPromptSettings />} {/* --- NEW --- */}
+
+                {activeTab === 'guides' && <GuideSettings />} {/* --- NEW --- */}
 
                 {activeTab === 'recommendation' && <RecommendationSettings />}
 
