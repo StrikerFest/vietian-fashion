@@ -18,7 +18,7 @@ export default function TopProducts({ products }) {
                                 <p className="text-xs text-gray-500">{product.sold} đã bán</p>
                             </div>
                         </div>
-                        <Link href={`/admin/products?edit=${product.id}`} className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded">
+                        <Link href={`/admin/products/${product.id}`} className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded">
                             Sửa
                         </Link>
                     </div>

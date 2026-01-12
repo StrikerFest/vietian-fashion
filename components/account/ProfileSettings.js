@@ -1,7 +1,7 @@
 // components/account/ProfileSettings.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -10,24 +10,41 @@ export default function ProfileSettings() {
     const { session, supabase } = useAuth();
     const { addToast } = useToast();
 
-    // Simple profile fields (for demo/future implementation)
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Placeholder fetch (assuming you will hydrate these from API)
-    // useEffect(() => { /* fetch user profile details */ }, []);
+    useEffect(() => {
+        const fetchProfile = async () => {
+            if (!session) return;
+            try {
+                const res = await fetch('/api/account/profile');
+                if (res.ok) {
+                    const data = await res.json();
+                    setFirstName(data.first_name || '');
+                    setLastName(data.last_name || '');
+                }
+            } catch (error) {
+                console.error("Failed to load profile:", error);
+            }
+        };
+        fetchProfile();
+    }, [session]);
 
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
-            // Placeholder: Implement API call to update user details in the 'users' table
-            // For example:
-            // await fetch('/api/account/profile', { method: 'PUT', body: JSON.stringify({ firstName, lastName }) });
+            const response = await fetch('/api/account/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ first_name: firstName, last_name: lastName })
+            });
 
-            addToast('Cập nhật hồ sơ thành công! (Demo)', 'success');
+            if (!response.ok) throw new Error('Failed to update profile');
+
+            addToast('Cập nhật hồ sơ thành công!', 'success');
         } catch (error) {
             addToast(`Lỗi cập nhật hồ sơ: ${error.message}`, 'error');
         } finally {
@@ -65,7 +82,7 @@ export default function ProfileSettings() {
                     />
                 </div>
 
-                {/* Name fields (Placeholder) */}
+                {/* Name fields */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium mb-1 text-gray-300">Tên</label>
