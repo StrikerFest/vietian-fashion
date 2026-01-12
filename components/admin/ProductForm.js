@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useToast } from '@/context/ToastContext';
+import FalseProgressBar from '@/components/ui/FalseProgressBar';
 
 const emptyVariant = { sku: '', price: '', on_hand: '', attribute_value_ids: {} };
 
@@ -527,9 +528,12 @@ export default function ProductForm({ initialData, categories = [], collections 
                         <div>
                             <div className="flex justify-between items-end mb-1">
                                 <label className="block text-sm text-gray-400">Mô tả</label>
-                                <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingDesc} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 disabled:opacity-50">
-                                    {isGeneratingDesc ? 'Creating...' : '✨ Auto-Write'}
-                                </button>
+                                <div className="flex flex-col items-end w-1/2">
+                                    <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingDesc} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 disabled:opacity-50">
+                                        ✨ Auto-Write
+                                    </button>
+                                    <FalseProgressBar isLoading={isGeneratingDesc} label="Đang viết..." duration={6000} />
+                                </div>
                             </div>
                             <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white" rows="4" />
                         </div>
@@ -613,9 +617,10 @@ export default function ProductForm({ initialData, categories = [], collections 
                                 disabled={isGeneratingTags}
                                 className="text-[10px] bg-purple-900/50 hover:bg-purple-900 text-purple-200 px-2 py-1 rounded border border-purple-500/30 flex items-center gap-1 transition-colors disabled:opacity-50"
                             >
-                                {isGeneratingTags ? '...' : '✨ Suggest'}
+                                ✨ Suggest
                             </button>
                         </div>
+                        <FalseProgressBar isLoading={isGeneratingTags} label="Đang phân tích..." duration={6000} />
                         <p className="text-xs text-gray-500 mb-4">Nhập thủ công hoặc dùng AI gợi ý.</p>
 
                         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">

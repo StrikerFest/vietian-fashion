@@ -6,6 +6,7 @@ import {useSearchParams} from 'next/navigation';
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 import QuickViewModal from '@/components/QuickViewModal';
+import TopLoadingBar from '@/components/ui/TopLoadingBar';
 
 export default function SearchPage() {
     const searchParams = useSearchParams();
@@ -70,6 +71,7 @@ export default function SearchPage() {
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
+            <TopLoadingBar isLoading={isLoading} duration={4000} />
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8">
                     <Link href="/" className="text-sm text-gray-400 hover:text-white">&larr; Quay lại Trang chủ</Link>

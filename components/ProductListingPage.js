@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import PaginationControls from '@/components/ui/PaginationControls';
 import QuickViewModal from '@/components/QuickViewModal';
+import TopLoadingBar from '@/components/ui/TopLoadingBar';
 
 // Helper to update URL
 function updateQueryString(router, pathname, currentParams, newParams) {
@@ -169,6 +170,7 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
 
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
+            <TopLoadingBar isLoading={isLoading} duration={3000} />
             <div className="max-w-7xl mx-auto">
                 <h1 className="text-4xl font-extrabold text-center mb-4">{pageInfo?.name || pageType}</h1>
                 <p className="text-center text-gray-400 mb-8 max-w-2xl mx-auto">{pageInfo?.description}</p>

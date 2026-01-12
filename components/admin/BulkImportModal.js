@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
+import FalseProgressBar from '@/components/ui/FalseProgressBar';
 
 export default function BulkImportModal({ isOpen, onClose, onComplete }) {
     const { addToast } = useToast();
@@ -191,9 +192,19 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                                         />
 
                                         {/* Status Overlays */}
-                                        <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="absolute inset-0 flex items-center justify-center p-2">
                                             {fileObj.status === 'pending' && <span className="text-xs text-gray-400 bg-black/50 px-2 py-1 rounded">Đợi</span>}
-                                            {fileObj.status === 'processing' && <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"/>}
+                                            
+                                            {fileObj.status === 'processing' && (
+                                                <div className="w-full bg-black/70 p-2 rounded backdrop-blur-sm">
+                                                    <FalseProgressBar 
+                                                        isLoading={true} 
+                                                        label="AI Creating..." 
+                                                        duration={15000} 
+                                                    />
+                                                </div>
+                                            )}
+                                            
                                             {fileObj.status === 'success' && <span className="text-xl">✅</span>}
                                             {fileObj.status === 'error' && <span className="text-xl">❌</span>}
                                         </div>
