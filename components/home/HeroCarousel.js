@@ -41,18 +41,52 @@ export default function HeroCarousel({ banners }) {
                     {/* Overlay */}
                     <div className="absolute inset-0 bg-black/40"></div>
 
+                    {/* Full Banner Link (Background Click) */}
+                    {banner.link && (
+                        <Link 
+                            href={banner.link} 
+                            className="absolute inset-0 z-10" 
+                            aria-label={banner.title}
+                        />
+                    )}
+
                     {/* Content */}
-                    <div className="relative z-20 h-full flex flex-col justify-center items-center text-center px-4">
-                        <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg">
+                    <div className="relative z-20 h-full flex flex-col justify-center items-center text-center px-4 pointer-events-none">
+                        <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-8 tracking-tight drop-shadow-lg max-w-4xl">
                             {banner.title}
                         </h2>
-                        {banner.link && (
-                            <Link
-                                href={banner.link}
-                                className="px-8 py-3 bg-white text-gray-900 font-bold rounded-full hover:bg-gray-100 transition-colors shadow-xl"
-                            >
-                                Mua ngay
-                            </Link>
+                        
+                        {/* Buttons Grid */}
+                        {banner.buttons && banner.buttons.length > 0 && (
+                            <div className="flex flex-wrap gap-4 justify-center pointer-events-auto">
+                                {banner.buttons.map((btn, idx) => (
+                                    <Link
+                                        key={idx}
+                                        href={btn.link || '#'}
+                                        className={`px-8 py-3 font-bold rounded-full transition-all shadow-xl hover:-translate-y-1 ${
+                                            btn.style === 'outline' 
+                                                ? 'border-2 border-white text-white hover:bg-white hover:text-gray-900' 
+                                                : btn.style === 'white'
+                                                ? 'bg-white text-gray-900 hover:bg-gray-100'
+                                                : 'bg-indigo-600 text-white hover:bg-indigo-700 border-2 border-transparent'
+                                        }`}
+                                    >
+                                        {btn.text}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Fallback Legacy Button if no new buttons but link exists */}
+                        {(!banner.buttons || banner.buttons.length === 0) && banner.link && (
+                            <div className="pointer-events-auto">
+                                <Link
+                                    href={banner.link}
+                                    className="px-8 py-3 bg-white text-gray-900 font-bold rounded-full hover:bg-gray-100 transition-colors shadow-xl"
+                                >
+                                    Mua ngay
+                                </Link>
+                            </div>
                         )}
                     </div>
                 </div>

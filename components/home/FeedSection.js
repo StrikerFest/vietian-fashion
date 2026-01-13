@@ -1,14 +1,16 @@
 // components/home/FeedSection.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import ProductCard from '@/components/ProductCard';
 
 // Sub-component for individual rows
 function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const sliderRef = useRef(null);
 
     useEffect(() => {
         const load = async () => {
@@ -25,10 +27,18 @@ function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
         load();
     }, [fetchUrl]);
 
+    const scroll = (direction) => {
+        if (sliderRef.current) {
+            const { current } = sliderRef;
+            const scrollAmount = direction === 'left' ? -300 : 300;
+            current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        }
+    };
+
     if (!isLoading && products.length === 0) return null;
 
     return (
-        <section className="py-8 border-b border-gray-800 last:border-0">
+        <section className="py-8 border-b border-gray-800 last:border-0 group/section">
             <div className="flex justify-between items-end mb-6 px-4 max-w-7xl mx-auto">
                 <h3 className="text-2xl font-bold text-white">{title}</h3>
                 {viewAllLink && (
@@ -38,13 +48,37 @@ function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
                 )}
             </div>
 
-            <div className="relative w-full">
+            <div className="relative w-full px-14 md:px-24">
+                {/* Scroll Buttons - Bigger and Outside with more Gap */}
+                <button 
+                    onClick={() => scroll('left')}
+                    className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-10 bg-gray-800 hover:bg-indigo-600 text-white p-4 rounded-full shadow-2xl transition-all duration-300 border border-gray-700 hidden md:flex items-center justify-center group/btn cursor-pointer"
+                    aria-label="Scroll Left"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-8 h-8 group-hover/btn:-translate-x-1 transition-transform">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
+                </button>
+
+                <button 
+                    onClick={() => scroll('right')}
+                    className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 bg-gray-800 hover:bg-indigo-600 text-white p-4 rounded-full shadow-2xl transition-all duration-300 border border-gray-700 hidden md:flex items-center justify-center group/btn cursor-pointer"
+                    aria-label="Scroll Right"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-8 h-8 group-hover/btn:translate-x-1 transition-transform">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                </button>
+
                 {/* 
                    Centering Trick: 
                    - Outer: overflow-x-auto (scroll) + text-center (aligns inline-block children)
                    - Inner: inline-flex (shrinks to content) + text-left (resets text align)
                 */}
-                <div className="overflow-x-auto pb-6 snap-x text-center hide-scrollbar">
+                <div 
+                    ref={sliderRef}
+                    className="overflow-x-auto pb-6 snap-x text-center custom-scrollbar scroll-smooth"
+                >
                     <div className="inline-flex gap-6 px-4 text-left mx-auto">
                         {isLoading ? (
                             [...Array(4)].map((_, i) => (
@@ -82,6 +116,51 @@ function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
     );
 }
 
+// Full Width Banner Component
+function BannerRow({ image_url, title, buttons }) {
+    if (!image_url) return null;
+
+    return (
+        <section className="relative w-full h-[400px] md:h-[500px] my-8 overflow-hidden bg-gray-900 group">
+            <Image
+                src={image_url}
+                alt={title || 'Banner'}
+                fill
+                className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-black/40"></div>
+            
+            <div className="relative z-10 h-full flex flex-col justify-center items-center text-center px-4">
+                {title && (
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-8 tracking-tight drop-shadow-lg max-w-3xl">
+                        {title}
+                    </h2>
+                )}
+                
+                {buttons && buttons.length > 0 && (
+                    <div className="flex flex-wrap gap-4 justify-center">
+                        {buttons.map((btn, idx) => (
+                            <Link
+                                key={idx}
+                                href={btn.link || '#'}
+                                className={`px-8 py-3 font-bold rounded-full transition-all shadow-xl hover:-translate-y-1 ${
+                                    btn.style === 'outline' 
+                                        ? 'border-2 border-white text-white hover:bg-white hover:text-gray-900' 
+                                        : btn.style === 'white'
+                                        ? 'bg-white text-gray-900 hover:bg-gray-100'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 border-2 border-transparent'
+                                }`}
+                            >
+                                {btn.text}
+                            </Link>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
+
 export default function FeedSection({ layoutOrder, onQuickView }) {
     if (!layoutOrder || layoutOrder.length === 0) return null;
 
@@ -90,6 +169,17 @@ export default function FeedSection({ layoutOrder, onQuickView }) {
             {layoutOrder.map((row) => {
                 const commonProps = { onQuickView };
                 const limit = row.limit || 8;
+
+                if (row.type === 'banner_row') {
+                    return (
+                        <BannerRow 
+                            key={row.id}
+                            image_url={row.image_url}
+                            title={row.title}
+                            buttons={row.buttons}
+                        />
+                    );
+                }
 
                 if (row.type === 'collection_row' && row.target_id) {
                     return (

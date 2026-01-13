@@ -10,7 +10,7 @@ export default function HomepageSettings() {
     const { addToast } = useToast();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [uploadingBannerIndex, setUploadingBannerIndex] = useState(null);
+    const [uploadingState, setUploadingState] = useState({ index: null, type: null }); // type: 'hero' or 'row'
 
     // Data Sources
     const [collections, setCollections] = useState([]);
@@ -52,37 +52,39 @@ export default function HomepageSettings() {
         fetchData();
     }, []);
 
-    const addBanner = () => setConfig(prev => ({ ...prev, hero_banners: [...prev.hero_banners, { id: Date.now(), image_url: '', title: '', link: '' }] }));
-    const updateBanner = (i, f, v) => { const u = [...config.hero_banners]; u[i][f] = v; setConfig(prev => ({ ...prev, hero_banners: u })); };
-    const removeBanner = (i) => { setConfig(prev => ({ ...prev, hero_banners: prev.hero_banners.filter((_, x) => x !== i) })); };
-
-    const handleBannerUpload = async (index, file) => {
+    // --- Helpers ---
+    const handleUpload = async (type, index, file) => {
         if (!file) return;
-        setUploadingBannerIndex(index);
+        setUploadingState({ index, type });
         try {
             const fileExt = file.name.split('.').pop();
             const fileName = `banners/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
             
-            const { error: uploadError } = await supabase.storage
-                .from('products') // Using 'products' bucket as it's public
-                .upload(fileName, file);
-
+            const { error: uploadError } = await supabase.storage.from('products').upload(fileName, file);
             if (uploadError) throw uploadError;
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('products')
-                .getPublicUrl(fileName);
+            const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(fileName);
 
-            updateBanner(index, 'image_url', publicUrl);
+            if (type === 'hero') {
+                updateBanner(index, 'image_url', publicUrl);
+            } else if (type === 'row') {
+                updateRow(index, 'image_url', publicUrl);
+            }
             addToast("Đã tải ảnh lên!", "success");
         } catch (error) {
             console.error(error);
             addToast("Lỗi tải ảnh: " + error.message, "error");
         } finally {
-            setUploadingBannerIndex(null);
+            setUploadingState({ index: null, type: null });
         }
     };
 
+    // --- Hero Banner Logic ---
+    const addBanner = () => setConfig(prev => ({ ...prev, hero_banners: [...prev.hero_banners, { id: Date.now(), image_url: '', title: '', link: '', buttons: [] }] }));
+    const updateBanner = (i, f, v) => { const u = [...config.hero_banners]; u[i][f] = v; setConfig(prev => ({ ...prev, hero_banners: u })); };
+    const removeBanner = (i) => { setConfig(prev => ({ ...prev, hero_banners: prev.hero_banners.filter((_, x) => x !== i) })); };
+
+    // --- Layout Row Logic ---
     const addRow = () => setConfig(prev => ({ ...prev, layout_order: [...prev.layout_order, { id: Date.now(), type: 'collection_row', target_id: '', title: '' }] }));
     const updateRow = (i, f, v) => { const u = [...config.layout_order]; u[i][f] = v; setConfig(prev => ({ ...prev, layout_order: u })); };
     const removeRow = (i) => setConfig(prev => ({ ...prev, layout_order: prev.layout_order.filter((_, x) => x !== i) }));
@@ -93,41 +95,31 @@ export default function HomepageSettings() {
         setConfig(prev => ({ ...prev, layout_order: u }));
     };
 
-    const addWidget = (type) => {
+    // --- Sidebar Logic ---
+    const addWidget = (type) => { /* ... existing logic ... */
         const newWidget = { id: Date.now(), type, title: '' };
         if (type === 'banner') { newWidget.image_url = ''; newWidget.link = ''; }
         if (type === 'html') { newWidget.content = '<div>Code here</div>'; }
         if (type === 'links') { newWidget.links = [{ label: 'Link 1', url: '/' }]; }
-
-        setConfig(prev => ({
-            ...prev,
-            sidebar: {
-                ...prev.sidebar,
-                widgets: [...(prev.sidebar.widgets || []), newWidget]
-            }
-        }));
+        setConfig(prev => ({ ...prev, sidebar: { ...prev.sidebar, widgets: [...(prev.sidebar.widgets || []), newWidget] } }));
     };
-
-    const updateWidget = (index, field, value) => {
+    const updateWidget = (index, field, value) => { /* ... */ 
         const updated = [...(config.sidebar.widgets || [])];
         updated[index][field] = value;
         setConfig(prev => ({ ...prev, sidebar: { ...prev.sidebar, widgets: updated } }));
     };
-
-    const removeWidget = (index) => {
+    const removeWidget = (index) => { /* ... */
         const updated = config.sidebar.widgets.filter((_, i) => i !== index);
         setConfig(prev => ({ ...prev, sidebar: { ...prev.sidebar, widgets: updated } }));
     };
-
-    const updateWidgetLink = (wIndex, lIndex, field, value) => {
+    const updateWidgetLink = (wIndex, lIndex, field, value) => { /* ... */
         const widgets = [...config.sidebar.widgets];
         const links = [...widgets[wIndex].links];
         links[lIndex][field] = value;
         widgets[wIndex].links = links;
         setConfig(prev => ({ ...prev, sidebar: { ...prev.sidebar, widgets } }));
     };
-
-    const addWidgetLink = (wIndex) => {
+    const addWidgetLink = (wIndex) => { /* ... */
         const widgets = [...config.sidebar.widgets];
         widgets[wIndex].links.push({ label: 'New Link', url: '/' });
         setConfig(prev => ({ ...prev, sidebar: { ...prev.sidebar, widgets } }));
@@ -147,6 +139,38 @@ export default function HomepageSettings() {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    // Sub-component for managing buttons
+    const ButtonManager = ({ buttons = [], onChange }) => {
+        const addBtn = () => onChange([...buttons, { text: 'Button', link: '/', style: 'primary' }]);
+        const updateBtn = (idx, field, val) => {
+            const newBtns = [...buttons];
+            newBtns[idx][field] = val;
+            onChange(newBtns);
+        };
+        const removeBtn = (idx) => onChange(buttons.filter((_, i) => i !== idx));
+
+        return (
+            <div className="mt-2 p-2 bg-gray-900/50 rounded border border-gray-700">
+                <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-gray-400 font-bold uppercase">Buttons</span>
+                    <button onClick={addBtn} className="text-xs text-indigo-400 hover:text-indigo-300">+ Add Button</button>
+                </div>
+                {buttons.map((btn, idx) => (
+                    <div key={idx} className="flex gap-2 mb-2 items-center">
+                        <input value={btn.text} onChange={e => updateBtn(idx, 'text', e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white w-24" placeholder="Text" />
+                        <input value={btn.link} onChange={e => updateBtn(idx, 'link', e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white flex-grow" placeholder="Link" />
+                        <select value={btn.style} onChange={e => updateBtn(idx, 'style', e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-1 py-1 text-xs text-white w-20">
+                            <option value="primary">Primary</option>
+                            <option value="outline">Outline</option>
+                            <option value="white">White</option>
+                        </select>
+                        <button onClick={() => removeBtn(idx)} className="text-red-400 hover:text-red-300 text-xs px-1">×</button>
+                    </div>
+                ))}
+            </div>
+        );
     };
 
     if (isLoading) return <div className="animate-pulse text-gray-400">Đang tải...</div>;
@@ -171,13 +195,13 @@ export default function HomepageSettings() {
                                             className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white w-full" 
                                             placeholder="URL Hình ảnh" 
                                         />
-                                        <label className={`cursor-pointer bg-gray-700 hover:bg-gray-600 border border-gray-600 px-3 py-1 rounded text-xs flex items-center whitespace-nowrap ${uploadingBannerIndex === i ? 'opacity-50 pointer-events-none' : ''}`}>
-                                            {uploadingBannerIndex === i ? '...' : 'Upload'}
+                                        <label className={`cursor-pointer bg-gray-700 hover:bg-gray-600 border border-gray-600 px-3 py-1 rounded text-xs flex items-center whitespace-nowrap ${uploadingState.type === 'hero' && uploadingState.index === i ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            {uploadingState.type === 'hero' && uploadingState.index === i ? '...' : 'Upload'}
                                             <input 
                                                 type="file" 
                                                 className="hidden" 
                                                 accept="image/*"
-                                                onChange={(e) => handleBannerUpload(i, e.target.files[0])}
+                                                onChange={(e) => handleUpload('hero', i, e.target.files[0])}
                                             />
                                         </label>
                                     </div>
@@ -198,7 +222,7 @@ export default function HomepageSettings() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs text-gray-400 block mb-1">Liên kết (Tùy chọn)</label>
+                                        <label className="text-xs text-gray-400 block mb-1">Liên kết toàn bộ (Tùy chọn)</label>
                                         <input 
                                             value={b.link || ''} 
                                             onChange={e=>updateBanner(i,'link',e.target.value)} 
@@ -206,6 +230,10 @@ export default function HomepageSettings() {
                                             placeholder="/collections/sale" 
                                         />
                                     </div>
+                                    <ButtonManager 
+                                        buttons={b.buttons} 
+                                        onChange={(newBtns) => updateBanner(i, 'buttons', newBtns)} 
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -217,40 +245,85 @@ export default function HomepageSettings() {
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
                 <div className="flex justify-between mb-4"><h3 className="text-lg font-bold text-white">Các hàng bố cục</h3><button onClick={addRow} className="text-xs bg-green-600 px-3 py-1 rounded">+ Thêm hàng</button></div>
                 {config.layout_order.map((r, i) => (
-                    <div key={r.id} className="mb-2 flex gap-2 items-center">
-                        <button onClick={()=>moveRow(i,'down')}>▼</button>
-                        <select value={r.type} onChange={e=>updateRow(i,'type',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-32">
-                            <option value="featured_grid">Nổi bật</option>
-                            <option value="collection_row">Bộ sưu tập</option>
-                            <option value="category_row">Danh mục</option>
-                        </select>
+                    <div key={r.id} className="mb-4 bg-gray-900/40 p-3 rounded border border-gray-700">
+                        <div className="flex gap-2 items-center mb-2">
+                            <button onClick={()=>moveRow(i,'down')} className="text-gray-400 hover:text-white">▼</button>
+                            <select value={r.type} onChange={e=>updateRow(i,'type',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-32">
+                                <option value="featured_grid">Nổi bật</option>
+                                <option value="collection_row">Bộ sưu tập</option>
+                                <option value="category_row">Danh mục</option>
+                                <option value="banner_row">Banner Lớn</option>
+                            </select>
+
+                            <input 
+                                type="text" 
+                                value={r.title || ''} 
+                                onChange={e=>updateRow(i,'title',e.target.value)} 
+                                className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white flex-grow" 
+                                placeholder="Tiêu đề phần (Header)" 
+                            />
+                            
+                            <button onClick={()=>removeRow(i)} className="text-red-400 font-bold px-2">×</button>
+                        </div>
                         
-                        <input 
-                            type="number" 
-                            min="1" 
-                            max="50"
-                            value={r.limit || 8} 
-                            onChange={e=>updateRow(i,'limit',parseInt(e.target.value))} 
-                            className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-16 text-center" 
-                            title="Số lượng hiển thị"
-                        />
+                        {/* Config based on Type */}
+                        <div className="pl-6 border-l-2 border-gray-700 space-y-2">
+                            {['featured_grid', 'collection_row', 'category_row'].includes(r.type) && (
+                                <div className="flex items-center gap-4">
+                                    <label className="text-xs text-gray-400">Số lượng:</label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        max="50"
+                                        value={r.limit || 8} 
+                                        onChange={e=>updateRow(i,'limit',parseInt(e.target.value))} 
+                                        className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-16 text-center" 
+                                    />
+                                </div>
+                            )}
 
-                        {r.type === 'collection_row' && (
-                            <select value={r.target_id || ''} onChange={e=>updateRow(i,'target_id',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-40">
-                                <option value="">-- Chọn BST --</option>
-                                {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                        )}
+                            {(r.type === 'collection_row' || r.type === 'category_row') && (
+                                <div className="flex items-center gap-4">
+                                    <label className="text-xs text-gray-400">Nguồn dữ liệu:</label>
+                                    <select value={r.target_id || ''} onChange={e=>updateRow(i,'target_id',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white flex-grow">
+                                        <option value="">-- Chọn --</option>
+                                        {r.type === 'collection_row' 
+                                            ? collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                                            : categories.filter(c => c.type === 'catalog').map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                                        }
+                                    </select>
+                                </div>
+                            )}
 
-                        {r.type === 'category_row' && (
-                            <select value={r.target_id || ''} onChange={e=>updateRow(i,'target_id',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-40">
-                                <option value="">-- Chọn DM --</option>
-                                {categories.filter(c => c.type === 'catalog').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                        )}
-
-                        <input value={r.title} onChange={e=>updateRow(i,'title',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white flex-grow" placeholder="Tiêu đề hiển thị" />
-                        <button onClick={()=>removeRow(i)} className="text-red-400 font-bold px-2">×</button>
+                            {r.type === 'banner_row' && (
+                                <div className="space-y-3 pt-2">
+                                    <div className="flex gap-2">
+                                        <input 
+                                            value={r.image_url || ''} 
+                                            onChange={e=>updateRow(i,'image_url',e.target.value)} 
+                                            className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white flex-grow" 
+                                            placeholder="URL Hình ảnh Banner" 
+                                        />
+                                        <label className={`cursor-pointer bg-gray-700 hover:bg-gray-600 border border-gray-600 px-3 py-1 rounded text-xs flex items-center whitespace-nowrap ${uploadingState.type === 'row' && uploadingState.index === i ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            {uploadingState.type === 'row' && uploadingState.index === i ? '...' : 'Upload'}
+                                            <input 
+                                                type="file" 
+                                                className="hidden" 
+                                                accept="image/*"
+                                                onChange={(e) => handleUpload('row', i, e.target.files[0])}
+                                            />
+                                        </label>
+                                    </div>
+                                    {r.image_url && (
+                                        <img src={r.image_url} alt="Preview" className="h-24 w-auto rounded border border-gray-700 object-cover" />
+                                    )}
+                                    <ButtonManager 
+                                        buttons={r.buttons} 
+                                        onChange={(newBtns) => updateRow(i, 'buttons', newBtns)} 
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 ))}
             </div>
