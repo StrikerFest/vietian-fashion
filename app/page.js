@@ -52,7 +52,7 @@ export default function HomePage() {
                         <Sidebar config={config.sidebar} />
                     )}
 
-                    <div className="flex-grow">
+                    <div className="flex-grow min-w-0">
                         {/* Pass the handler to the feed */}
                         <FeedSection
                             layoutOrder={config?.layout_order}

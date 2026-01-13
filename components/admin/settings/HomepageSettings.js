@@ -5,6 +5,38 @@ import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useToast } from '@/context/ToastContext';
 
+// Sub-component for managing buttons
+const ButtonManager = ({ buttons = [], onChange }) => {
+    const addBtn = () => onChange([...buttons, { text: 'Button', link: '/', style: 'primary' }]);
+    const updateBtn = (idx, field, val) => {
+        const newBtns = [...buttons];
+        newBtns[idx][field] = val;
+        onChange(newBtns);
+    };
+    const removeBtn = (idx) => onChange(buttons.filter((_, i) => i !== idx));
+
+    return (
+        <div className="mt-2 p-2 bg-gray-900/50 rounded border border-gray-700">
+            <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-400 font-bold uppercase">Buttons</span>
+                <button onClick={addBtn} className="text-xs text-indigo-400 hover:text-indigo-300">+ Add Button</button>
+            </div>
+            {buttons.map((btn, idx) => (
+                <div key={idx} className="flex gap-2 mb-2 items-center">
+                    <input value={btn.text} onChange={e => updateBtn(idx, 'text', e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white w-24" placeholder="Text" />
+                    <input value={btn.link} onChange={e => updateBtn(idx, 'link', e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white flex-grow" placeholder="Link" />
+                    <select value={btn.style} onChange={e => updateBtn(idx, 'style', e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-1 py-1 text-xs text-white w-20">
+                        <option value="primary">Primary</option>
+                        <option value="outline">Outline</option>
+                        <option value="white">White</option>
+                    </select>
+                    <button onClick={() => removeBtn(idx)} className="text-red-400 hover:text-red-300 text-xs px-1">×</button>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 export default function HomepageSettings() {
     const supabase = createClientComponentClient();
     const { addToast } = useToast();
@@ -139,38 +171,6 @@ export default function HomepageSettings() {
         } finally {
             setIsSaving(false);
         }
-    };
-
-    // Sub-component for managing buttons
-    const ButtonManager = ({ buttons = [], onChange }) => {
-        const addBtn = () => onChange([...buttons, { text: 'Button', link: '/', style: 'primary' }]);
-        const updateBtn = (idx, field, val) => {
-            const newBtns = [...buttons];
-            newBtns[idx][field] = val;
-            onChange(newBtns);
-        };
-        const removeBtn = (idx) => onChange(buttons.filter((_, i) => i !== idx));
-
-        return (
-            <div className="mt-2 p-2 bg-gray-900/50 rounded border border-gray-700">
-                <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-gray-400 font-bold uppercase">Buttons</span>
-                    <button onClick={addBtn} className="text-xs text-indigo-400 hover:text-indigo-300">+ Add Button</button>
-                </div>
-                {buttons.map((btn, idx) => (
-                    <div key={idx} className="flex gap-2 mb-2 items-center">
-                        <input value={btn.text} onChange={e => updateBtn(idx, 'text', e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white w-24" placeholder="Text" />
-                        <input value={btn.link} onChange={e => updateBtn(idx, 'link', e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white flex-grow" placeholder="Link" />
-                        <select value={btn.style} onChange={e => updateBtn(idx, 'style', e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-1 py-1 text-xs text-white w-20">
-                            <option value="primary">Primary</option>
-                            <option value="outline">Outline</option>
-                            <option value="white">White</option>
-                        </select>
-                        <button onClick={() => removeBtn(idx)} className="text-red-400 hover:text-red-300 text-xs px-1">×</button>
-                    </div>
-                ))}
-            </div>
-        );
     };
 
     if (isLoading) return <div className="animate-pulse text-gray-400">Đang tải...</div>;

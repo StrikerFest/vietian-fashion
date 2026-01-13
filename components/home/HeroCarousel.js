@@ -20,7 +20,7 @@ export default function HeroCarousel({ banners }) {
     if (!banners || banners.length === 0) return null;
 
     return (
-        <div className="relative w-full h-[400px] md:h-[500px] overflow-hidden bg-gray-900">
+        <div className="relative w-full h-[350px] md:h-[450px] overflow-hidden bg-gray-900">
             {/* Slides */}
             {banners.map((banner, index) => (
                 <div
@@ -52,7 +52,7 @@ export default function HeroCarousel({ banners }) {
 
                     {/* Content */}
                     <div className="relative z-20 h-full flex flex-col justify-center items-center text-center px-4 pointer-events-none">
-                        <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-8 tracking-tight drop-shadow-lg max-w-4xl">
+                        <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg max-w-4xl">
                             {banner.title}
                         </h2>
                         

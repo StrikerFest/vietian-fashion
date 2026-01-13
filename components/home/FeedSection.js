@@ -79,15 +79,15 @@ function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
                     ref={sliderRef}
                     className="overflow-x-auto pb-6 snap-x text-center custom-scrollbar scroll-smooth"
                 >
-                    <div className="inline-flex gap-6 px-4 text-left mx-auto">
+                    <div className="inline-flex gap-5 px-4 text-left mx-auto">
                         {isLoading ? (
                             [...Array(4)].map((_, i) => (
-                                <div key={i} className="min-w-[260px] h-[400px] bg-gray-800 rounded-lg animate-pulse flex-shrink-0"></div>
+                                <div key={i} className="min-w-[230px] h-[380px] bg-gray-800 rounded-lg animate-pulse flex-shrink-0"></div>
                             ))
                         ) : (
                             <>
                                 {products.map(product => (
-                                    <div key={product.id} className="min-w-[260px] w-[260px] flex-shrink-0 snap-start">
+                                    <div key={product.id} className="min-w-[230px] w-[230px] flex-shrink-0 snap-start">
                                         <ProductCard product={product} onQuickViewClick={onQuickView} />
                                     </div>
                                 ))}
@@ -96,7 +96,7 @@ function ProductRow({ title, fetchUrl, viewAllLink, onQuickView }) {
                                 {viewAllLink && (
                                     <Link 
                                         href={viewAllLink} 
-                                        className="min-w-[260px] w-[260px] flex-shrink-0 snap-start flex flex-col items-center justify-center bg-gray-800/30 rounded-lg border-2 border-dashed border-gray-700 hover:border-indigo-500 hover:bg-gray-800 transition-all group cursor-pointer"
+                                        className="min-w-[230px] w-[230px] flex-shrink-0 snap-start flex flex-col items-center justify-center bg-gray-800/30 rounded-lg border-2 border-dashed border-gray-700 hover:border-indigo-500 hover:bg-gray-800 transition-all group cursor-pointer"
                                     >
                                         <span className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center group-hover:bg-indigo-600 group-hover:scale-110 transition-all mb-4 shadow-lg">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8 text-white">
@@ -121,7 +121,7 @@ function BannerRow({ image_url, title, buttons }) {
     if (!image_url) return null;
 
     return (
-        <section className="relative w-full h-[400px] md:h-[500px] my-8 overflow-hidden bg-gray-900 group">
+        <section className="relative w-full h-[300px] md:h-[450px] my-6 overflow-hidden bg-gray-900 group">
             <Image
                 src={image_url}
                 alt={title || 'Banner'}
@@ -132,7 +132,7 @@ function BannerRow({ image_url, title, buttons }) {
             
             <div className="relative z-10 h-full flex flex-col justify-center items-center text-center px-4">
                 {title && (
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-8 tracking-tight drop-shadow-lg max-w-3xl">
+                    <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg max-w-3xl">
                         {title}
                     </h2>
                 )}

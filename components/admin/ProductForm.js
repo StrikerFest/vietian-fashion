@@ -41,10 +41,16 @@ export default function ProductForm({ initialData, categories = [], collections 
     const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
     const [isGeneratingTags, setIsGeneratingTags] = useState(false);
 
-    // --- Computed: AI Detection ---
-    const isGenerated = useMemo(() => {
-        return initialData?.name?.startsWith('[AI]') || name.startsWith('[AI]');
-    }, [initialData, name]);
+    const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
+    
+    // Search & Pagination States
+    const [variantSearch, setVariantSearch] = useState('');
+    const [variantPage, setVariantPage] = useState(1);
+    const VARIANT_PAGE_SIZE = 9;
+
+    const [catalogSearch, setCatalogSearch] = useState('');
+    const [collectionSearch, setCollectionSearch] = useState('');
+    const [tagSearch, setTagSearch] = useState('');
 
     // --- Dynamic Grouping of Attributes ---
     const attributeGroups = useMemo(() => {
@@ -59,6 +65,24 @@ export default function ProductForm({ initialData, categories = [], collections 
         });
         return Object.values(groups);
     }, [categories]);
+
+    // --- Computed: Variant Filtering ---
+    const filteredAttributeGroups = useMemo(() => {
+        if (!variantSearch) return attributeGroups;
+        return attributeGroups.filter(g => g.name.toLowerCase().includes(variantSearch.toLowerCase()));
+    }, [attributeGroups, variantSearch]);
+
+    const paginatedAttributeGroups = useMemo(() => {
+        const start = (variantPage - 1) * VARIANT_PAGE_SIZE;
+        return filteredAttributeGroups.slice(start, start + VARIANT_PAGE_SIZE);
+    }, [filteredAttributeGroups, variantPage]);
+
+    const totalVariantPages = Math.ceil(filteredAttributeGroups.length / VARIANT_PAGE_SIZE);
+
+    // --- Computed: AI Detection ---
+    const isGenerated = useMemo(() => {
+        return initialData?.name?.startsWith('[AI]') || name.startsWith('[AI]');
+    }, [initialData, name]);
 
     // --- Load Initial Data ---
     useEffect(() => {
@@ -600,16 +624,35 @@ export default function ProductForm({ initialData, categories = [], collections 
                     <div>
                         <h3 className="font-semibold mb-2 text-blue-400">Điều hướng</h3>
                         <p className="text-xs text-gray-500 mb-2">Menu danh mục chính</p>
+                        <input 
+                            type="text" 
+                            placeholder="Tìm danh mục..." 
+                            value={catalogSearch}
+                            onChange={e => setCatalogSearch(e.target.value)}
+                            className="w-full bg-gray-800 p-2 mb-2 rounded border border-gray-600 text-xs text-white"
+                        />
                         <select value={selectedCatalogId} onChange={e => setSelectedCatalogId(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white">
                             <option value="">-- Chọn --</option>
-                            {categories.filter(c => c.type === 'catalog').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {categories
+                                .filter(c => c.type === 'catalog' && c.name.toLowerCase().includes(catalogSearch.toLowerCase()))
+                                .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                            }
                         </select>
                     </div>
                     <div>
                         <h3 className="font-semibold mb-2 text-green-400">Bộ sưu tập</h3>
                         <p className="text-xs text-gray-500 mb-2">Nhóm tiếp thị</p>
+                        <input 
+                            type="text" 
+                            placeholder="Tìm bộ sưu tập..." 
+                            value={collectionSearch}
+                            onChange={e => setCollectionSearch(e.target.value)}
+                            className="w-full bg-gray-800 p-2 mb-2 rounded border border-gray-600 text-xs text-white"
+                        />
                         <div className="max-h-40 overflow-y-auto bg-gray-700 p-2 rounded border border-gray-600">
-                            {collections.map(c => (
+                            {collections
+                                .filter(c => c.name.toLowerCase().includes(collectionSearch.toLowerCase()))
+                                .map(c => (
                                 <label key={c.id} className="flex gap-2 p-1 hover:bg-gray-600 rounded cursor-pointer">
                                     <input type="checkbox" checked={selectedCollectionIds.includes(c.id)} onChange={() => handleCollectionToggle(c.id)} className="rounded text-green-500 focus:ring-green-500 bg-gray-900 border-gray-500" />
                                     <span className="text-sm">{c.name}</span>
@@ -642,10 +685,19 @@ export default function ProductForm({ initialData, categories = [], collections 
                                 "Đề xuất thẻ phù hợp..."
                             ]}
                         />
-                        <p className="text-xs text-gray-500 mb-4">Nhập thủ công hoặc dùng AI gợi ý.</p>
+                        <p className="text-xs text-gray-500 mb-2">Nhập thủ công hoặc dùng AI gợi ý.</p>
+                        <input 
+                            type="text" 
+                            placeholder="Tìm nhóm thuộc tính..." 
+                            value={tagSearch}
+                            onChange={e => setTagSearch(e.target.value)}
+                            className="w-full bg-gray-800 p-2 mb-2 rounded border border-gray-600 text-xs text-white"
+                        />
 
                         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
-                            {attributeGroups.map(group => (
+                            {attributeGroups
+                                .filter(g => g.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                                .map(group => (
                                 <div key={group.id} className="bg-gray-700/50 p-3 rounded border border-gray-700">
                                     <p className="text-xs text-gray-300 font-bold uppercase tracking-wider mb-2">{group.name}</p>
 
@@ -708,16 +760,124 @@ export default function ProductForm({ initialData, categories = [], collections 
                     </div>
 
                     <div className="bg-indigo-900/20 p-4 rounded border border-indigo-500/30 mb-6">
-                        <p className="text-sm text-indigo-300 mb-2 font-bold">Cấu hình tùy chọn biến thể</p>
-                        <div className="flex flex-wrap gap-4">
-                            {attributeGroups.map(group => (
-                                <label key={group.id} className="flex items-center gap-2 cursor-pointer bg-gray-800 px-3 py-1.5 rounded border border-gray-600 hover:border-indigo-500 transition-colors">
-                                    <input type="checkbox" checked={variantConfig.includes(group.id)} onChange={() => handleVariantConfigToggle(group.id)} className="text-indigo-500 rounded bg-gray-900 border-gray-500" />
-                                    <span className="text-white text-sm">{group.name}</span>
-                                </label>
-                            ))}
+                        <div className="flex justify-between items-center mb-2">
+                            <p className="text-sm text-indigo-300 font-bold">Cấu hình tùy chọn biến thể</p>
+                            <button
+                                type="button"
+                                onClick={() => setIsVariantModalOpen(true)}
+                                className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded font-bold"
+                            >
+                                ⚙️ Cấu hình
+                            </button>
+                        </div>
+                        
+                        {/* Selected Config Summary */}
+                        <div className="flex flex-wrap gap-2">
+                            {variantConfig.length > 0 ? variantConfig.map(groupId => {
+                                const group = attributeGroups.find(g => g.id === groupId);
+                                return (
+                                    <span key={groupId} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-indigo-900/50 border border-indigo-500/50 text-indigo-200 text-xs">
+                                        {group?.name}
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleVariantConfigToggle(groupId)}
+                                            className="ml-1 hover:text-white"
+                                        >
+                                            &times;
+                                        </button>
+                                    </span>
+                                );
+                            }) : (
+                                <span className="text-xs text-gray-500 italic">Chưa chọn thuộc tính nào (Sản phẩm đơn)</span>
+                            )}
                         </div>
                     </div>
+
+                    {/* Variant Config Modal */}
+                    {isVariantModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsVariantModalOpen(false)}>
+                            <div className="bg-gray-800 rounded-lg w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl border border-gray-700" onClick={e => e.stopPropagation()}>
+                                
+                                {/* Modal Header */}
+                                <div className="p-4 border-b border-gray-700 flex justify-between items-center gap-4">
+                                    <h3 className="text-lg font-bold text-white whitespace-nowrap">Chọn thuộc tính</h3>
+                                    <div className="flex-grow max-w-md">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Tìm kiếm thuộc tính..." 
+                                            value={variantSearch}
+                                            onChange={(e) => { setVariantSearch(e.target.value); setVariantPage(1); }}
+                                            className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none"
+                                        />
+                                    </div>
+                                    <button onClick={() => setIsVariantModalOpen(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+                                </div>
+                                
+                                {/* Modal Content (Scrollable) */}
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    {paginatedAttributeGroups.length > 0 ? (
+                                        <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+                                            {paginatedAttributeGroups.map(group => (
+                                                <div key={group.id} className="break-inside-avoid bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-indigo-500/50 transition-colors">
+                                                    <label className="flex items-center gap-3 cursor-pointer mb-3 pb-3 border-b border-gray-800">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={variantConfig.includes(group.id)} 
+                                                            onChange={() => handleVariantConfigToggle(group.id)}
+                                                            className="w-5 h-5 rounded text-indigo-500 focus:ring-indigo-500 bg-gray-800 border-gray-600" 
+                                                        />
+                                                        <span className="font-bold text-white">{group.name}</span>
+                                                    </label>
+                                                    
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {group.options.slice(0, 10).map(opt => (
+                                                            <span key={opt.id} className="text-[10px] px-2 py-1 rounded bg-gray-800 text-gray-400 border border-gray-700">
+                                                                {opt.name}
+                                                            </span>
+                                                        ))}
+                                                        {group.options.length > 10 && (
+                                                            <span className="text-[10px] px-2 py-1 text-gray-500">+{group.options.length - 10} more</span>
+                                                        )}
+                                                        {group.options.length === 0 && <span className="text-xs text-gray-600 italic">Trống</span>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                                            <p>Không tìm thấy kết quả phù hợp.</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Modal Footer (Pagination & Actions) */}
+                                <div className="p-4 border-t border-gray-700 bg-gray-900/50 flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => setVariantPage(p => Math.max(1, p - 1))}
+                                            disabled={variantPage === 1}
+                                            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 text-sm text-white"
+                                        >
+                                            Prev
+                                        </button>
+                                        <span className="text-sm text-gray-400">
+                                            Trang {variantPage} / {totalVariantPages || 1}
+                                        </span>
+                                        <button 
+                                            onClick={() => setVariantPage(p => Math.min(totalVariantPages, p + 1))}
+                                            disabled={variantPage >= totalVariantPages}
+                                            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 text-sm text-white"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                    <button onClick={() => setIsVariantModalOpen(false)} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold">
+                                        Xong
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-3">
                         {variants.map((variant, index) => (

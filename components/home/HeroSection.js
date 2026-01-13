@@ -68,8 +68,8 @@ export default function HeroSection() {
 
     return (
         <div className="relative bg-gray-800 border-b border-gray-700">
-            <div className="relative max-w-4xl mx-auto py-12 px-4 text-center">
-                <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-6">
+            <div className="relative max-w-4xl mx-auto py-8 px-4 text-center">
+                <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-6">
                     Tìm Kiếm Phong Cách Hoàn Hảo Của Bạn
                 </h1>
 
