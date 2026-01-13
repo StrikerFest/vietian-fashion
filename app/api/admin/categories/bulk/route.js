@@ -5,7 +5,27 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
     const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createRouteHandlerClient({
+        cookies: () => ({
+            get(name) {
+                return cookieStore.get(name)?.value;
+            },
+            set(name, value, options) {
+                try {
+                    cookieStore.set(name, value, options);
+                } catch (error) {
+                    // Start of Next.js 15 fix
+                }
+            },
+            remove(name, options) {
+                try {
+                    cookieStore.set(name, '', { ...options, maxAge: 0 });
+                } catch (error) {
+                    // End of Next.js 15 fix
+                }
+            },
+        }),
+    });
     const { ids, action } = await request.json();
 
     if (!ids || !Array.isArray(ids) || ids.length === 0 || !action) {
