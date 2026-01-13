@@ -9,6 +9,69 @@ import FalseProgressBar from '@/components/ui/FalseProgressBar';
 
 const emptyVariant = { sku: '', price: '', on_hand: '', attribute_value_ids: {} };
 
+// Helper: Autocomplete Component
+const Autocomplete = ({ options, value, onChange, placeholder, multiple = false, renderTag }) => {
+    const [search, setSearch] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+
+    // Filter options based on search, excluding already selected ones (if multiple)
+    const filteredOptions = useMemo(() => {
+        return options.filter(opt => {
+            const matchesSearch = opt.name.toLowerCase().includes(search.toLowerCase());
+            const isSelected = multiple 
+                ? (Array.isArray(value) ? value.includes(opt.id) : false)
+                : value === opt.id;
+            return matchesSearch && !isSelected;
+        });
+    }, [options, search, value, multiple]);
+
+    const handleSelect = (option) => {
+        if (multiple) {
+            onChange([...(value || []), option.id]);
+        } else {
+            onChange(option.id);
+            setSearch(option.name); // Set input to selected name
+            setIsOpen(false);
+        }
+        if (multiple) setSearch(''); // Reset search for multiple
+    };
+
+    // Initialize search with selected value name for single select
+    useEffect(() => {
+        if (!multiple && value) {
+            const selected = options.find(o => o.id === value);
+            if (selected) setSearch(selected.name);
+        }
+    }, [value, options, multiple]);
+
+    return (
+        <div className="relative w-full">
+            <input
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setIsOpen(true); }}
+                onFocus={() => setIsOpen(true)}
+                onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay to allow click
+                placeholder={placeholder}
+                className="w-full bg-gray-800 p-2 rounded border border-gray-600 text-sm text-white focus:border-indigo-500 outline-none"
+            />
+            {isOpen && filteredOptions.length > 0 && (
+                <ul className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-700 rounded shadow-xl max-h-60 overflow-y-auto">
+                    {filteredOptions.map(opt => (
+                        <li
+                            key={opt.id}
+                            onClick={() => handleSelect(opt)}
+                            className="px-3 py-2 hover:bg-indigo-600 cursor-pointer text-sm text-gray-200 hover:text-white"
+                        >
+                            {opt.name}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+};
+
 export default function ProductForm({ initialData, categories = [], collections = [], onSuccess, onCancel }) {
     const supabase = createClientComponentClient();
     const { addToast } = useToast();
@@ -48,9 +111,8 @@ export default function ProductForm({ initialData, categories = [], collections 
     const [variantPage, setVariantPage] = useState(1);
     const VARIANT_PAGE_SIZE = 9;
 
-    const [catalogSearch, setCatalogSearch] = useState('');
-    const [collectionSearch, setCollectionSearch] = useState('');
-    const [tagSearch, setTagSearch] = useState('');
+    // Attribute Section Visibility State
+    const [visibleAttributeGroupIds, setVisibleAttributeGroupIds] = useState(new Set());
 
     // --- Dynamic Grouping of Attributes ---
     const attributeGroups = useMemo(() => {
@@ -125,7 +187,12 @@ export default function ProductForm({ initialData, categories = [], collections 
                         isNew: false
                     };
                 });
-                setSelectedTags(loadedTags.filter(t => t.groupId));
+                const activeTags = loadedTags.filter(t => t.groupId);
+                setSelectedTags(activeTags);
+                
+                // Init visible groups based on active tags
+                const activeGroupIds = new Set(activeTags.map(t => t.groupId));
+                setVisibleAttributeGroupIds(activeGroupIds);
             }
 
             if (initialData.product_variants?.length > 0) {
@@ -624,40 +691,33 @@ export default function ProductForm({ initialData, categories = [], collections 
                     <div>
                         <h3 className="font-semibold mb-2 text-blue-400">Điều hướng</h3>
                         <p className="text-xs text-gray-500 mb-2">Menu danh mục chính</p>
-                        <input 
-                            type="text" 
-                            placeholder="Tìm danh mục..." 
-                            value={catalogSearch}
-                            onChange={e => setCatalogSearch(e.target.value)}
-                            className="w-full bg-gray-800 p-2 mb-2 rounded border border-gray-600 text-xs text-white"
+                        <Autocomplete 
+                            options={categories.filter(c => c.type === 'catalog')}
+                            value={selectedCatalogId}
+                            onChange={setSelectedCatalogId}
+                            placeholder="Tìm và chọn danh mục..."
                         />
-                        <select value={selectedCatalogId} onChange={e => setSelectedCatalogId(e.target.value)} className="w-full bg-gray-700 p-2 rounded border border-gray-600 text-white">
-                            <option value="">-- Chọn --</option>
-                            {categories
-                                .filter(c => c.type === 'catalog' && c.name.toLowerCase().includes(catalogSearch.toLowerCase()))
-                                .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
-                            }
-                        </select>
                     </div>
                     <div>
                         <h3 className="font-semibold mb-2 text-green-400">Bộ sưu tập</h3>
                         <p className="text-xs text-gray-500 mb-2">Nhóm tiếp thị</p>
-                        <input 
-                            type="text" 
-                            placeholder="Tìm bộ sưu tập..." 
-                            value={collectionSearch}
-                            onChange={e => setCollectionSearch(e.target.value)}
-                            className="w-full bg-gray-800 p-2 mb-2 rounded border border-gray-600 text-xs text-white"
+                        <Autocomplete 
+                            options={collections}
+                            value={selectedCollectionIds}
+                            onChange={(newIds) => setSelectedCollectionIds(newIds)}
+                            placeholder="+ Thêm bộ sưu tập..."
+                            multiple
                         />
-                        <div className="max-h-40 overflow-y-auto bg-gray-700 p-2 rounded border border-gray-600">
-                            {collections
-                                .filter(c => c.name.toLowerCase().includes(collectionSearch.toLowerCase()))
-                                .map(c => (
-                                <label key={c.id} className="flex gap-2 p-1 hover:bg-gray-600 rounded cursor-pointer">
-                                    <input type="checkbox" checked={selectedCollectionIds.includes(c.id)} onChange={() => handleCollectionToggle(c.id)} className="rounded text-green-500 focus:ring-green-500 bg-gray-900 border-gray-500" />
-                                    <span className="text-sm">{c.name}</span>
-                                </label>
-                            ))}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {selectedCollectionIds.map(id => {
+                                const col = collections.find(c => c.id === id);
+                                return (
+                                    <span key={id} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-900/30 text-green-300 text-xs border border-green-700">
+                                        {col?.name}
+                                        <button type="button" onClick={() => handleCollectionToggle(id)} className="hover:text-white ml-1">&times;</button>
+                                    </span>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -685,21 +745,30 @@ export default function ProductForm({ initialData, categories = [], collections 
                                 "Đề xuất thẻ phù hợp..."
                             ]}
                         />
-                        <p className="text-xs text-gray-500 mb-2">Nhập thủ công hoặc dùng AI gợi ý.</p>
-                        <input 
-                            type="text" 
-                            placeholder="Tìm nhóm thuộc tính..." 
-                            value={tagSearch}
-                            onChange={e => setTagSearch(e.target.value)}
-                            className="w-full bg-gray-800 p-2 mb-2 rounded border border-gray-600 text-xs text-white"
+                        <p className="text-xs text-gray-500 mb-2">Thêm nhóm thuộc tính để gắn thẻ.</p>
+                        
+                        <Autocomplete 
+                            options={attributeGroups.filter(g => !visibleAttributeGroupIds.has(g.id))}
+                            onChange={(groupId) => setVisibleAttributeGroupIds(prev => new Set(prev).add(groupId))}
+                            placeholder="+ Thêm nhóm thuộc tính (ví dụ: Màu sắc)..."
                         />
 
-                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1 mt-4">
                             {attributeGroups
-                                .filter(g => g.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                                .filter(g => visibleAttributeGroupIds.has(g.id))
                                 .map(group => (
-                                <div key={group.id} className="bg-gray-700/50 p-3 rounded border border-gray-700">
-                                    <p className="text-xs text-gray-300 font-bold uppercase tracking-wider mb-2">{group.name}</p>
+                                <div key={group.id} className="bg-gray-700/50 p-3 rounded border border-gray-700 relative group">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <p className="text-xs text-gray-300 font-bold uppercase tracking-wider">{group.name}</p>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setVisibleAttributeGroupIds(prev => { const n = new Set(prev); n.delete(group.id); return n; })}
+                                            className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="Ẩn nhóm này"
+                                        >
+                                            &times;
+                                        </button>
+                                    </div>
 
                                     {/* Selected Tags List (Pills) */}
                                     <div className="flex flex-wrap gap-2 mb-2">
@@ -724,9 +793,6 @@ export default function ProductForm({ initialData, categories = [], collections 
                                                 </button>
                                             </span>
                                         ))}
-                                        {selectedTags.filter(t => t.groupId === group.id).length === 0 && (
-                                            <span className="text-xs text-gray-500 italic">Chưa chọn</span>
-                                        )}
                                     </div>
 
                                     {/* Manual Input */}
@@ -749,6 +815,9 @@ export default function ProductForm({ initialData, categories = [], collections 
                                     </div>
                                 </div>
                             ))}
+                            {visibleAttributeGroupIds.size === 0 && (
+                                <p className="text-center text-gray-500 text-xs py-4">Chưa có nhóm thuộc tính nào hiển thị.</p>
+                            )}
                         </div>
                     </div>
                 </div>
