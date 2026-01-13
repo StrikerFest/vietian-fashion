@@ -109,6 +109,11 @@ export default function ProductDetailPage() {
     const optionsPrice = Object.values(customOptions).reduce((sum, opt) => sum + (opt.priceModifier || 0), 0);
     const finalPrice = (selectedVariant?.price || 0) + optionsPrice;
 
+    // Fallback for legacy products that only have image_url
+    const galleryImages = (product.product_images && product.product_images.length > 0)
+        ? product.product_images
+        : (product.image_url ? [{ id: 'legacy', image_url: product.image_url, is_primary: true }] : []);
+
     return (
         <main className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-6xl mx-auto">
@@ -120,7 +125,7 @@ export default function ProductDetailPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
                     <ProductGallery
-                        images={product.product_images}
+                        images={galleryImages}
                         name={product.name}
                     />
 

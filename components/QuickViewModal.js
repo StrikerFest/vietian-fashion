@@ -69,6 +69,11 @@ export default function QuickViewModal({ productId, onClose }) {
 
     if (!productId) return null;
 
+    // Fallback for legacy products that only have image_url
+    const galleryImages = (product?.product_images && product.product_images.length > 0)
+        ? product.product_images
+        : (product?.image_url ? [{ id: 'legacy', image_url: product.image_url, is_primary: true }] : []);
+
     return (
         <div
             className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
@@ -92,7 +97,7 @@ export default function QuickViewModal({ productId, onClose }) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
                         <div className="relative w-full">
                             <ProductGallery
-                                images={product.product_images}
+                                images={galleryImages}
                                 name={product.name}
                             />
                         </div>
