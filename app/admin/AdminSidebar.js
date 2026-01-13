@@ -14,7 +14,6 @@ const adminLinks = [
     { name: 'Khách hàng', href: '/admin/users' },
     { name: 'Danh mục', href: '/admin/categories' },
     { name: 'Bộ sưu tập', href: '/admin/collections' },
-    { name: 'Thẻ / Thuộc tính', href: '/admin/tags' },
     { name: 'Mã giảm giá', href: '/admin/discounts' },
     { name: 'Đánh giá', href: '/admin/reviews' },
     { name: 'Trả hàng', href: '/admin/returns' },
