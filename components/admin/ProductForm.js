@@ -43,7 +43,7 @@ export default function ProductForm({ initialData, categories = [], collections 
 
     // --- Computed: AI Detection ---
     const isGenerated = useMemo(() => {
-        return initialData?.name?.startsWith('[G]') || name.startsWith('[G]');
+        return initialData?.name?.startsWith('[AI]') || name.startsWith('[AI]');
     }, [initialData, name]);
 
     // --- Dynamic Grouping of Attributes ---
@@ -406,8 +406,8 @@ export default function ProductForm({ initialData, categories = [], collections 
 
             // 3. Name Formatting
             let finalName = name;
-            if (status === 'active' && finalName.startsWith('[G]')) {
-                finalName = finalName.replace(/\[G\]\s?/, '');
+            if (status === 'active' && finalName.startsWith('[AI]')) {
+                finalName = finalName.replace(/\[AI\]\s?/, '');
             }
 
             // 4. Variant Formatting
@@ -468,7 +468,7 @@ export default function ProductForm({ initialData, categories = [], collections 
             }
 
             if (finalName !== name) {
-                onSuccess(`Sản phẩm đã được xuất bản và thẻ "Generated" đã được xóa!`);
+                onSuccess(`Sản phẩm đã được xuất bản và thẻ "[AI]" đã được xóa!`);
             } else {
                 onSuccess(initialData ? 'Cập nhật sản phẩm thành công!' : 'Tạo sản phẩm thành công!');
             }
@@ -782,7 +782,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                             disabled:opacity-50
                         `}
                     >
-                        {isSubmitting ? 'Đang lưu...' : (isGenerated && status === 'active' ? 'Xuất bản & Xóa [G]' : 'Lưu sản phẩm')}
+                        {isSubmitting ? 'Đang lưu...' : (isGenerated && status === 'active' ? 'Xuất bản & Xóa [AI]' : 'Lưu sản phẩm')}
                     </button>
                 </div>
             </form>

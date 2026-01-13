@@ -143,8 +143,6 @@ export async function POST(request) {
         const totalAmount = Math.max(0, subtotal - discountAmount) + shippingCost;
 
         // --- Create Order ---
-        const paymentLabel = paymentMethod === 'vietqr' ? 'METHOD: VIETQR' : 'METHOD: COD';
-
         const { data: newOrder, error: orderError } = await adminSupabase
             .from('orders')
             .insert({
@@ -155,7 +153,7 @@ export async function POST(request) {
                 tax_amount: 0, // Simplified
                 shipping_cost: shippingCost,
                 status: 'pending',
-                shipping_carrier: paymentLabel,
+                payment_method: paymentMethod, // New column
                 // NEW FIELDS
                 receiver_phone: receiverPhone,
                 order_email: orderEmail

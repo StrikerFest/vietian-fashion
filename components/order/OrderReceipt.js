@@ -32,9 +32,9 @@ export default function OrderReceipt({ order }) {
         return <span className="text-sm text-gray-500">{variant.sku}</span>;
     };
 
-    // --- LOGIC: Determine Payment Method from 'shipping_carrier' workaround ---
-    const isVietQR = order.shipping_carrier?.includes('VIETQR');
-    const isCOD = order.shipping_carrier?.includes('COD') || !order.shipping_carrier;
+    // --- LOGIC: Determine Payment Method from database field ---
+    const isVietQR = order.payment_method === 'vietqr';
+    const isCOD = order.payment_method === 'cod' || !order.payment_method;
 
     // Show QR only if it's VietQR AND the order is still pending
     const showPaymentQR = order.status === 'pending' && isVietQR;

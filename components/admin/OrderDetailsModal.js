@@ -209,13 +209,33 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                                 </div>
                             ) : <p className="text-gray-500 italic">Không có địa chỉ.</p>}
                         </div>
-                        <div>
-                            <h3 className="font-semibold mb-2 text-lg text-white">Khách hàng</h3>
-                            <div className="text-sm text-gray-300 bg-gray-900/50 p-4 rounded border border-gray-700 h-full">
-                                <p className="text-gray-500 text-xs uppercase">Email</p>
-                                <p className="text-white mb-2">{order.order_email || order.user?.email || 'N/A'}</p>
-                                <p className="text-gray-500 text-xs uppercase">Điện thoại</p>
-                                <p className="text-white font-mono">{order.receiver_phone || order.user?.phone || 'N/A'}</p>
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="font-semibold mb-2 text-lg text-white">Khách hàng</h3>
+                                <div className="text-sm text-gray-300 bg-gray-900/50 p-4 rounded border border-gray-700">
+                                    <p className="text-gray-500 text-xs uppercase">Email</p>
+                                    <p className="text-white mb-2">{order.order_email || order.user?.email || 'N/A'}</p>
+                                    <p className="text-gray-500 text-xs uppercase">Điện thoại</p>
+                                    <p className="text-white font-mono">{order.receiver_phone || order.user?.phone || 'N/A'}</p>
+                                </div>
+                            </div>
+
+                            {/* Payment Method Section */}
+                            <div>
+                                <h3 className="font-semibold mb-2 text-lg text-white">Thanh toán</h3>
+                                <div className="flex items-center justify-between text-sm bg-gray-900/50 p-4 rounded border border-gray-700">
+                                    <span className="text-gray-400 uppercase text-xs font-bold">Phương thức:</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-white font-medium">
+                                            {order.payment_method === 'vietqr' ? '💳 Chuyển khoản VietQR' : '🚚 Thanh toán COD'}
+                                        </span>
+                                        {order.status !== 'pending' && order.status !== 'cancelled' && (
+                                            <span className="text-[10px] bg-green-900/50 text-green-400 px-1.5 py-0.5 rounded border border-green-800 font-bold uppercase">
+                                                Đã thanh toán {formatCurrency(order.total_amount)}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

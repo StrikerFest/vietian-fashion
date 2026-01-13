@@ -136,80 +136,122 @@ export async function PUT(request, context) {
         const body = await request.json();
 
         // 2. Update Order
-        const { data: updatedOrder, error } = await supabase
+        const { data: updatedOrderRaw, error } = await supabase
             .from('orders')
             .update(body)
             .eq('id', orderId)
-            .select('*, users(email, full_name)')
+            .select(`
+                *,
+                user:user_id(email, first_name, last_name),
+                addresses:shipping_address_id ( * ),
+                order_items (
+                    id, quantity, price_at_purchase, returned_quantity, custom_options,
+                    product_variants (
+                        id, sku, products ( name, image_url ),
+                        variant_attributes ( attribute_value:categories ( name, parent:parent_id ( name ) ) )
+                    )
+                )
+            `)
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Order Update Error:', error);
+            throw error;
+        }
+
+        // --- DATA TRANSFORMATION ---
+        const updatedOrder = {
+            ...updatedOrderRaw,
+            tax_amount: updatedOrderRaw.tax_amount || 0,
+            shipping_cost: updatedOrderRaw.shipping_cost || 0,
+            order_items: updatedOrderRaw.order_items.map(item => {
+                const attributes = {};
+                item.product_variants?.variant_attributes?.forEach(va => {
+                    if (va.attribute_value?.parent?.name) {
+                        attributes[va.attribute_value.parent.name] = va.attribute_value.name;
+                    }
+                });
+                return {
+                    ...item,
+                    product_variants: { ...item.product_variants, attributes }
+                };
+            })
+        };
 
         // 3. Send Notification Email
-        const userEmail = updatedOrder.order_email || updatedOrder.users?.email;
+        const userEmail = updatedOrder.order_email || updatedOrder.user?.email;
 
         if (userEmail && body.status) {
-            // Determine Template Type based on status
-            const templateType = `order_${body.status}`; // e.g., order_paid, order_shipped
+            try {
+                // Determine Template Type based on status
+                const templateType = `order_${body.status}`; // e.g., order_paid, order_shipped
 
-            // Fetch Template from DB using 'type' and 'body_html'
-            const { data: template } = await supabase
-                .from('email_templates')
-                .select('*')
-                .eq('type', templateType) // Changed from 'code' to 'type'
-                .eq('is_active', true)
-                .single();
+                // Fetch Template from DB using 'type' and 'body_html'
+                const { data: template } = await supabase
+                    .from('email_templates')
+                    .select('*')
+                    .eq('type', templateType)
+                    .eq('is_active', true)
+                    .maybeSingle(); // Use maybeSingle to avoid 406 error if not found
 
-            // Prepare Variables
-            const variables = {
-                order_id: updatedOrder.id,
-                customer_name: updatedOrder.users?.full_name || 'Khách hàng',
-                total_amount: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(updatedOrder.total_amount),
-                shipping_carrier: updatedOrder.shipping_carrier || 'Đơn vị vận chuyển',
-                tracking_number: updatedOrder.tracking_number || 'Chưa cập nhật',
-                status: updatedOrder.status,
-                site_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://vietianfashion.com'
-            };
+                // Prepare Variables
+                const customerName = updatedOrder.user 
+                    ? `${updatedOrder.user.first_name} ${updatedOrder.user.last_name}`.trim() 
+                    : 'Khách hàng';
 
-            let subject = '';
-            let htmlContent = '';
+                const variables = {
+                    order_id: updatedOrder.id,
+                    customer_name: customerName,
+                    total_amount: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(updatedOrder.total_amount),
+                    shipping_carrier: updatedOrder.shipping_carrier || 'Đơn vị vận chuyển',
+                    tracking_number: updatedOrder.tracking_number || 'Chưa cập nhật',
+                    status: updatedOrder.status,
+                    site_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://vietianfashion.com'
+                };
 
-            if (template) {
-                // USE DB TEMPLATE
-                subject = processTemplate(template.subject, variables);
-                htmlContent = processTemplate(template.body_html, variables); // Changed from 'body' to 'body_html'
-            } else {
-                // FALLBACK
-                console.warn(`Email template '${templateType}' not found. Using fallback.`);
-                if (body.status === 'paid') {
-                    subject = `Thanh toán thành công - Đơn hàng #${orderId}`;
-                    htmlContent = `<p>Đã nhận được thanh toán cho đơn hàng #${orderId}. Tổng cộng: ${variables.total_amount}</p>`;
-                } else if (body.status === 'shipped') {
-                    subject = `Đơn hàng #${orderId} đang được vận chuyển`;
-                    htmlContent = `<p>Đơn hàng của bạn đang được giao bởi ${variables.shipping_carrier}. Mã vận đơn: ${variables.tracking_number}</p>`;
-                } else if (body.status === 'delivered') {
-                    subject = `Giao hàng thành công - Đơn hàng #${orderId}`;
-                    htmlContent = `<p>Đơn hàng #${orderId} đã được giao thành công.</p>`;
-                } else if (body.status === 'cancelled') {
-                    subject = `Đơn hàng #${orderId} đã bị hủy`;
-                    htmlContent = `<p>Đơn hàng #${orderId} đã bị hủy.</p>`;
+                let subject = '';
+                let htmlContent = '';
+
+                if (template) {
+                    // USE DB TEMPLATE
+                    subject = processTemplate(template.subject, variables);
+                    htmlContent = processTemplate(template.body_html, variables);
+                } else {
+                    // FALLBACK
+                    if (body.status === 'paid') {
+                        subject = `Thanh toán thành công - Đơn hàng #${orderId}`;
+                        htmlContent = `<p>Đã nhận được thanh toán cho đơn hàng #${orderId}. Tổng cộng: ${variables.total_amount}</p>`;
+                    } else if (body.status === 'shipped') {
+                        subject = `Đơn hàng #${orderId} đang được vận chuyển`;
+                        htmlContent = `<p>Đơn hàng của bạn đang được giao bởi ${variables.shipping_carrier}. Mã vận đơn: ${variables.tracking_number}</p>`;
+                    } else if (body.status === 'delivered') {
+                        subject = `Giao hàng thành công - Đơn hàng #${orderId}`;
+                        htmlContent = `<p>Đơn hàng #${orderId} đã được giao thành công.</p>`;
+                    } else if (body.status === 'cancelled') {
+                        subject = `Đơn hàng #${orderId} đã bị hủy`;
+                        htmlContent = `<p>Đơn hàng #${orderId} đã bị hủy.</p>`;
+                    }
                 }
-            }
 
-            // Send Email
-            if (subject && htmlContent) {
-                await resend.emails.send({
-                    from: 'Vietian Fashion <orders@vietianfashion.com>',
-                    to: [userEmail],
-                    subject: subject,
-                    html: htmlContent
-                });
+                // Send Email
+                if (subject && htmlContent && process.env.RESEND_API_KEY) {
+                    await resend.emails.send({
+                        from: 'Vietian Fashion <orders@vietianfashion.com>',
+                        to: [userEmail],
+                        subject: subject,
+                        html: htmlContent
+                    });
+                }
+            } catch (emailErr) {
+                console.error('Non-critical Email Error:', emailErr);
+                // We don't throw here to avoid failing the whole update if just email fails
             }
         }
 
         return NextResponse.json({ order: updatedOrder });
 
     } catch (error) {
+        console.error('PUT /api/orders/[id] Catch:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

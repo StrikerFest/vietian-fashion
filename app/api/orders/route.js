@@ -25,13 +25,19 @@ export async function GET(request) {
             .from('orders')
             .select(`
                 *,
-                user:users(email, full_name),
-                address:addresses(*)
+                addresses:shipping_address_id ( * ),
+                order_items (
+                    id, quantity, price_at_purchase, returned_quantity, custom_options,
+                    product_variants (
+                        id, sku, products ( name, image_url ),
+                        variant_attributes ( attribute_value:categories ( name, parent:parent_id ( name ) ) )
+                    )
+                )
             `, { count: 'exact' });
 
         if (status) query = query.eq('status', status);
 
-        // --- Date Logic (Unchanged) ---
+        // --- Date Logic ---
         if (fromDate) {
             const startObj = new Date(fromDate + 'T00:00:00Z');
             startObj.setHours(startObj.getHours() - 7);
@@ -43,18 +49,13 @@ export async function GET(request) {
             query = query.lte('created_at', endObj.toISOString());
         }
 
-        // --- UPDATED SEARCH LOGIC ---
+        // --- SEARCH LOGIC ---
         if (search) {
-            // If numeric, check ID or Phone
-            if (!isNaN(search)) {
-                // Note: syntax is "column.operator.value"
-                // checking id (exact) OR receiver_phone (contains)
-                query = query.or(`id.eq.${search},receiver_phone.ilike.%${search}%`);
+            const cleanSearch = search.trim();
+            if (!isNaN(cleanSearch) && cleanSearch !== '') {
+                query = query.or(`id.eq.${cleanSearch},receiver_phone.ilike.%${cleanSearch}%`);
             } else {
-                // If text, check Email (order_email or user email)
-                // Note: Searching across joined tables (user.email) is complex in one OR statement.
-                // We focus on the Order table fields first for performance and guest support.
-                query = query.or(`order_email.ilike.%${search}%`);
+                query = query.ilike('order_email', `%${cleanSearch}%`);
             }
         }
 
@@ -66,8 +67,25 @@ export async function GET(request) {
         const { data, error, count } = await query;
         if (error) throw error;
 
+        // --- DATA TRANSFORMATION ---
+        const formattedData = data.map(order => ({
+            ...order,
+            order_items: order.order_items.map(item => {
+                const attributes = {};
+                item.product_variants?.variant_attributes?.forEach(va => {
+                    if (va.attribute_value?.parent?.name) {
+                        attributes[va.attribute_value.parent.name] = va.attribute_value.name;
+                    }
+                });
+                return {
+                    ...item,
+                    product_variants: { ...item.product_variants, attributes }
+                };
+            })
+        }));
+
         return NextResponse.json({
-            data,
+            data: formattedData,
             meta: { page, limit, total: count }
         });
 
