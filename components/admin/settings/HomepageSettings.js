@@ -2,12 +2,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useToast } from '@/context/ToastContext';
 
 export default function HomepageSettings() {
+    const supabase = createClientComponentClient();
     const { addToast } = useToast();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [uploadingBannerIndex, setUploadingBannerIndex] = useState(null);
 
     // Data Sources
     const [collections, setCollections] = useState([]);
@@ -52,6 +55,33 @@ export default function HomepageSettings() {
     const addBanner = () => setConfig(prev => ({ ...prev, hero_banners: [...prev.hero_banners, { id: Date.now(), image_url: '', title: '', link: '' }] }));
     const updateBanner = (i, f, v) => { const u = [...config.hero_banners]; u[i][f] = v; setConfig(prev => ({ ...prev, hero_banners: u })); };
     const removeBanner = (i) => { setConfig(prev => ({ ...prev, hero_banners: prev.hero_banners.filter((_, x) => x !== i) })); };
+
+    const handleBannerUpload = async (index, file) => {
+        if (!file) return;
+        setUploadingBannerIndex(index);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `banners/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+            
+            const { error: uploadError } = await supabase.storage
+                .from('products') // Using 'products' bucket as it's public
+                .upload(fileName, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('products')
+                .getPublicUrl(fileName);
+
+            updateBanner(index, 'image_url', publicUrl);
+            addToast("Đã tải ảnh lên!", "success");
+        } catch (error) {
+            console.error(error);
+            addToast("Lỗi tải ảnh: " + error.message, "error");
+        } finally {
+            setUploadingBannerIndex(null);
+        }
+    };
 
     const addRow = () => setConfig(prev => ({ ...prev, layout_order: [...prev.layout_order, { id: Date.now(), type: 'collection_row', target_id: '', title: '' }] }));
     const updateRow = (i, f, v) => { const u = [...config.layout_order]; u[i][f] = v; setConfig(prev => ({ ...prev, layout_order: u })); };
@@ -126,9 +156,61 @@ export default function HomepageSettings() {
             {/* Hero Section */}
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
                 <div className="flex justify-between mb-4"><h3 className="text-lg font-bold text-white">Banner Chính (Hero)</h3><button onClick={addBanner} className="text-xs bg-indigo-600 px-3 py-1 rounded">+ Thêm</button></div>
-                {config.hero_banners.map((b, i) => (
-                    <div key={b.id} className="mb-2 flex gap-2"><input value={b.image_url} onChange={e=>updateBanner(i,'image_url',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-full" placeholder="URL Hình ảnh" /><button onClick={()=>removeBanner(i)} className="text-red-400">×</button></div>
-                ))}
+                <div className="space-y-4">
+                    {config.hero_banners.map((b, i) => (
+                        <div key={b.id} className="p-4 border border-gray-600 rounded bg-gray-900/30 relative group">
+                            <button onClick={()=>removeBanner(i)} className="absolute top-2 right-2 text-red-400 hover:text-red-300 z-10 bg-gray-900 rounded-full w-6 h-6 flex items-center justify-center border border-gray-700">×</button>
+                            
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs text-gray-400 block mb-1">Hình ảnh</label>
+                                    <div className="flex gap-2 mb-2">
+                                        <input 
+                                            value={b.image_url} 
+                                            onChange={e=>updateBanner(i,'image_url',e.target.value)} 
+                                            className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white w-full" 
+                                            placeholder="URL Hình ảnh" 
+                                        />
+                                        <label className={`cursor-pointer bg-gray-700 hover:bg-gray-600 border border-gray-600 px-3 py-1 rounded text-xs flex items-center whitespace-nowrap ${uploadingBannerIndex === i ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            {uploadingBannerIndex === i ? '...' : 'Upload'}
+                                            <input 
+                                                type="file" 
+                                                className="hidden" 
+                                                accept="image/*"
+                                                onChange={(e) => handleBannerUpload(i, e.target.files[0])}
+                                            />
+                                        </label>
+                                    </div>
+                                    {b.image_url && (
+                                        <div className="relative h-32 w-full bg-gray-800 rounded overflow-hidden border border-gray-700">
+                                            <img src={b.image_url} alt="Preview" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs text-gray-400 block mb-1">Tiêu đề (Tùy chọn)</label>
+                                        <input 
+                                            value={b.title || ''} 
+                                            onChange={e=>updateBanner(i,'title',e.target.value)} 
+                                            className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white w-full" 
+                                            placeholder="Tiêu đề banner" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 block mb-1">Liên kết (Tùy chọn)</label>
+                                        <input 
+                                            value={b.link || ''} 
+                                            onChange={e=>updateBanner(i,'link',e.target.value)} 
+                                            className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white w-full" 
+                                            placeholder="/collections/sale" 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Layout Section */}
@@ -136,10 +218,29 @@ export default function HomepageSettings() {
                 <div className="flex justify-between mb-4"><h3 className="text-lg font-bold text-white">Các hàng bố cục</h3><button onClick={addRow} className="text-xs bg-green-600 px-3 py-1 rounded">+ Thêm hàng</button></div>
                 {config.layout_order.map((r, i) => (
                     <div key={r.id} className="mb-2 flex gap-2 items-center">
-                        <button onClick={()=>moveRow(i,'up')}>▲</button><button onClick={()=>moveRow(i,'down')}>▼</button>
-                        <select value={r.type} onChange={e=>updateRow(i,'type',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"><option value="collection_row">Bộ sưu tập</option><option value="featured_grid">Nổi bật</option></select>
-                        <input value={r.title} onChange={e=>updateRow(i,'title',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white flex-grow" placeholder="Tiêu đề" />
-                        <button onClick={()=>removeRow(i)} className="text-red-400 font-bold">×</button>
+                        <button onClick={()=>moveRow(i,'down')}>▼</button>
+                        <select value={r.type} onChange={e=>updateRow(i,'type',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-32">
+                            <option value="featured_grid">Nổi bật</option>
+                            <option value="collection_row">Bộ sưu tập</option>
+                            <option value="category_row">Danh mục</option>
+                        </select>
+                        
+                        {r.type === 'collection_row' && (
+                            <select value={r.target_id || ''} onChange={e=>updateRow(i,'target_id',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-40">
+                                <option value="">-- Chọn BST --</option>
+                                {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        )}
+
+                        {r.type === 'category_row' && (
+                            <select value={r.target_id || ''} onChange={e=>updateRow(i,'target_id',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-40">
+                                <option value="">-- Chọn DM --</option>
+                                {categories.filter(c => c.type === 'catalog').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        )}
+
+                        <input value={r.title} onChange={e=>updateRow(i,'title',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white flex-grow" placeholder="Tiêu đề hiển thị" />
+                        <button onClick={()=>removeRow(i)} className="text-red-400 font-bold px-2">×</button>
                     </div>
                 ))}
             </div>
