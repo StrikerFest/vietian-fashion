@@ -59,7 +59,7 @@ export default function Footer() {
                 {/* Newsletter */}
                 <div>
                     <h4 className="text-white font-semibold mb-4">Cập nhật thông tin</h4>
-                    <p className="text-xs mb-2">Đăng ký để nhận các bộ sưu tập AI và ưu đãi độc quyền.</p>
+                    <p className="text-xs mb-2">Đăng ký để nhận các bộ sưu tập và ưu đãi độc quyền.</p>
                     <div className="flex">
                         <input
                             type="email"

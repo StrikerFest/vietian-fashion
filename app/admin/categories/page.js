@@ -4,8 +4,24 @@
 import { useState, useEffect, useMemo } from 'react';
 import CategoryForm from '@/components/admin/CategoryForm';
 import CategoryList from '@/components/admin/CategoryList';
-import PaginationControls from '@/components/ui/PaginationControls'; // --- NEW: Added Paginator ---
+import PaginationControls from '@/components/ui/PaginationControls';
 import { useToast } from '@/context/ToastContext';
+
+// Helper to get all descendant IDs for selection
+const getAllDescendantIds = (categories, parentId) => {
+    const descendants = new Set();
+    const queue = [parentId];
+    while (queue.length > 0) {
+        const currentId = queue.shift();
+        const children = categories.filter(c => c.parent_id === currentId);
+        for (const child of children) {
+            descendants.add(child.id);
+            queue.push(child.id);
+        }
+    }
+    return descendants;
+};
+
 
 export default function CategoriesPage() {
     const { addToast } = useToast();
@@ -15,8 +31,11 @@ export default function CategoriesPage() {
     const [editingCategory, setEditingCategory] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
 
+    // --- Selection State ---
+    const [selectedIds, setSelectedIds] = useState(new Set());
+
     // --- Filter & Pagination State ---
-    const [filterType, setFilterType] = useState('all'); // 'all' | 'catalog' | 'attribute'
+    const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'attribute'
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(12);
 
@@ -42,60 +61,80 @@ export default function CategoriesPage() {
     const processedData = useMemo(() => {
         let filtered = [...categories];
 
-        // 1. Filter by Type
-        if (filterType !== 'all') {
-            filtered = filtered.filter(c => c.type === filterType);
-        }
+        // 1. Filter by Type (Tab)
+        filtered = filtered.filter(c => c.type === activeTab);
 
         // 2. Filter by Search
         if (searchQuery) {
             const lowerQuery = searchQuery.toLowerCase();
-            // If searching, we might want to show flattened list or just roots that match?
-            // For a tree view, usually searching flattens results or expands path.
-            // Let's return flattened results for search to keep it simple as implemented in original List
+            const searchResults = filtered.filter(c => c.name.toLowerCase().includes(lowerQuery));
             return {
                 isSearchMode: true,
-                roots: filtered.filter(c => c.name.toLowerCase().includes(lowerQuery)),
-                totalItems: filtered.filter(c => c.name.toLowerCase().includes(lowerQuery)).length
+                roots: searchResults, // show flat list for search
+                allVisibleIds: new Set(searchResults.map(c => c.id)),
+                totalItems: searchResults.length,
             };
         }
 
         // 3. Get Roots (Top Level Only)
-        // We only paginate top-level categories. Children are rendered recursively by the component.
+        // Note: We only want roots that belong to the current tab type.
+        // Since we already filtered by type, we just check parent_id.
+        // However, if a child has the same type but its parent is NOT in this type (unlikely but possible), 
+        // it would look like a root here if we don't check carefully.
+        // Assuming strict type consistency for now.
         const roots = filtered.filter(c => !c.parent_id);
-
-        // 4. Sort Roots (by order then name)
         roots.sort((a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name));
 
         const totalItems = roots.length;
         const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-        // 5. Paginate Roots
+        // 4. Paginate Roots
         const start = (currentPage - 1) * itemsPerPage;
         const paginatedRoots = roots.slice(start, start + itemsPerPage);
+
+        // 5. Get all visible IDs for "Select All" logic
+        const allVisibleIds = new Set(paginatedRoots.map(r => r.id));
+        paginatedRoots.forEach(root => {
+            getAllDescendantIds(categories, root.id).forEach(id => allVisibleIds.add(id));
+        });
 
         return {
             isSearchMode: false,
             roots: paginatedRoots,
+            allVisibleIds,
             totalItems,
             totalPages
         };
 
-    }, [categories, filterType, searchQuery, currentPage, itemsPerPage]);
+    }, [categories, activeTab, searchQuery, currentPage, itemsPerPage]);
 
-    // Reset page when filters change
+    // Reset page and selection when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [filterType, searchQuery, itemsPerPage]);
+        setSelectedIds(new Set()); // Clear selection on filter/search change
+    }, [activeTab, searchQuery, itemsPerPage]);
 
+    const handleSelectAll = (isChecked) => {
+        if (isChecked) {
+            setSelectedIds(new Set(processedData.allVisibleIds));
+        } else {
+            setSelectedIds(new Set());
+        }
+    };
 
+    // --- CRUD Handlers ---
     const handleDelete = async (categoryId) => {
-        if (!confirm('Bạn có chắc không? Hành động này chỉ có thể thực hiện nếu danh mục không có danh mục con hoặc sản phẩm.')) return;
+        if (!confirm('Bạn có chắc chắn muốn xóa danh mục này không? Các danh mục con sẽ bị tách ra và sản phẩm thuộc danh mục này sẽ bị loại bỏ liên kết.')) return;
         try {
             const response = await fetch(`/api/categories/${categoryId}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Lưu trữ danh mục thất bại');
 
             setCategories(prev => prev.filter(c => c.id !== categoryId));
+            setSelectedIds(prev => {
+                const next = new Set(prev);
+                next.delete(categoryId);
+                return next;
+            });
             addToast('Danh mục đã được lưu trữ thành công!', 'success');
         } catch (error) {
             addToast(error.message, 'error');
@@ -111,35 +150,133 @@ export default function CategoriesPage() {
         addToast(message, 'success');
         setShowForm(false);
         setEditingCategory(null);
-        fetchCategories();
+        fetchCategories(); // Refreshes the list
     };
+
+    const [isBulkLoading, setIsBulkLoading] = useState(false);
+
+    // --- ... (rest of the state declarations) ... ---
+
+    // ... (useEffect hooks and other functions) ...
+
+    // --- Bulk Action Handler ---
+    const handleBulkAction = async (action) => {
+        if (selectedIds.size === 0) return;
+
+        if (action === 'delete') {
+            if (!confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.size} mục đã chọn không? Các danh mục con sẽ bị tách ra và sản phẩm thuộc các danh mục này sẽ bị loại bỏ liên kết.`)) {
+                return;
+            }
+        }
+
+        setIsBulkLoading(true);
+        try {
+            const response = await fetch('/api/admin/categories/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: Array.from(selectedIds), action }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || `Thao tác ${action} thất bại`);
+            }
+
+            addToast(result.message || 'Thao tác hàng loạt thành công!', 'success');
+
+        } catch (error) {
+            addToast(error.message, 'error');
+        } finally {
+            setSelectedIds(new Set());
+            fetchCategories(); // Refresh data
+            setIsBulkLoading(false);
+        }
+    };
+
+    const isAllSelected = processedData.allVisibleIds && selectedIds.size > 0 && processedData.allVisibleIds.size === selectedIds.size;
+    const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <h1 className="text-3xl font-bold mb-6">Quản lý Danh mục</h1>
 
-            {/* Actions Bar */}
+            {/* Tabs */}
+            <div className="flex gap-2 mb-6 border-b border-gray-700 pb-1">
+                <button
+                    onClick={() => setActiveTab('catalog')}
+                    className={`px-4 py-2 font-bold text-sm transition-colors border-b-2 ${
+                        activeTab === 'catalog' 
+                        ? 'text-indigo-400 border-indigo-500' 
+                        : 'text-gray-400 border-transparent hover:text-white'
+                    }`}
+                >
+                    Catalog (Menu)
+                </button>
+                <button
+                    onClick={() => setActiveTab('attribute')}
+                    className={`px-4 py-2 font-bold text-sm transition-colors border-b-2 ${
+                        activeTab === 'attribute' 
+                        ? 'text-indigo-400 border-indigo-500' 
+                        : 'text-gray-400 border-transparent hover:text-white'
+                    }`}
+                >
+                    Attribute (Bộ lọc)
+                </button>
+            </div>
+
+            {/* Bulk Actions Bar */}
+            {selectedIds.size > 0 && (
+                <div className="bg-gray-800 border border-indigo-500/50 rounded-lg p-3 mb-6 flex justify-between items-center animate-fade-in-up">
+                    <span className="font-medium">{selectedIds.size} mục được chọn</span>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => handleBulkAction('enable')}
+                            disabled={isBulkLoading}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isBulkLoading ? 'Đang xử lý...' : '✓ Đặt hoạt động'}
+                        </button>
+                        <button
+                            onClick={() => handleBulkAction('disable')}
+                            disabled={isBulkLoading}
+                            className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isBulkLoading ? 'Đang xử lý...' : '∅ Đặt không hoạt động'}
+                        </button>
+                        <button
+                            onClick={() => handleBulkAction('delete')}
+                            disabled={isBulkLoading}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isBulkLoading ? 'Đang xử lý...' : '🗑️ Xóa'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+
+            {/* Main Actions Bar */}
             {!showForm && (
                 <div className="flex flex-col gap-4 mb-6">
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <div className="flex gap-2 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            {/* Select All Checkbox */}
+                            <input
+                                type="checkbox"
+                                className="w-5 h-5 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                checked={isAllSelected}
+                                ref={el => el && (el.indeterminate = isIndeterminate)}
+                                onChange={(e) => handleSelectAll(e.target.checked)}
+                                title={isIndeterminate ? "Một vài mục đã được chọn" : "Chọn tất cả mục đang hiển thị"}
+                            />
+
                             <button
-                                onClick={() => { setEditingCategory(null); setShowForm(true); }}
+                                onClick={() => { setEditingCategory({ type: activeTab }); setShowForm(true); }}
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors whitespace-nowrap"
                             >
                                 + Thêm Danh mục
                             </button>
-
-                            {/* Filter Dropdown */}
-                            <select
-                                value={filterType}
-                                onChange={(e) => setFilterType(e.target.value)}
-                                className="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500"
-                            >
-                                <option value="all">Tất cả loại</option>
-                                <option value="catalog">Catalog (Menu)</option>
-                                <option value="attribute">Attribute (Bộ lọc)</option>
-                            </select>
                         </div>
 
                         <div className="relative w-full sm:w-64">
@@ -173,14 +310,13 @@ export default function CategoriesPage() {
                         ) : (
                             <>
                                 <CategoryList
-                                    categories={categories} // Pass full list for child lookup
-                                    rootCategories={processedData.roots} // Pass paginated roots to render
-                                    searchQuery={searchQuery}
+                                    categories={categories}
+                                    rootCategories={processedData.roots}
+                                    selectedIds={selectedIds}
+                                    onSelectionChange={setSelectedIds}
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}
                                 />
-
-                                {/* Hide pagination if searching (since we show all matches) or if no items */}
                                 {!processedData.isSearchMode && processedData.totalItems > 0 && (
                                     <PaginationControls
                                         currentPage={currentPage}

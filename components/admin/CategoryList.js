@@ -6,6 +6,8 @@ import { useState } from 'react';
 export default function CategoryList({
                                          categories = [],
                                          rootCategories = [],
+                                         selectedIds = new Set(),
+                                         onSelectionChange,
                                          onEdit,
                                          onDelete
                                      }) {
@@ -21,6 +23,17 @@ export default function CategoryList({
         }
         setExpanded(next);
     };
+
+    const handleSelect = (id, isChecked) => {
+        const next = new Set(selectedIds);
+        if (isChecked) {
+            next.add(id);
+        } else {
+            next.delete(id);
+        }
+        onSelectionChange(next);
+    };
+
 
     // Helper to check if item is currently active
     const getTimingStatus = (cat) => {
@@ -44,18 +57,27 @@ export default function CategoryList({
         const isExpanded = expanded.has(category.id);
         const status = getTimingStatus(category);
         const isCatalog = category.type === 'catalog';
+        const isSelected = selectedIds.has(category.id);
 
         return (
             <div key={category.id}>
                 <div
                     className={`
                         flex items-center justify-between p-3 rounded-md border mb-2 transition-colors
-                        ${isCatalog ? 'bg-gray-800 border-gray-700' : 'bg-gray-900/30 border-gray-800'}
+                        ${isSelected ? 'bg-indigo-900/50 border-indigo-700' : (isCatalog ? 'bg-gray-800 border-gray-700' : 'bg-gray-900/30 border-gray-800')}
                         hover:border-indigo-500
                     `}
                     style={{ marginLeft: `${level * 1.5}rem` }}
                 >
                     <div className="flex items-center gap-3 flex-1">
+                        {/* Checkbox */}
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleSelect(category.id, e.target.checked)}
+                            className="w-4 h-4 bg-gray-700 border-gray-600 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+
                         {/* Expand/Collapse Toggle */}
                         <button
                             onClick={() => toggleExpand(category.id)}

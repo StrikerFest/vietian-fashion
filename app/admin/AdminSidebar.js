@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/context/AdminAuthContext';
+import { useState, useEffect } from 'react';
 
 const adminLinks = [
     { name: 'Bảng điều khiển', href: '/admin' },
@@ -20,6 +21,7 @@ const adminLinks = [
     { name: 'Nhà cung cấp', href: '/admin/suppliers' },
     { name: 'Đơn nhập hàng', href: '/admin/purchase-orders' },
     { name: 'Nhật ký tồn kho', href: '/admin/inventory' },
+    { name: 'Thùng rác', href: '/admin/recycle' },
     { name: 'Cài đặt', href: '/admin/settings' },
 ];
 
@@ -27,35 +29,60 @@ export default function AdminSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const { session, logout } = useAdminAuth();
+    const [loadingPath, setLoadingPath] = useState(null);
+
+    // Reset loading state when navigation completes
+    useEffect(() => {
+        setLoadingPath(null);
+    }, [pathname]);
 
     const handleLogout = () => {
         logout();
         router.push('/admin/login');
     };
 
+    const handleLinkClick = (e, href) => {
+        // Prevent navigation if the link is already the current page
+        if (pathname === href) {
+            e.preventDefault();
+            return;
+        }
+        // Set loading state for the clicked link
+        setLoadingPath(href);
+    };
+
     return (
         <div className="w-64 h-screen bg-gray-800 text-white flex flex-col fixed top-0 left-0">
             <div className="p-4 border-b border-gray-700">
                 <Link href="/admin" className="text-xl font-bold">
-                    Quản trị AI Store
+                    Quản trị Store
                 </Link>
             </div>
 
-            <nav className="flex-grow p-4 space-y-1 overflow-y-auto">
+            <nav className={`flex-grow p-4 space-y-1 overflow-y-auto ${loadingPath ? 'pointer-events-none' : ''}`}>
                 {adminLinks.map((link) => {
                     const isActive = pathname === link.href || (link.href !== '/admin' && pathname.startsWith(link.href));
+                    const isLoading = loadingPath === link.href;
+
                     return (
                         <Link
                             key={link.name}
                             href={link.href}
+                            onClick={(e) => handleLinkClick(e, link.href)}
                             className={`
-                                block w-full text-left py-2 px-3 rounded-md text-sm font-medium transition-colors
-                                ${isActive
-                                ? 'bg-indigo-600 text-white'
-                                : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
+                                relative block w-full text-left py-2 px-3 rounded-md text-sm font-medium transition-colors
+                                ${isActive && !isLoading ? 'bg-indigo-600 text-white' : ''}
+                                ${!isActive && !isLoading ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : ''}
+                                ${isLoading ? 'bg-indigo-700 text-white pointer-events-auto cursor-default' : ''}
+                                ${!isLoading && loadingPath ? 'pointer-events-none opacity-50' : 'pointer-events-auto'}
                             `}
                         >
                             {link.name}
+                            {isLoading && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-900 overflow-hidden">
+                                    <div className="animate-loader-bar h-full bg-indigo-400"></div>
+                                </div>
+                            )}
                         </Link>
                     );
                 })}
