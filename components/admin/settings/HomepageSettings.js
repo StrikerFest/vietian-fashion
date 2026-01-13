@@ -225,6 +225,16 @@ export default function HomepageSettings() {
                             <option value="category_row">Danh mục</option>
                         </select>
                         
+                        <input 
+                            type="number" 
+                            min="1" 
+                            max="50"
+                            value={r.limit || 8} 
+                            onChange={e=>updateRow(i,'limit',parseInt(e.target.value))} 
+                            className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-16 text-center" 
+                            title="Số lượng hiển thị"
+                        />
+
                         {r.type === 'collection_row' && (
                             <select value={r.target_id || ''} onChange={e=>updateRow(i,'target_id',e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white w-40">
                                 <option value="">-- Chọn BST --</option>
