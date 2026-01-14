@@ -61,6 +61,7 @@ export async function POST(request) {
         // --- B. PARSE INPUT ---
         const formData = await request.formData();
         const imageFile = formData.get('image');
+        const customPrompt = formData.get('customPrompt');
 
         if (!imageFile) {
             return NextResponse.json({ error: 'Không có hình ảnh được cung cấp' }, { status: 400 });
@@ -105,6 +106,10 @@ export async function POST(request) {
 
         let prompt = promptSetting?.value || DEFAULT_PRODUCT_GENERATE_PROMPT;
         prompt = prompt.replace('{{attributeList}}', attributeList);
+
+        if (customPrompt) {
+            prompt += `\n\n[USER CUSTOM REQUEST]\n${customPrompt}`;
+        }
 
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;

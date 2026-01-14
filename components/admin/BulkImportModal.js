@@ -13,11 +13,13 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState({ total: 0, completed: 0, successful: 0 });
     const [logs, setLogs] = useState([]);
+    const [customPrompt, setCustomPrompt] = useState('');
 
     // [MODIFIED] Helper to clear state
     const resetState = () => {
         setFiles([]);
         setLogs([]);
+        setCustomPrompt('');
         setProgress({ total: 0, completed: 0, successful: 0 });
         setIsProcessing(false);
     };
@@ -88,6 +90,9 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                 // --- API CALL ---
                 const formData = new FormData();
                 formData.append('image', task.file);
+                if (customPrompt) {
+                    formData.append('customPrompt', customPrompt);
+                }
 
                 const res = await fetch('/api/products/generate', {
                     method: 'POST',
@@ -164,6 +169,21 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                     {/* Queue List */}
                     {files.length > 0 && (
                         <div className="space-y-4">
+                            {/* Custom Prompt Input */}
+                            <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    🤖 Yêu cầu bổ sung cho AI (Tùy chọn)
+                                </label>
+                                <textarea
+                                    value={customPrompt}
+                                    onChange={(e) => setCustomPrompt(e.target.value)}
+                                    disabled={isProcessing}
+                                    placeholder="VD: Thêm 10 tag phổ thông liên quan đến mùa đông. Thêm 5 tag liên quan đến giá cả..."
+                                    className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm text-gray-200 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                                    rows="2"
+                                />
+                            </div>
+
                             {/* Progress Bar */}
                             {isProcessing && (
                                 <div className="bg-gray-800 rounded-full h-2 overflow-hidden">
