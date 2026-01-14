@@ -18,10 +18,15 @@ export default function CreatePurchaseOrderPage() {
             try {
                 const [supRes, prodRes] = await Promise.all([
                     fetch('/api/suppliers'),
-                    fetch('/api/products')
+                    fetch('/api/products?limit=1000') // [FIX] Fetch all products for dropdown
                 ]);
-                setSuppliers(await supRes.json() || []);
-                setProducts(await prodRes.json() || []);
+                
+                const suppliersData = await supRes.json();
+                setSuppliers(Array.isArray(suppliersData) ? suppliersData : []);
+
+                const productsData = await prodRes.json();
+                // Check if it's paginated { data: [] } or just []
+                setProducts(Array.isArray(productsData) ? productsData : (productsData.data || []));
             } catch (error) {
                 console.error("Failed to load data", error);
                 addToast("Không thể tải dữ liệu cần thiết để tạo đơn hàng.", 'error');
