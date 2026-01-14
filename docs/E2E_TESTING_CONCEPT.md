@@ -43,4 +43,8 @@ Since I cannot see the screen, the system will provide feedback via:
 
 ---
 
+Admin info
+Account: Trinhtheanh789@Gmail.com
+Password: Admin123
+
 **Status:** Proposed / Awaiting Implementation.
