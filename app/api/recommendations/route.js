@@ -43,7 +43,8 @@ export async function POST(request) {
             const maskedProducts = (productsRes.data || []).map(p => ({
                 ...p,
                 product_variants: p.product_variants.map(v => {
-                    const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+                    const stockData = Array.isArray(v.inventory_levels) ? v.inventory_levels[0] : v.inventory_levels;
+                    const realStock = stockData?.on_hand || 0;
                     const { inventory_levels, ...safeVariant } = v;
                     return {
                         ...safeVariant,
@@ -171,7 +172,8 @@ export async function POST(request) {
         const maskedSemanticProducts = (products || []).map(p => ({
             ...p,
             product_variants: p.product_variants.map(v => {
-                const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+                const stockData = Array.isArray(v.inventory_levels) ? v.inventory_levels[0] : v.inventory_levels;
+                const realStock = stockData?.on_hand || 0;
                 const { inventory_levels, ...safeVariant } = v;
                 return {
                     ...safeVariant,

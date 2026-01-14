@@ -42,6 +42,16 @@ export default function SearchPage() {
                     }
                 }
 
+                // [CACHE] Check Session Storage
+                const cacheKey = `search_v1_${JSON.stringify(payload)}`;
+                const cachedData = sessionStorage.getItem(cacheKey);
+
+                if (cachedData) {
+                    setResults(JSON.parse(cachedData));
+                    setIsLoading(false);
+                    return; // Skip fetch
+                }
+
                 const res = await fetch('/api/recommendations', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -50,11 +60,21 @@ export default function SearchPage() {
 
                 if (!res.ok) throw new Error('Tìm kiếm thất bại');
                 const data = await res.json();
-                setResults({
+                
+                const finalResults = {
                     products: data.products || [],
                     collections: data.collections || [],
                     attributes: data.attributes || []
-                });
+                };
+
+                setResults(finalResults);
+                
+                // [CACHE] Save to Session Storage
+                try {
+                    sessionStorage.setItem(cacheKey, JSON.stringify(finalResults));
+                } catch (err) {
+                    console.warn("Cache quota exceeded", err);
+                }
 
             } catch (error) {
                 console.error(error);

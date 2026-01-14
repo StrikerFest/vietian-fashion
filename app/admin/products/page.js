@@ -5,6 +5,7 @@ import {useState, useEffect, useMemo, useCallback} from 'react';
 import Link from 'next/link';
 import ProductFilters from '@/components/admin/ProductFilters';
 import ProductImportExport from '@/components/admin/ProductImportExport';
+import TagGenerationModal from '@/components/admin/TagGenerationModal';
 import PaginationControls from '@/components/ui/PaginationControls';
 import BulkImportModal from '@/components/admin/BulkImportModal';
 import {useToast} from '@/context/ToastContext';
@@ -24,6 +25,7 @@ export default function AdminProductsPage() {
 
     const [selectedProductIds, setSelectedProductIds] = useState([]);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isTagGenModalOpen, setIsTagGenModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('all'); // 'all' (Standard) | 'generated' (AI)
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -213,6 +215,13 @@ export default function AdminProductsPage() {
 
                 <div className="flex gap-3">
                     <button
+                        onClick={() => setIsTagGenModalOpen(true)}
+                        className="bg-gray-800 hover:bg-gray-700 text-purple-400 border border-purple-500/30 font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                        <span className="text-xl">🏷️</span> Auto-Tags
+                    </button>
+
+                    <button
                         onClick={() => setIsImportModalOpen(true)}
                         className="bg-gray-800 hover:bg-gray-700 text-indigo-400 border border-indigo-500/30 font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
                     >
@@ -234,6 +243,16 @@ export default function AdminProductsPage() {
                 onComplete={() => {
                     fetchData();
                     setActiveTab('generated');
+                }}
+            />
+
+            <TagGenerationModal
+                isOpen={isTagGenModalOpen}
+                onClose={() => setIsTagGenModalOpen(false)}
+                selectedIds={selectedProductIds}
+                onComplete={() => {
+                    fetchData();
+                    addToast("Tag generation complete!", "success");
                 }}
             />
 
