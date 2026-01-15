@@ -24,12 +24,27 @@ export default function CategoryList({
         setExpanded(next);
     };
 
+    // Helper: Find all descendant IDs recursively
+    const getAllDescendants = (parentId, allCategories) => {
+        let descendants = [];
+        const children = allCategories.filter(c => c.parent_id === parentId);
+        
+        children.forEach(child => {
+            descendants.push(child.id);
+            descendants = [...descendants, ...getAllDescendants(child.id, allCategories)];
+        });
+        
+        return descendants;
+    };
+
     const handleSelect = (id, isChecked) => {
         const next = new Set(selectedIds);
+        const idsToToggle = [id, ...getAllDescendants(id, categories)];
+
         if (isChecked) {
-            next.add(id);
+            idsToToggle.forEach(childId => next.add(childId));
         } else {
-            next.delete(id);
+            idsToToggle.forEach(childId => next.delete(childId));
         }
         onSelectionChange(next);
     };
