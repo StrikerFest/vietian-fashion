@@ -13,6 +13,7 @@ export async function GET(request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
+    const isFeatured = searchParams.get('is_featured') === 'true'; // [MODIFIED] Add featured filter
     const start = (page - 1) * limit;
     const end = start + limit - 1;
 
@@ -25,6 +26,7 @@ export async function GET(request) {
             .range(start, end);
 
         if (search) query = query.ilike('name', `%${search}%`);
+        if (isFeatured) query = query.eq('is_featured', true); // [MODIFIED] Apply filter
 
         const {data, error, count} = await query;
         if (error) throw error;

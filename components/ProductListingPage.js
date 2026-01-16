@@ -41,7 +41,20 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
 
     // Filters
     const [attributeGroups, setAttributeGroups] = useState([]); // All Metadata
-    const [selectedFilters, setSelectedFilters] = useState({});
+    
+    // [FIX] Lazy initialize filters from URL to ensure first fetch is correct
+    const [selectedFilters, setSelectedFilters] = useState(() => {
+        const current = {};
+        if (searchParams) {
+            for (const [key, value] of searchParams.entries()) {
+                if (['page', 'limit', 'sort'].includes(key)) continue;
+                if (!current[key]) current[key] = [];
+                current[key].push(value);
+            }
+        }
+        return current;
+    });
+
     const [sortBy, setSortBy] = useState(searchParams.get('sort') || '');
 
     // --- NEW: Facets for Counts ---
@@ -89,7 +102,7 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
             currentFilters[key].push(value);
         }
         setSelectedFilters(currentFilters);
-    }, [searchParams]);
+    }, [searchParams.toString()]); // Use string representation to avoid ref loop
 
     // 3. Fetch Products
     const fetchProducts = useCallback(async () => {

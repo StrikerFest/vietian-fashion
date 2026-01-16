@@ -14,6 +14,7 @@ export default function Navbar() {
 
     // Data State
     const [navItems, setNavItems] = useState([]);
+    const [featuredCollections, setFeaturedCollections] = useState([]);
 
     // UI State
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -21,34 +22,44 @@ export default function Navbar() {
     const [searchQuery, setSearchQuery] = useState('');
     const searchInputRef = useRef(null);
 
-    // Fetch Categories
+    // Fetch Categories & Collections
     useEffect(() => {
-        const fetchNavItems = async () => {
+        const fetchData = async () => {
             try {
-                // [MODIFIED] Use new endpoint that filters empty categories
-                const response = await fetch('/api/categories/with-counts');
-                const data = await response.json();
+                // 1. Fetch Categories
+                const catRes = await fetch('/api/categories/with-counts');
+                const catData = await catRes.json();
 
                 const itemMap = {};
                 const topLevelItems = [];
 
-                data.forEach(item => {
-                    item.children = [];
-                    itemMap[item.id] = item;
-                    if (item.parent_id) {
-                        if (itemMap[item.parent_id]) {
-                            itemMap[item.parent_id].children.push(item);
+                if (Array.isArray(catData)) {
+                    catData.forEach(item => {
+                        item.children = [];
+                        itemMap[item.id] = item;
+                        if (item.parent_id) {
+                            if (itemMap[item.parent_id]) {
+                                itemMap[item.parent_id].children.push(item);
+                            }
+                        } else {
+                            topLevelItems.push(item);
                         }
-                    } else {
-                        topLevelItems.push(item);
-                    }
-                });
-                setNavItems(topLevelItems);
+                    });
+                    setNavItems(topLevelItems);
+                }
+
+                // 2. Fetch Featured Collections
+                const colRes = await fetch('/api/collections?is_featured=true&limit=5');
+                const colData = await colRes.json();
+                if (colData.data) {
+                    setFeaturedCollections(colData.data);
+                }
+
             } catch (error) {
                 console.error("Failed to fetch nav items:", error);
             }
         };
-        fetchNavItems();
+        fetchData();
     }, []);
 
     // Focus input when search opens
@@ -104,6 +115,15 @@ export default function Navbar() {
 
                     {/* 2. Desktop Navigation (Hidden when Search is wide) */}
                     <div className={`hidden md:flex items-center space-x-6 transition-opacity duration-200 ${isSearchOpen ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+                        {featuredCollections.map(col => (
+                            <Link 
+                                key={col.id} 
+                                href={`/collections/${col.slug}`} 
+                                className="text-yellow-400 hover:text-yellow-300 font-bold text-sm whitespace-nowrap flex items-center gap-1"
+                            >
+                                <span>★</span> {col.name}
+                            </Link>
+                        ))}
                         {navItems.map(item => (
                             <div key={item.id} className="relative group">
                                 <Link href={`/categories/${item.slug}`} className="hover:text-indigo-400 py-2 font-medium text-sm whitespace-nowrap">
@@ -198,6 +218,16 @@ export default function Navbar() {
             {isMobileMenuOpen && (
                 <div className="md:hidden mt-4 border-t border-gray-700 pt-4 space-y-4">
                     <div className="space-y-2">
+                        {featuredCollections.map(col => (
+                            <Link
+                                key={col.id}
+                                href={`/collections/${col.slug}`}
+                                className="block px-2 py-1 font-bold text-yellow-400 flex items-center gap-2"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                <span>★</span> {col.name}
+                            </Link>
+                        ))}
                         {navItems.map(item => (
                             <div key={item.id}>
                                 <Link

@@ -73,6 +73,7 @@ const Autocomplete = ({ options, value, onChange, placeholder, multiple = false,
 };
 
 export default function ProductForm({ initialData, categories = [], collections = [], onSuccess, onCancel }) {
+    console.log("[ProductForm] Received initialData:", initialData);
     const supabase = createClientComponentClient();
     const { addToast } = useToast();
 
@@ -148,7 +149,9 @@ export default function ProductForm({ initialData, categories = [], collections 
 
     // --- Load Initial Data ---
     useEffect(() => {
+        // console.log("[ProductForm] Initial Data Effect Triggered", initialData);
         if (initialData) {
+            // console.log("[ProductForm] Variants:", initialData.product_variants);
             setName(initialData.name);
             setDescription(initialData.description || '');
             setStatus(initialData.status || 'draft');
@@ -196,12 +199,27 @@ export default function ProductForm({ initialData, categories = [], collections 
             }
 
             if (initialData.product_variants?.length > 0) {
+                // console.log("[Debug] Initial Variants:", initialData.product_variants);
+                // console.log("[Debug] Attribute Groups:", attributeGroups);
+
                 const loadedVariants = initialData.product_variants.map(v => {
                     const attrMap = {};
                     if (v.attribute_value_ids) {
                         v.attribute_value_ids.forEach(optId => {
-                            const group = attributeGroups.find(g => g.options.some(o => o.id === optId));
-                            if (group) attrMap[group.id] = optId;
+                            // Fix: Ensure comparison handles number vs string logic
+                            // optId from API is likely Number (if DB is BigInt/Int)
+                            // g.options[].id might be Number.
+                            const group = attributeGroups.find(g => g.options.some(o => {
+                                // console.log(`Checking ${o.id} vs ${optId} (${o.id == optId})`);
+                                return o.id == optId;
+                            }));
+                            
+                            if (group) {
+                                // console.log(`Match found! Group: ${group.name}, OptionID: ${optId}`);
+                                attrMap[group.id] = optId;
+                            } else {
+                                // console.warn(`[Debug] Option ID ${optId} not found in any group.`);
+                            }
                         });
                     }
                     return {
@@ -213,11 +231,13 @@ export default function ProductForm({ initialData, categories = [], collections 
                 setVariants(loadedVariants);
 
                 const detectedConfig = new Set();
-                if (loadedVariants[0]) {
-                    Object.keys(loadedVariants[0].attribute_value_ids).forEach(groupId => {
-                        detectedConfig.add(parseInt(groupId) || groupId);
-                    });
-                }
+                loadedVariants.forEach(variant => {
+                    if (variant.attribute_value_ids) {
+                        Object.keys(variant.attribute_value_ids).forEach(groupId => {
+                            detectedConfig.add(parseInt(groupId) || groupId);
+                        });
+                    }
+                });
                 setVariantConfig(Array.from(detectedConfig));
             }
         }
@@ -365,9 +385,10 @@ export default function ProductForm({ initialData, categories = [], collections 
 
     const handleVariantAttributeChange = (index, groupId, optionId) => {
         const updated = [...variants];
+        const val = optionId.toString().startsWith('NEW-') ? optionId : parseInt(optionId);
         updated[index].attribute_value_ids = {
             ...updated[index].attribute_value_ids,
-            [groupId]: parseInt(optionId)
+            [groupId]: val || '' // Handle NaN/Empty
         };
         setVariants(updated);
     };

@@ -22,9 +22,9 @@ export default function EditProductPage() {
         const fetchData = async () => {
             try {
                 const [productRes, categoriesRes, collectionsRes] = await Promise.all([
-                    fetch(`/api/products/${id}`),
-                    fetch('/api/categories'),
-                    fetch('/api/collections')
+                    fetch(`/api/products/${id}`, { cache: 'no-store' }),
+                    fetch('/api/categories', { cache: 'no-store' }),
+                    fetch('/api/collections', { cache: 'no-store' })
                 ]);
 
                 if (!productRes.ok) throw new Error('Product not found');
@@ -65,6 +65,8 @@ export default function EditProductPage() {
     }
 
     if (!product) return null;
+
+    console.log("[EditPage] Rendering ProductForm with:", product);
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">

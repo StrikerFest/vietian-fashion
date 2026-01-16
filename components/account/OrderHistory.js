@@ -13,9 +13,7 @@ export default function OrderHistory({ orders, isLoading }) {
 
         // Dynamic Attributes
         if (variant.attributes && Object.keys(variant.attributes).length > 0) {
-            return Object.entries(variant.attributes)
-                .map(([key, val]) => `${key}: ${val}`)
-                .join(' • ');
+            return Object.values(variant.attributes).join(' / ');
         }
 
         return variant.sku || '';

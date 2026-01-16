@@ -89,7 +89,7 @@ export async function GET(request, context) {
             return {
                 ...safeVariant,
                 attributes,
-                attribute_value_ids,
+                attribute_value_ids, // [FIX] Always return IDs for frontend logic
                 in_stock: realStock > 0,
                 low_stock: realStock > 0 && realStock <= 10,
                 stock_display: realStock > 10 ? 10 : realStock

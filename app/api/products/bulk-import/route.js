@@ -149,15 +149,39 @@ export async function POST(request) {
         for (const [productName, data] of productsMap.entries()) {
             const { productData, variants } = data;
 
-            // Upsert Product (Allow merging new variants into existing products)
-            const { data: product, error: productError } = await supabase
+            // [FIX] Manual Upsert by Name (Database 'name' is not unique constrained)
+            let productId;
+            
+            // 1. Check if exists
+            const { data: existingProduct, error: findError } = await supabase
                 .from('products')
-                .upsert(productData, { onConflict: 'name' })
                 .select('id')
-                .single();
+                .eq('name', productName)
+                .maybeSingle(); // Use maybeSingle to avoid error if not found
 
-            if (productError) throw new Error(`Failed product ${productName}: ${productError.message}`);
-            const productId = product.id;
+            if (findError) throw new Error(`Error checking product ${productName}: ${findError.message}`);
+
+            if (existingProduct) {
+                // 2. Update
+                const { error: updateError } = await supabase
+                    .from('products')
+                    .update(productData)
+                    .eq('id', existingProduct.id);
+                
+                if (updateError) throw new Error(`Failed to update product ${productName}: ${updateError.message}`);
+                productId = existingProduct.id;
+            } else {
+                // 3. Insert
+                const { data: newProduct, error: insertError } = await supabase
+                    .from('products')
+                    .insert(productData)
+                    .select('id')
+                    .single();
+                
+                if (insertError) throw new Error(`Failed to create product ${productName}: ${insertError.message}`);
+                productId = newProduct.id;
+            }
+            
             createdProductsCount++;
 
             for (const v of variants) {

@@ -16,8 +16,8 @@ export default function CreateProductPage() {
         const fetchMetadata = async () => {
             try {
                 const [categoriesRes, collectionsRes] = await Promise.all([
-                    fetch('/api/categories'),
-                    fetch('/api/collections')
+                    fetch('/api/categories', { cache: 'no-store' }),
+                    fetch('/api/collections', { cache: 'no-store' })
                 ]);
 
                 if (!categoriesRes.ok || !collectionsRes.ok) {

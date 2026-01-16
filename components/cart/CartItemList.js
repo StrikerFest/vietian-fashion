@@ -49,13 +49,11 @@ export default function CartItemList({ cartItems, updateQuantity, removeFromCart
                         </Link>
 
                         {/* Variant Attributes (Dynamic) */}
-                        <div className="text-sm text-gray-400 mt-1 flex flex-wrap gap-2">
-                            {item.attributes && Object.entries(item.attributes).map(([key, val]) => (
-                                <span key={key} className="bg-gray-700 px-2 py-0.5 rounded text-xs border border-gray-600">
-                                    <span className="text-gray-500 mr-1">{key}:</span>{val}
-                                </span>
-                            ))}
-                        </div>
+                        {item.attributes && Object.keys(item.attributes).length > 0 && (
+                            <p className="text-sm text-gray-400 mt-1">
+                                {Object.values(item.attributes).join(' / ')}
+                            </p>
+                        )}
 
                         {/* Custom Options */}
                         {renderCustomOptions(item.selectedOptions)}

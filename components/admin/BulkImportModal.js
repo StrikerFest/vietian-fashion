@@ -220,7 +220,7 @@ export default function BulkImportModal({ isOpen, onClose, onComplete }) {
                                                     <FalseProgressBar 
                                                         isLoading={true} 
                                                         label="AI Creating..." 
-                                                        duration={15000}
+                                                        duration={20000}
                                                         flavor={[
                                                             "Đang đọc hình ảnh...",
                                                             "Xử lý thị giác máy tính...",
