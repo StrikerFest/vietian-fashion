@@ -61,9 +61,53 @@ export async function GET(request, context) {
 
         if (baseProductIds.length === 0) return NextResponse.json({category, data: [], meta: {total: 0}, facets: {}});
 
-        // --- NEW: Calculate Facets (Counts) ---
-        // We calculate this on the BASE set so the sidebar shows all available options in this category
-        const { data: allVariants } = await supabase
+        // 3. Apply Filters to get Final Product List
+        let filteredProductIds = baseProductIds;
+
+        if (Object.keys(attributeFilters).length > 0) {
+            for (const [key, values] of Object.entries(attributeFilters)) {
+                // Set to store matching Product IDs for this specific filter group
+                const groupMatchingProductIds = new Set();
+
+                // A. Check Variant Attributes
+                const {data: matchingVariants} = await supabase
+                    .from('variant_attributes')
+                    .select('variant_id, attribute_value:categories!inner(slug)')
+                    .in('attribute_value.slug', values);
+
+                if (matchingVariants && matchingVariants.length > 0) {
+                    const varIds = matchingVariants.map(v => v.variant_id);
+                    const {data: pIds} = await supabase.from('product_variants').select('product_id').in('id', varIds);
+                    pIds?.forEach(p => groupMatchingProductIds.add(p.product_id));
+                }
+
+                // B. Check Product Attributes (Global)
+                const { data: matchingProducts } = await supabase
+                    .from('product_categories')
+                    .select('product_id, category:categories!inner(slug)')
+                    .in('category.slug', values);
+
+                if (matchingProducts && matchingProducts.length > 0) {
+                    matchingProducts.forEach(p => groupMatchingProductIds.add(p.product_id));
+                }
+
+                // C. Intersect with current filtered list
+                if (groupMatchingProductIds.size > 0) {
+                    filteredProductIds = filteredProductIds.filter(id => groupMatchingProductIds.has(id));
+                } else {
+                    // If no products match this filter group, the result is empty
+                    filteredProductIds = [];
+                    break;
+                }
+            }
+        }
+        
+        if (filteredProductIds.length === 0) return NextResponse.json({category, data: [], meta: {total: 0}, facets: {}});
+
+
+        // --- NEW: Calculate Facets (Counts) on FILTERED SET ---
+        // 1. Fetch Variant Attributes
+        const { data: variantAttrs } = await supabase
             .from('product_variants')
             .select(`
                 product_id,
@@ -73,18 +117,44 @@ export async function GET(request, context) {
                     )
                 )
             `)
-            .in('product_id', baseProductIds);
+            .in('product_id', filteredProductIds);
+
+        // 2. Fetch Product Attributes (Global)
+        const { data: productAttrs } = await supabase
+            .from('product_categories')
+            .select(`
+                product_id,
+                category:categories!inner (
+                    slug,
+                    type
+                )
+            `)
+            .eq('category.type', 'attribute')
+            .in('product_id', filteredProductIds);
 
         const facetCounts = {};
-        if (allVariants) {
-            allVariants.forEach(v => {
+
+        // Process Variant Attributes
+        if (variantAttrs) {
+            variantAttrs.forEach(v => {
                 v.variant_attributes?.forEach(va => {
                     const attrSlug = va.attribute_value?.slug;
                     if (attrSlug) {
                         if (!facetCounts[attrSlug]) facetCounts[attrSlug] = new Set();
-                        facetCounts[attrSlug].add(v.product_id); // Count unique products, not variants
+                        facetCounts[attrSlug].add(v.product_id); 
                     }
                 });
+            });
+        }
+
+        // Process Product Attributes
+        if (productAttrs) {
+            productAttrs.forEach(p => {
+                const attrSlug = p.category?.slug;
+                if (attrSlug) {
+                    if (!facetCounts[attrSlug]) facetCounts[attrSlug] = new Set();
+                    facetCounts[attrSlug].add(p.product_id);
+                }
             });
         }
 
@@ -93,31 +163,6 @@ export async function GET(request, context) {
         Object.keys(facetCounts).forEach(key => {
             facets[key] = facetCounts[key].size;
         });
-
-
-        // 3. Apply Filters to get Final Product List
-        let filteredProductIds = baseProductIds;
-
-        if (Object.keys(attributeFilters).length > 0) {
-            for (const [key, values] of Object.entries(attributeFilters)) {
-                // [FIX] Use 'slug' instead of 'name' to match frontend URLs
-                const {data: matchingVariants} = await supabase
-                    .from('variant_attributes')
-                    .select('variant_id, attribute_value:categories!inner(slug)')
-                    .in('attribute_value.slug', values);
-
-                if (matchingVariants && matchingVariants.length > 0) {
-                    const varIds = matchingVariants.map(v => v.variant_id);
-                    const {data: pIds} = await supabase.from('product_variants').select('product_id').in('id', varIds);
-                    const validPIds = new Set(pIds.map(p => p.product_id));
-                    filteredProductIds = filteredProductIds.filter(id => validPIds.has(id));
-                } else {
-                    filteredProductIds = [];
-                }
-            }
-        }
-
-        if (filteredProductIds.length === 0) return NextResponse.json({category, data: [], meta: {total: 0}, facets});
 
         // 4. Fetch Products
         let productQuery = supabase
@@ -153,7 +198,14 @@ export async function GET(request, context) {
                 v.variant_attributes?.forEach(va => {
                     if (va.attribute_value?.parent?.name) attributes[va.attribute_value.parent.name] = va.attribute_value.name;
                 });
-                const realStock = v.inventory_levels?.[0]?.on_hand || 0;
+
+                // [FIX] Robust Inventory Handling
+                let stockData = v.inventory_levels;
+                if (Array.isArray(stockData)) {
+                    stockData = stockData[0];
+                }
+                const realStock = parseInt(stockData?.on_hand || 0);
+
                 const {inventory_levels, ...safeVariant} = v;
 
                 return {

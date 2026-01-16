@@ -202,6 +202,32 @@ export default function AdminProductsPage() {
         setPage(1);
     };
 
+    const handleBulkAction = async (action) => {
+        if (action === 'delete' && !confirm(`Bạn có chắc muốn xóa ${selectedProductIds.length} sản phẩm đã chọn?`)) {
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const res = await fetch('/api/admin/products/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selectedProductIds, action })
+            });
+            const data = await res.json();
+            
+            if (!res.ok) throw new Error(data.error || 'Bulk action failed');
+            
+            addToast(data.message, 'success');
+            setSelectedProductIds([]);
+            fetchData();
+        } catch (err) {
+            addToast(err.message, 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // [FIX] Handle Tab Change properly
     const handleTabChange = (newTab) => {
         setActiveTab(newTab);
@@ -255,6 +281,36 @@ export default function AdminProductsPage() {
                     addToast("Tag generation complete!", "success");
                 }}
             />
+
+            {/* Bulk Actions Bar */}
+            {selectedProductIds.length > 0 && (
+                <div className="bg-gray-800 border border-indigo-500/50 rounded-lg p-3 mb-6 flex justify-between items-center animate-fade-in-up">
+                    <span className="font-medium text-white ml-2">{selectedProductIds.length} sản phẩm được chọn</span>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => handleBulkAction('publish')}
+                            disabled={isLoading}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors disabled:opacity-50"
+                        >
+                            ✓ Xuất bản
+                        </button>
+                        <button
+                            onClick={() => handleBulkAction('draft')}
+                            disabled={isLoading}
+                            className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors disabled:opacity-50"
+                        >
+                            Draft
+                        </button>
+                        <button
+                            onClick={() => handleBulkAction('delete')}
+                            disabled={isLoading}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors disabled:opacity-50"
+                        >
+                            🗑️ Xóa
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <>
                 <div className="flex gap-1 bg-gray-800/50 p-1 rounded-lg w-fit mb-6 border border-gray-700">

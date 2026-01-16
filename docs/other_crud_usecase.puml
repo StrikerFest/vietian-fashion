@@ -1,0 +1,62 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Quản trị viên" as Admin
+
+rectangle "Quản lý Khuyến mãi (Discounts)" {
+    usecase "Xem danh sách mã giảm giá" as UC_ViewDiscounts
+    usecase "Tạo mã giảm giá mới" as UC_CreateDiscount
+    usecase "Sửa mã giảm giá" as UC_EditDiscount
+    usecase "Kích hoạt / Vô hiệu hóa mã" as UC_ToggleDiscount
+
+    package "Chi tiết cấu hình" {
+        usecase "Thiết lập Loại (Theo % hoặc Số tiền)" as UC_DiscType
+        usecase "Cài đặt Ngày bắt đầu / Kết thúc" as UC_DiscDate
+    }
+
+    Admin --> UC_ViewDiscounts
+    Admin --> UC_CreateDiscount
+    Admin --> UC_EditDiscount
+    Admin --> UC_ToggleDiscount
+
+    UC_CreateDiscount ..> UC_DiscType : <<include>>
+    UC_CreateDiscount ..> UC_DiscDate : <<include>>
+}
+
+rectangle "Quản lý Bộ sưu tập (Collections)" {
+    usecase "Xem danh sách bộ sưu tập" as UC_ViewCols
+    usecase "Tạo bộ sưu tập mới" as UC_CreateCol
+    usecase "Sửa bộ sưu tập" as UC_EditCol
+    usecase "Xóa bộ sưu tập" as UC_DeleteCol
+
+    package "Cấu hình Bộ sưu tập" {
+        usecase "Tự động tạo Slug từ Tên" as UC_AutoSlug
+        usecase "Cài đặt SEO (Meta Title/Desc)" as UC_ColSEO
+        usecase "Đánh dấu Nổi bật (Featured)" as UC_ColFeatured
+    }
+
+    Admin --> UC_ViewCols
+    Admin --> UC_CreateCol
+    Admin --> UC_EditCol
+    Admin --> UC_DeleteCol
+
+    UC_CreateCol ..> UC_AutoSlug : <<include>>
+    UC_CreateCol ..> UC_ColSEO : <<include>>
+    UC_CreateCol ..> UC_ColFeatured : <<include>>
+}
+
+rectangle "Quản lý Đánh giá (Reviews)" {
+    usecase "Xem danh sách đánh giá" as UC_ViewReviews
+    usecase "Duyệt đánh giá (Approve)" as UC_ApproveReview
+    usecase "Xóa đánh giá vi phạm" as UC_DeleteReview
+    usecase "Xem chi tiết đánh giá (Rating/Comment)" as UC_DetailReview
+
+    Admin --> UC_ViewReviews
+    Admin --> UC_ApproveReview
+    Admin --> UC_DeleteReview
+    
+    UC_ViewReviews ..> UC_DetailReview : <<include>>
+}
+
+@enduml

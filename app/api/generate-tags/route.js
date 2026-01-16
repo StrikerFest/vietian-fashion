@@ -33,19 +33,38 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Không có tệp hình ảnh được cung cấp.' }, { status: 400 });
         }
 
-        // 1. Fetch Dynamic Attributes
-        const { data: attributes, error: dbError } = await supabase
+        // 1. Fetch Dynamic Attributes (Groups AND Options)
+        const { data: allAttributes, error: dbError } = await supabase
             .from('categories')
-            .select('name')
+            .select('id, name, parent_id')
             .eq('type', 'attribute')
-            .is('parent_id', null)
             .eq('is_active', true);
 
         if (dbError) throw dbError;
 
-        const attributeList = attributes && attributes.length > 0
-            ? attributes.map(a => `- ${a.name}`).join('\n')
-            : '- Màu sắc\n- Chất liệu\n- Kiểu dáng';
+        // Build Hierarchy Map
+        const groups = {};
+        allAttributes.forEach(attr => {
+            if (!attr.parent_id) {
+                groups[attr.id] = { name: attr.name, options: [] };
+            }
+        });
+
+        allAttributes.forEach(attr => {
+            if (attr.parent_id && groups[attr.parent_id]) {
+                groups[attr.parent_id].options.push(attr.name);
+            }
+        });
+
+        // Format for Prompt
+        const attributeList = Object.values(groups)
+            .map(g => {
+                const optionsStr = g.options.length > 0 
+                    ? ` (Đã có: ${g.options.slice(0, 30).join(', ')}${g.options.length > 30 ? '...' : ''})` 
+                    : '';
+                return `- ${g.name}${optionsStr}`;
+            })
+            .join('\n');
 
         const buffer = Buffer.from(await imageFile.arrayBuffer());
         const mimeType = imageFile.type;

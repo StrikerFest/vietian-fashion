@@ -1,0 +1,47 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Quản trị viên" as Admin
+
+rectangle "Quản lý Sản phẩm (Catalog Management)" {
+    
+    usecase "Thêm/Sửa Sản phẩm" as UC_CreateProduct
+    usecase "Lưu sản phẩm" as UC_Save
+    usecase "Tải ảnh sản phẩm" as UC_UploadImages
+
+    package "Nhập thông tin cơ bản" {
+        usecase "Điền thông tin chung (Tên, Mô tả, SEO, Danh mục)" as UC_BasicInfo
+        usecase "AI Viết mô tả tự động" as UC_AIDesc
+    }
+
+    package "Cấu hình đặc tính & Biến thể" {
+        usecase "Thiết lập Thuộc tính và Biến thể (SKU, Giá, Tồn kho)" as UC_Config
+        usecase "AI Gợi ý Tag từ hình ảnh" as UC_AITags
+        usecase "Tạo thuộc tính mới ngay trên form" as UC_NewAttr
+    }
+
+    ' Main Flow
+    Admin --> UC_CreateProduct
+    UC_CreateProduct ..> UC_BasicInfo : <<include>>
+    UC_CreateProduct ..> UC_UploadImages : <<include>>
+    UC_CreateProduct ..> UC_Config : <<include>>
+    UC_CreateProduct --> UC_Save
+
+    ' Extensions
+    UC_BasicInfo <.. UC_AIDesc : <<extend>>
+    UC_Config <.. UC_AITags : <<extend>>
+    UC_Config <.. UC_NewAttr : <<extend>>
+}
+
+note right of UC_AIDesc
+  Tự động viết mô tả chuẩn SEO
+  dựa trên Tên & Ảnh sản phẩm
+end note
+
+note right of UC_AITags
+  Phân tích ảnh để
+  đề xuất thuộc tính phù hợp
+end note
+
+@enduml

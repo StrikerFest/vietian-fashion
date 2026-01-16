@@ -44,14 +44,15 @@ Nhiệm vụ của bạn là phân loại sản phẩm này theo các Nhóm Thu�
 {{attributeList}}
 
 Hướng dẫn quan trọng:
-1. **Ngôn ngữ**: Tất cả các giá trị (values) trả về PHẢI là Tiếng Việt chuẩn.
-2. **Định dạng**: Trả về duy nhất một JSON object hợp lệ.
-3. **Ngắn gọn**: Các tag chỉ được phép từ 1-4 từ. KHÔNG viết câu.
-4. **Values**: Giá trị phải là mảng các chuỗi (Array of Strings).
+1. **Ưu tiên từ có sẵn**: Nếu sản phẩm phù hợp với các giá trị "Đã có" trong danh sách trên, HÃY SỬ DỤNG LẠI CHÚNG chính xác từng ký tự. Chỉ tạo từ mới nếu thực sự cần thiết.
+2. **Ngôn ngữ**: Tất cả các giá trị (values) trả về PHẢI là Tiếng Việt chuẩn.
+3. **Định dạng**: Trả về duy nhất một JSON object hợp lệ.
+4. **Ngắn gọn**: Các tag chỉ được phép từ 1-4 từ. KHÔNG viết câu.
+5. **Values**: Giá trị phải là mảng các chuỗi (Array of Strings).
    - Ví dụ: Thay vì "Blue", hãy trả về ["Xanh dương"].
    - Thay vì "Cotton", hãy trả về ["Vải Cotton", "Thoáng mát"].
-5. Nếu không xác định được thuộc tính nào, hãy bỏ qua key đó.
-6. Không sử dụng markdown code block.
+6. Nếu không xác định được thuộc tính nào, hãy bỏ qua key đó.
+7. Không sử dụng markdown code block.
 
 Ví dụ định dạng mong muốn:
 {

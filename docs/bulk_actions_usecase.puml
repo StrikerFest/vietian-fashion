@@ -1,0 +1,49 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Quản trị viên" as Admin
+
+rectangle "Quản lý Hàng loạt (Bulk Operations)" {
+    
+    usecase "Chọn nhiều sản phẩm" as UC_SelectMultiple
+    usecase "Lọc và Tìm kiếm sản phẩm" as UC_Filter
+    
+    package "Hành động Hàng loạt" {
+        usecase "Xuất dữ liệu sản phẩm (CSV)" as UC_Export
+        usecase "Tự động gắn thẻ bằng AI (Auto-Tags)" as UC_BulkTags
+        usecase "Lưu trữ sản phẩm hàng loạt" as UC_BulkDelete
+    }
+
+    package "Nhập liệu & Duyệt AI" {
+        usecase "Nhập sản phẩm hàng loạt từ AI" as UC_BulkImport
+        usecase "Duyệt và xuất bản bản nháp AI" as UC_ApproveAI
+        usecase "Chuyển đổi giữa Sản phẩm tiêu chuẩn và Bản nháp AI" as UC_SwitchTab
+    }
+
+    ' Relationships
+    Admin --> UC_SelectMultiple
+    Admin --> UC_Filter
+    Admin --> UC_SwitchTab
+    
+    UC_SelectMultiple <.. UC_Export : <<extend>>
+    UC_SelectMultiple <.. UC_BulkTags : <<extend>>
+    UC_SelectMultiple <.. UC_BulkDelete : <<extend>>
+    
+    Admin --> UC_BulkImport
+    Admin --> UC_ApproveAI
+}
+
+note bottom of UC_BulkImport
+  Sử dụng AI để phân tích dữ liệu 
+  từ văn bản hoặc file để tạo 
+  nhiều sản phẩm cùng lúc.
+end note
+
+note bottom of UC_BulkTags
+  AI phân tích hình ảnh của các 
+  sản phẩm đã chọn để tự động 
+  thêm thuộc tính (Màu sắc, Chất liệu).
+end note
+
+@enduml

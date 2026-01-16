@@ -25,7 +25,8 @@ export default function Navbar() {
     useEffect(() => {
         const fetchNavItems = async () => {
             try {
-                const response = await fetch('/api/categories?type=catalog&mode=public');
+                // [MODIFIED] Use new endpoint that filters empty categories
+                const response = await fetch('/api/categories/with-counts');
                 const data = await response.json();
 
                 const itemMap = {};

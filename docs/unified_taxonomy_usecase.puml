@@ -1,0 +1,63 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Quản trị viên" as Admin
+
+rectangle "Phân loại Hợp nhất (Unified Taxonomy)" {
+    
+    usecase "Quản lý Cấu trúc phân cấp" as UC_Hierarchy
+    usecase "Thiết lập Danh mục/Thuộc tính" as UC_ManageItem
+    
+    package "Phân loại Danh mục" {
+        usecase "Danh mục Điều hướng (Catalog/Menu)" as UC_Catalog
+        usecase "Thuộc tính Bộ lọc (Attribute/Filter)" as UC_Attribute
+    }
+
+    package "Chi tiết cấu hình" {
+        usecase "Tự động tạo Slug chuẩn SEO" as UC_Slug
+        usecase "Cấu hình Lịch hiển thị (Bắt đầu/Kết thúc)" as UC_Timing
+        usecase "Thiết lập Trạng thái (Hoạt động/Lên lịch)" as UC_Status
+        usecase "Sắp xếp thứ tự hiển thị" as UC_Sort
+    }
+
+    package "Thao tác trên cây phân loại" {
+        usecase "Mở rộng/Thu gọn nhánh" as UC_Expand
+        usecase "Chọn hàng loạt (Bulk Selection)" as UC_BulkSelect
+        usecase "Xóa hoặc Ẩn danh mục" as UC_Delete
+    }
+
+    ' Relationships
+    Admin --> UC_Hierarchy
+    Admin --> UC_ManageItem
+    
+    UC_ManageItem <|-- UC_Catalog
+    UC_ManageItem <|-- UC_Attribute
+    
+    UC_ManageItem ..> UC_Slug : <<include>>
+    UC_ManageItem ..> UC_Timing : <<include>>
+    UC_ManageItem ..> UC_Status : <<include>>
+    UC_ManageItem ..> UC_Sort : <<include>>
+    
+    UC_Hierarchy ..> UC_Expand : <<include>>
+    UC_Hierarchy ..> UC_BulkSelect : <<include>>
+    UC_Hierarchy ..> UC_Delete : <<include>>
+}
+
+note bottom of UC_Catalog
+  Xác định cấu trúc menu 
+  trên website chính.
+end note
+
+note bottom of UC_Attribute
+  Xác định các bộ lọc (Màu sắc, 
+  Kích thước) và thẻ sản phẩm.
+end note
+
+note bottom of UC_Timing
+  Cho phép danh mục tự động 
+  xuất hiện hoặc biến mất theo 
+  chiến dịch marketing.
+end note
+
+@enduml

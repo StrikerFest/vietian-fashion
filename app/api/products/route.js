@@ -177,6 +177,9 @@ export async function GET(request) {
             product_variants: product.product_variants.map(v => {
                 const attributes = {};
                 const attribute_value_ids = [];
+                
+                // DEBUG: Inspect inventory data
+                // console.log(`Variant ${v.id} Inventory:`, v.inventory_levels);
 
                 v.variant_attributes?.forEach(va => {
                     if (va.attribute_value) {
@@ -187,8 +190,15 @@ export async function GET(request) {
                     }
                 });
 
-                const inventoryLevels = Array.isArray(v.inventory_levels) ? v.inventory_levels[0] : v.inventory_levels;
-                const realStock = inventoryLevels?.on_hand || 0;
+                // [FIX] Robust Inventory Handling
+                let stockData = v.inventory_levels;
+                if (Array.isArray(stockData)) {
+                    stockData = stockData[0];
+                }
+                
+                // Parse Int to ensure BigInt strings are handled
+                const realStock = parseInt(stockData?.on_hand || 0); 
+                
                 const { inventory_levels, ...safeVariant } = v;
 
                 if (isAdmin) {

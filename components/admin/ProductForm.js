@@ -753,7 +753,7 @@ export default function ProductForm({ initialData, categories = [], collections 
                             placeholder="+ Thêm nhóm thuộc tính (ví dụ: Màu sắc)..."
                         />
 
-                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1 mt-4">
+                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1 mt-4 custom-scrollbar">
                             {attributeGroups
                                 .filter(g => visibleAttributeGroupIds.has(g.id))
                                 .map(group => (

@@ -1,0 +1,88 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Guest Customer" as Guest
+actor "Registered Customer" as Customer
+actor "Administrator" as Admin
+actor "System / AI" as System
+
+rectangle "Vietian Fashion Storefront" {
+    usecase "Browse Products" as UC_Browse
+    usecase "Search Products (AI Semantic)" as UC_Search
+    usecase "View Product Details" as UC_ViewProduct
+    usecase "Manage Cart" as UC_Cart
+    usecase "Checkout" as UC_Checkout
+    usecase "Login / Register" as UC_Auth
+    usecase "Manage Account Profile" as UC_Profile
+    usecase "View Order History" as UC_OrderHistory
+    usecase "Manage Wishlist" as UC_Wishlist
+    usecase "Request Return (RMA)" as UC_RequestReturn
+}
+
+rectangle "Vietian Fashion Admin Panel" {
+    usecase "View Dashboard & Analytics" as UC_Dashboard
+    
+    package "Product Management" {
+        usecase "Manage Products (CRUD)" as UC_ManageProducts
+        usecase "Bulk Import/Export" as UC_BulkOps
+        usecase "Generate Content (AI)" as UC_AI_Content
+        usecase "Manage Product Guides" as UC_Guides
+    }
+
+    package "Order & Fulfillment" {
+        usecase "Manage Orders" as UC_ManageOrders
+        usecase "Process Returns" as UC_ProcessReturns
+        usecase "Export Orders" as UC_ExportOrders
+    }
+
+    package "Inventory & Supply Chain" {
+        usecase "Adjust Stock Levels" as UC_AdjustStock
+        usecase "Manage Suppliers" as UC_Suppliers
+        usecase "Manage Purchase Orders" as UC_PO
+    }
+
+    package "Configuration" {
+        usecase "Manage Settings (Tax/Shipping)" as UC_Settings
+        usecase "Manage Discounts" as UC_Discounts
+    }
+}
+
+' Guest Relationships
+Guest --> UC_Browse
+Guest --> UC_Search
+Guest --> UC_ViewProduct
+Guest --> UC_Cart
+Guest --> UC_Checkout
+Guest --> UC_Auth
+
+' Customer Relationships (Inheritance)
+Customer --|> Guest
+Customer --> UC_Profile
+Customer --> UC_OrderHistory
+Customer --> UC_Wishlist
+Customer --> UC_RequestReturn
+
+' Admin Relationships
+Admin --> UC_Dashboard
+Admin --> UC_ManageProducts
+Admin --> UC_BulkOps
+Admin --> UC_AI_Content
+Admin --> UC_Guides
+Admin --> UC_ManageOrders
+Admin --> UC_ProcessReturns
+Admin --> UC_ExportOrders
+Admin --> UC_AdjustStock
+Admin --> UC_Suppliers
+Admin --> UC_PO
+Admin --> UC_Settings
+Admin --> UC_Discounts
+
+' System Interactions
+UC_Search ..> System : <<uses>>
+UC_AI_Content ..> System : <<uses>>
+UC_Checkout ..> System : <<validates stock>>
+UC_Checkout ..> System : <<creates ghost account>>
+UC_ProcessReturns ..> System : <<updates inventory>>
+
+@enduml

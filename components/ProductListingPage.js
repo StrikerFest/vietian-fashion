@@ -209,7 +209,7 @@ export default function ProductListingPage({ fetchUrl, pageType, defaultTitle, d
                                     <h3 className="font-semibold mb-2 text-indigo-300 uppercase text-xs tracking-wider">
                                         {group.name}
                                     </h3>
-                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
                                         {visibleOptions.map(option => {
                                             const isChecked = (selectedFilters[group.slug] || []).includes(option.slug);
                                             const count = facets[option.slug] || 0;

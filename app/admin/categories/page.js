@@ -42,7 +42,7 @@ export default function CategoriesPage() {
     const fetchCategories = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('/api/categories');
+            const response = await fetch('/api/categories', { cache: 'no-store' });
             const data = await response.json();
             setCategories(data || []);
         } catch (error) {
