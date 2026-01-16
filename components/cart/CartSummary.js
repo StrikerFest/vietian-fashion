@@ -16,7 +16,9 @@ export default function CartSummary({
                                         hasSelectedAddress,
                                         // --- NEW PROPS ---
                                         paymentMethod,
-                                        setPaymentMethod
+                                        setPaymentMethod,
+                                        receiverPhone,
+                                        setReceiverPhone
                                     }) {
     const [discountInput, setDiscountInput] = useState('');
     const [discountMessage, setDiscountMessage] = useState({ type: '', text: '' });
@@ -155,6 +157,23 @@ export default function CartSummary({
                     <span className="text-white font-bold text-lg">Tổng cộng</span>
                     <span className="text-2xl font-extrabold text-white">{formatCurrency(finalTotal)}</span>
                 </div>
+            </div>
+
+            {/* --- RECEIVER PHONE --- */}
+            <div className="mb-6">
+                <label htmlFor="receiver-phone" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Số điện thoại người nhận *
+                </label>
+                <input
+                    type="tel"
+                    id="receiver-phone"
+                    value={receiverPhone}
+                    onChange={(e) => setReceiverPhone(e.target.value)}
+                    placeholder="VD: 0901234567"
+                    className="w-full bg-gray-900 border border-gray-600 text-white text-sm rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-gray-600"
+                    required
+                />
+                <p className="text-[10px] text-gray-500 mt-1">Thông tin bắt buộc để liên hệ giao hàng.</p>
             </div>
 
             {/* --- PAYMENT METHOD SELECTION --- */}

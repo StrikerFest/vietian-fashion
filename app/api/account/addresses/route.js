@@ -38,7 +38,10 @@ export async function POST(request) {
         if (!session) return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
 
         const body = await request.json();
-        const { address_line_1, address_line_2, city, state, postal_code, country, is_default } = body;
+        const { address_line_1, address_line_2, city, state_province_region, postal_code, country, is_default } = body;
+
+        // Allow 'state' alias for compatibility if needed, but prefer state_province_region
+        const state = state_province_region || body.state;
 
         if (!address_line_1 || !city || !state || !postal_code || !country) {
             return NextResponse.json({ error: 'Thiếu thông tin bắt buộc' }, { status: 400 });

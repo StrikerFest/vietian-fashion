@@ -45,6 +45,7 @@ export default function CartPage() {
 
     // --- Payment Method State ---
     const [paymentMethod, setPaymentMethod] = useState('cod');
+    const [receiverPhone, setReceiverPhone] = useState(''); // [NEW] Receiver phone for the order
 
     // --- Address Logic ---
     const fetchAddresses = useCallback(async () => {
@@ -102,6 +103,11 @@ export default function CartPage() {
             finalGuestData = guestData;
         }
 
+        if (!receiverPhone) {
+            addToast('Vui lòng nhập số điện thoại người nhận.', 'error');
+            return;
+        }
+
         setIsCheckingOut(true);
         try {
             const response = await fetch('/api/checkout', {
@@ -112,8 +118,9 @@ export default function CartPage() {
                     discountId: appliedDiscount?.id || null,
                     userId: session?.user?.id || null,
                     addressId: finalAddressId,
-                    guestData: finalGuestData, // Contains { email, phone, ...address }
-                    paymentMethod
+                    guestData: finalGuestData, 
+                    paymentMethod,
+                    receiverPhone // [NEW] Pass phone to API
                 }),
             });
 
@@ -207,6 +214,8 @@ export default function CartPage() {
                             hasSelectedAddress={hasValidInfo}
                             paymentMethod={paymentMethod}
                             setPaymentMethod={setPaymentMethod}
+                            receiverPhone={receiverPhone} // [NEW]
+                            setReceiverPhone={setReceiverPhone} // [NEW]
                         />
                     </div>
                 </div>

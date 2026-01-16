@@ -56,6 +56,9 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
 
     const discountDetails = getDiscountDetails(order);
 
+    // [FIX] Safely extract address (handle Array vs Object)
+    const address = Array.isArray(order.addresses) ? order.addresses[0] : order.addresses;
+
     // --- Actions ---
 
     /**
@@ -201,11 +204,11 @@ export default function OrderDetailsModal({ order, onClose, onUpdateOrder }) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <h3 className="font-semibold mb-2 text-lg text-white">Địa chỉ giao hàng</h3>
-                            {order.addresses ? (
+                            {address ? (
                                 <div className="text-sm text-gray-300 bg-gray-900/50 p-4 rounded border border-gray-700 h-full">
-                                    <p className="font-medium text-white mb-1">{order.addresses.address_line_1}</p>
-                                    <p>{order.addresses.city}, {order.addresses.state_province_region}</p>
-                                    <p>{order.addresses.country}</p>
+                                    <p className="font-medium text-white mb-1">{address.address_line_1}</p>
+                                    <p>{address.city}, {address.state_province_region}</p>
+                                    <p>{address.country}</p>
                                 </div>
                             ) : <p className="text-gray-500 italic">Không có địa chỉ.</p>}
                         </div>
