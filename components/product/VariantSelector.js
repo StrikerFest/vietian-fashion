@@ -64,6 +64,34 @@ export default function VariantSelector({ variants, selectedVariant, onSelect })
 
     if (!variants || variants.length === 0) return null;
 
+    // [FIX] Fallback for variants without attributes
+    if (availableGroups.length === 0) {
+        return (
+            <div className="mb-8">
+                <h3 className="text-sm font-medium text-gray-300 mb-3 uppercase tracking-wide">
+                    Chọn biến thể
+                </h3>
+                <div className="flex flex-wrap gap-3">
+                    {variants.map(variant => (
+                        <button
+                            key={variant.id}
+                            onClick={() => onSelect(variant)}
+                            className={`
+                                relative py-2 px-4 rounded-md border text-sm font-semibold transition-all duration-200
+                                ${selectedVariant?.id === variant.id
+                                ? 'bg-indigo-600 border-indigo-500 text-white shadow-md'
+                                : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
+                            }
+                            `}
+                        >
+                            {variant.sku}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="mb-8 space-y-6">
             {availableGroups.map(groupName => (
