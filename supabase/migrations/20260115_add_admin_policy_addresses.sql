@@ -1,0 +1,1 @@
+CREATE POLICY "Admin full access addresses" ON "public"."addresses" USING (("public"."get_user_role"() = 'admin'::"text"));
