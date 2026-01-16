@@ -14,6 +14,9 @@ export default function TagGenerationModal({ isOpen, onClose, selectedIds, onCom
     const [targetAttributes, setTargetAttributes] = useState(['Màu sắc', 'Chất liệu', 'Phong cách']);
 
     const [newAttribute, setNewAttribute] = useState('');
+    
+    // 'generate' | 'both' | 'consolidate'
+    const [mode, setMode] = useState('generate'); 
 
         const [isProcessing, setIsProcessing] = useState(false);
 
@@ -63,6 +66,24 @@ export default function TagGenerationModal({ isOpen, onClose, selectedIds, onCom
 
         };
 
+        const runConsolidation = async () => {
+            setProgressLog(prev => [...prev, "--- Bắt đầu gộp thẻ (Consolidation) ---"]);
+            try {
+                const res = await fetch('/api/admin/tags/consolidate', { method: 'POST' });
+                const result = await res.json();
+                
+                if (!res.ok) throw new Error(result.error);
+                
+                setProgressLog(prev => [...prev, result.message]);
+                if (result.details) {
+                    result.details.forEach(d => setProgressLog(prev => [...prev, `   > ${d}`]));
+                }
+                return true;
+            } catch (error) {
+                setProgressLog(prev => [...prev, `Lỗi gộp thẻ: ${error.message}`]);
+                return false;
+            }
+        };
     
 
         const handleRun = async () => {
@@ -86,128 +107,130 @@ export default function TagGenerationModal({ isOpen, onClose, selectedIds, onCom
             setProgressLog(['Đang khởi tạo...']);
 
     
+            // 1. GENERATION PHASE
+            if (mode === 'generate' || mode === 'both') {
+                try {
 
-            try {
+                    const response = await fetch('/api/admin/products/generate-tags-batch', {
 
-                const response = await fetch('/api/admin/products/generate-tags-batch', {
+                        method: 'POST',
 
-                    method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
 
-                    headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
 
-                    body: JSON.stringify({
+                            scope,
 
-                        scope,
+                            limit: parseInt(limit),
 
-                        limit: parseInt(limit),
+                            ids: selectedIds,
 
-                        ids: selectedIds,
+                            targetAttributes
 
-                        targetAttributes
+                        })
 
-                    })
+                    });
 
-                });
+        
 
-    
+                    const reader = response.body.getReader();
 
-                const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
 
-                const decoder = new TextDecoder();
+        
 
-    
+                    while (true) {
 
-                while (true) {
+                        const { value, done } = await reader.read();
 
-                    const { value, done } = await reader.read();
-
-                    if (done) break;
-
-                    
-
-                    const text = decoder.decode(value);
-
-                    const lines = text.split('\n\n').filter(l => l.startsWith('data: '));
-
-                    
-
-                    for (const line of lines) {
-
-                        const jsonStr = line.replace('data: ', '').trim();
-
-                        if (!jsonStr) continue;
+                        if (done) break;
 
                         
 
-                        try {
+                        const text = decoder.decode(value);
 
-                            const data = JSON.parse(jsonStr);
+                        const lines = text.split('\n\n').filter(l => l.startsWith('data: '));
 
-                            if (data.status === 'start') {
+                        
 
-                                setProgress({ current: 0, total: data.total });
+                        for (const line of lines) {
 
-                            }
+                            const jsonStr = line.replace('data: ', '').trim();
 
-                            if (data.log) {
+                            if (!jsonStr) continue;
 
-                                setProgressLog(prev => [...prev.slice(-4), data.log]);
+                            
 
-                                if (data.current !== null) {
+                            try {
 
-                                    setProgress(prev => ({ ...prev, current: data.current }));
+                                const data = JSON.parse(jsonStr);
+
+                                if (data.status === 'start') {
+
+                                    setProgress({ current: 0, total: data.total });
 
                                 }
 
+                                if (data.log) {
+
+                                    setProgressLog(prev => [...prev.slice(-4), data.log]);
+
+                                    if (data.current !== null) {
+
+                                        setProgress(prev => ({ ...prev, current: data.current }));
+
+                                    }
+
+                                }
+
+                                if (data.status === 'complete') {
+                                    // Don't set isComplete yet if we need to consolidate
+                                    addToast(`Tạo thẻ hoàn tất: ${data.stats.processed}`, 'success');
+                                }
+
+                                if (data.error) {
+
+                                    addToast(data.error, 'error');
+
+                                }
+
+                            } catch (e) {
+
+                                console.error("Lỗi phân tích luồng", e);
+
                             }
-
-                            if (data.status === 'complete') {
-
-                                setIsComplete(true);
-
-                                setProgress(prev => ({ ...prev, current: prev.total }));
-
-                                addToast(`Hoàn thành: Đã xử lý ${data.stats.processed}, Lỗi ${data.stats.errors}`, 'success');
-
-                                if (onComplete) onComplete();
-
-                            }
-
-                            if (data.error) {
-
-                                addToast(data.error, 'error');
-
-                            }
-
-                        } catch (e) {
-
-                            console.error("Lỗi phân tích luồng", e);
 
                         }
 
                     }
 
+        
+
+                } catch (error) {
+
+                    console.error(error);
+
+                    addToast("Không thể bắt đầu quá trình tạo thẻ", "error");
+                    setIsProcessing(false);
+                    return;
+
                 }
-
-    
-
-            } catch (error) {
-
-                console.error(error);
-
-                addToast("Không thể bắt đầu quá trình", "error");
-
-            } finally {
-
-                setIsProcessing(false);
-
             }
+            
+            // 2. CONSOLIDATION PHASE
+            if (mode === 'consolidate' || mode === 'both') {
+                await runConsolidation();
+            }
+            
+            setIsComplete(true);
+            setIsProcessing(false);
+            setProgress(prev => ({ ...prev, current: prev.total }));
 
         };
 
     
 
-        const progressPercentage = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+        const progressPercentage = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : (isProcessing ? 100 : 0);
 
     
 
@@ -249,7 +272,7 @@ export default function TagGenerationModal({ isOpen, onClose, selectedIds, onCom
 
                                 <h4 className="text-xl font-bold text-white mb-2">Hoàn tất!</h4>
 
-                                <p className="text-gray-400 text-sm mb-6">Đã cập nhật thẻ cho các sản phẩm.</p>
+                                <p className="text-gray-400 text-sm mb-6">Quá trình xử lý đã kết thúc.</p>
 
                                 
 
@@ -264,12 +287,39 @@ export default function TagGenerationModal({ isOpen, onClose, selectedIds, onCom
                         ) : (
 
                             <>
+                                {/* Mode Selection */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-300 mb-3">Chế độ</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <label className={`
+                                            cursor-pointer p-2 rounded border text-center text-xs font-bold transition-all
+                                            ${mode === 'generate' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-600'}
+                                        `}>
+                                            <input type="radio" name="mode" value="generate" checked={mode === 'generate'} onChange={e => setMode(e.target.value)} className="hidden" disabled={isProcessing} />
+                                            Chỉ Tạo Thẻ
+                                        </label>
+                                        <label className={`
+                                            cursor-pointer p-2 rounded border text-center text-xs font-bold transition-all
+                                            ${mode === 'both' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-600'}
+                                        `}>
+                                            <input type="radio" name="mode" value="both" checked={mode === 'both'} onChange={e => setMode(e.target.value)} className="hidden" disabled={isProcessing} />
+                                            Tạo & Gộp
+                                        </label>
+                                        <label className={`
+                                            cursor-pointer p-2 rounded border text-center text-xs font-bold transition-all
+                                            ${mode === 'consolidate' ? 'bg-green-600 border-green-500 text-white' : 'bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-600'}
+                                        `}>
+                                            <input type="radio" name="mode" value="consolidate" checked={mode === 'consolidate'} onChange={e => setMode(e.target.value)} className="hidden" disabled={isProcessing} />
+                                            Chỉ Gộp Thẻ
+                                        </label>
+                                    </div>
+                                </div>
 
-                                {/* Scope Selection */}
-
+                                {/* Scope Selection (Hidden if Consolidate Only) */}
+                                {mode !== 'consolidate' && (
                                 <div>
 
-                                    <label className="block text-sm font-bold text-gray-300 mb-3">Phạm vi xử lý</label>
+                                    <label className="block text-sm font-bold text-gray-300 mb-3">Phạm vi tạo thẻ</label>
 
                                     <div className="space-y-2">
 
@@ -382,11 +432,11 @@ export default function TagGenerationModal({ isOpen, onClose, selectedIds, onCom
                                     </div>
 
                                 </div>
-
+                                )}
     
 
-                                {/* Target Attributes */}
-
+                                {/* Target Attributes (Hidden if Consolidate Only) */}
+                                {mode !== 'consolidate' && (
                                 <div>
 
                                     <label className="block text-sm font-bold text-gray-300 mb-2">Thuộc tính mục tiêu</label>
@@ -450,7 +500,7 @@ export default function TagGenerationModal({ isOpen, onClose, selectedIds, onCom
                                     </div>
 
                                 </div>
-
+                                )}
     
 
                                 {/* Progress & Log */}
@@ -545,7 +595,7 @@ export default function TagGenerationModal({ isOpen, onClose, selectedIds, onCom
 
                         >
 
-                            {isProcessing ? 'Đang xử lý...' : 'Bắt đầu tạo'}
+                            {isProcessing ? 'Đang xử lý...' : (mode === 'consolidate' ? 'Gộp thẻ ngay' : 'Bắt đầu')}
 
                         </button>
 

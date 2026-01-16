@@ -113,6 +113,56 @@ export async function POST(request) {
             
             if (error) throw error;
             return NextResponse.json({ message: `Permanently deleted ${ids.length} items.` });
+
+        } else if (action === 'force_delete') {
+            
+            if (entity === 'products') {
+                // 1. Get Variant IDs
+                const { data: variants } = await supabase.from('product_variants').select('id').in('product_id', ids);
+                const variantIds = variants?.map(v => v.id) || [];
+
+                // 2. Unlink Order Items (Prevent FK Error)
+                if (variantIds.length > 0) {
+                    await supabase.from('order_items').update({ variant_id: null }).in('variant_id', variantIds);
+                    // Inventory/Attributes cascade on variant delete usually, but we delete variants explicitly below.
+                }
+
+                // 3. Delete Dependencies (Manual Cascade)
+                await supabase.from('product_categories').delete().in('product_id', ids);
+                await supabase.from('product_collections').delete().in('product_id', ids);
+                await supabase.from('product_images').delete().in('product_id', ids);
+                await supabase.from('reviews').delete().in('product_id', ids);
+                await supabase.from('wishlists').delete().in('product_id', ids);
+                
+                // Delete Variants (Cascades to Inventory/VariantAttrs if configured, else might fail)
+                // Schema says inventory_levels CASCADE. variant_attributes CASCADE.
+                await supabase.from('product_variants').delete().in('product_id', ids);
+
+                // 4. Delete Product
+                const { error } = await supabase.from('products').delete().in('id', ids);
+                if (error) throw error;
+
+            } else if (entity === 'categories') {
+                // 1. Unlink Products
+                await supabase.from('product_categories').delete().in('category_id', ids);
+                
+                // 2. Unlink Children (Set parent to null)
+                await supabase.from('categories').update({ parent_id: null }).in('parent_id', ids);
+
+                // 3. Delete Usage as Attribute Value
+                // Warning: This removes the attribute from existing products/variants.
+                await supabase.from('variant_attributes').delete().in('attribute_value_id', ids);
+
+                // 4. Delete Category
+                const { error } = await supabase.from('categories').delete().in('id', ids);
+                if (error) throw error;
+
+            } else {
+                return NextResponse.json({ error: 'Force delete not supported for this entity.' }, { status: 400 });
+            }
+
+            return NextResponse.json({ message: `Force deleted ${ids.length} items and their dependencies.` });
+
         } else {
             return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
         }

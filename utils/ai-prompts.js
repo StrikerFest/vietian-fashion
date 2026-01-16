@@ -45,19 +45,21 @@ Nhiệm vụ của bạn là phân loại sản phẩm này theo các Nhóm Thu�
 
 Hướng dẫn quan trọng:
 1. **Ưu tiên từ có sẵn**: Nếu sản phẩm phù hợp với các giá trị "Đã có" trong danh sách trên, HÃY SỬ DỤNG LẠI CHÚNG chính xác từng ký tự. Chỉ tạo từ mới nếu thực sự cần thiết.
-2. **Ngôn ngữ**: Tất cả các giá trị (values) trả về PHẢI là Tiếng Việt chuẩn.
-3. **Định dạng**: Trả về duy nhất một JSON object hợp lệ.
-4. **Ngắn gọn**: Các tag chỉ được phép từ 1-4 từ. KHÔNG viết câu.
-5. **Values**: Giá trị phải là mảng các chuỗi (Array of Strings).
-   - Ví dụ: Thay vì "Blue", hãy trả về ["Xanh dương"].
-   - Thay vì "Cotton", hãy trả về ["Vải Cotton", "Thoáng mát"].
-6. Nếu không xác định được thuộc tính nào, hãy bỏ qua key đó.
-7. Không sử dụng markdown code block.
+2. **Tổng quát hóa (Generalize)**: HÃY DÙNG CÁC THUẬT NGỮ CHUNG NHẤT. Tránh quá chi tiết.
+   - **Màu sắc**: Quy về màu cơ bản. KHÔNG dùng "Xanh Navy", "Xanh Nhạt", "Đỏ Đô". HÃY DÙNG "Xanh dương", "Đỏ".
+   - **Kiểu dáng**: Bỏ qua các chi tiết nhỏ như "Rách", "Washed", "Túi hộp". HÃY DÙNG "Jeans", "Kaki", "Áo khoác".
+3. **Ngôn ngữ**: Tất cả các giá trị (values) trả về PHẢI là Tiếng Việt chuẩn.
+4. **Định dạng**: Trả về duy nhất một JSON object hợp lệ.
+5. **Ngắn gọn**: Các tag chỉ được phép từ 1-3 từ.
+6. **Values**: Giá trị phải là mảng các chuỗi (Array of Strings).
+7. Nếu không xác định được thuộc tính nào, hãy bỏ qua key đó.
+8. Không sử dụng markdown code block.
 
 Ví dụ định dạng mong muốn:
 {
-  "Màu sắc": ["Xanh Navy", "Trắng"],
-  "Chất liệu": ["Kaki", "Thun"]
+  "Màu sắc": ["Xanh dương", "Trắng"],
+  "Chất liệu": ["Kaki", "Thun"],
+  "Loại": ["Quần Jeans"]
 }`;
 
 export const DEFAULT_DESCRIPTION_PROMPT = `Đóng vai trò là một chuyên gia viết nội dung (copywriter) cho một thương hiệu thời trang hiện đại tại Việt Nam.

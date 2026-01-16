@@ -230,6 +230,16 @@ export default function RecycleBinPage() {
                             >
                                 🗑️ Xóa vĩnh viễn
                             </button>
+
+                            {['products', 'categories'].includes(activeTab) && (
+                                <button
+                                    onClick={() => handleBulkAction('force_delete')}
+                                    className="bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 rounded text-sm transition-colors ml-2 border border-red-600"
+                                    title="Xóa kèm theo các dữ liệu liên quan (Inventory, Links...)"
+                                >
+                                    💥 Xóa triệt để
+                                </button>
+                            )}
                         </>
                     )}
                 </div>
