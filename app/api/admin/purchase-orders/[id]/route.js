@@ -1,6 +1,5 @@
 // app/api/admin/purchase-orders/[id]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
 import { updateInventory } from '@/utils/inventory';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
@@ -8,6 +7,9 @@ import { cookies } from 'next/headers';
 export async function GET(request, context) {
     const params = await context.params;
     const { id } = params;
+    
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     if (!id) return NextResponse.json({ error: 'Yêu cầu ID' }, { status: 400 });
 
@@ -71,8 +73,8 @@ export async function PUT(request, context) {
     const { status } = await request.json();
 
     const cookieStore = await cookies();
-    const authSupabase = createRouteHandlerClient({ cookies: () => cookieStore });
-    const { data: { session } } = await authSupabase.auth.getSession();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const { data: { session } } = await supabase.auth.getSession();
 
     try {
         const { data: currentPO, error: fetchError } = await supabase
@@ -122,6 +124,9 @@ export async function PUT(request, context) {
 export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
+    
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
         const { data: po } = await supabase.from('purchase_orders').select('status').eq('id', id).single();

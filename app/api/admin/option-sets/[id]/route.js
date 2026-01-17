@@ -1,10 +1,14 @@
 // app/api/admin/option-sets/[id]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function GET(request, context) {
     const params = await context.params;
     const { id } = params;
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     const { data, error } = await supabase
         .from('option_sets')
@@ -21,6 +25,10 @@ export async function GET(request, context) {
 export async function PUT(request, context) {
     const params = await context.params;
     const { id } = params;
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     const { title, priority, is_active, rules, options } = await request.json();
 
     try {
@@ -59,10 +67,12 @@ export async function PUT(request, context) {
     }
 }
 
-// DELETE remains unchanged
 export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
         const { error } = await supabase

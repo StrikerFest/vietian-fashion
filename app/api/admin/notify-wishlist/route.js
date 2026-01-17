@@ -1,11 +1,15 @@
 // app/api/admin/notify-wishlist/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request) {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     const { product_id, discount_text } = await request.json();
 
     if (!product_id || !discount_text) {

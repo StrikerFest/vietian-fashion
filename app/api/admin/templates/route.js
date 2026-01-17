@@ -1,8 +1,12 @@
 // app/api/admin/templates/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function GET() {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     try {
         const { data, error } = await supabase
             .from('email_templates')
@@ -17,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(request) {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     const { name, type, subject, body_html } = await request.json();
 
     if (!name || !subject || !body_html) {

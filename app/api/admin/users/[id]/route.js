@@ -1,11 +1,15 @@
 // app/api/admin/users/[id]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 // GET single user details
 export async function GET(request, context) {
     const params = await context.params;
     const { id } = params;
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     if (!id) return NextResponse.json({ error: 'Yêu cầu ID người dùng' }, { status: 400 });
 
@@ -44,6 +48,9 @@ export async function GET(request, context) {
 export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     if (!id) return NextResponse.json({ error: 'Yêu cầu ID người dùng' }, { status: 400 });
 

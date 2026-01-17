@@ -1,8 +1,12 @@
 // app/api/admin/option-sets/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function GET() {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     try {
         const { data, error } = await supabase
             .from('option_sets')
@@ -30,6 +34,9 @@ export async function GET() {
 }
 
 export async function POST(request) {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     const { title, priority, is_active, rules, options } = await request.json();
 
     if (!title) return NextResponse.json({ error: 'Tiêu đề là bắt buộc' }, { status: 400 });

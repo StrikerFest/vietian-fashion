@@ -1,8 +1,11 @@
-// app/api/admin/purchase-orders/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function GET() {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     try {
         const { data, error } = await supabase
             .from('purchase_orders')
@@ -25,6 +28,9 @@ export async function GET() {
 }
 
 export async function POST(request) {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    
     const { supplier_id, order_date, expected_date, items } = await request.json();
 
     if (!supplier_id || !items || items.length === 0) {

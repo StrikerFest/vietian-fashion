@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { generateEmbedding } from '@/utils/ai-server';
 
 // Helper to process a batch of items
-async function processBatch(table, items) {
+async function processBatch(supabase, table, items) {
     let updated = 0;
     for (const item of items) {
         const textToEmbed = `${item.name} ${item.description || ''}`;
@@ -26,6 +27,9 @@ async function processBatch(table, items) {
 }
 
 export async function POST() {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     try {
         // 1. Fetch Collections without embeddings (or just fetch all to sync)
         const { data: collections } = await supabase
@@ -39,8 +43,8 @@ export async function POST() {
             .eq('type', 'attribute');
 
         // 3. Process
-        const collectionsUpdated = await processBatch('collections', collections || []);
-        const categoriesUpdated = await processBatch('categories', categories || []);
+        const collectionsUpdated = await processBatch(supabase, 'collections', collections || []);
+        const categoriesUpdated = await processBatch(supabase, 'categories', categories || []);
 
         return NextResponse.json({
             message: 'Cập nhật embeddings thành công.',

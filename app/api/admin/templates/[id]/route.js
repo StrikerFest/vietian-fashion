@@ -1,10 +1,15 @@
 // app/api/admin/templates/[id]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function PUT(request, context) {
     const params = await context.params;
     const { id } = params;
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     const { name, type, subject, body_html, is_active } = await request.json();
 
     try {
@@ -25,6 +30,9 @@ export async function PUT(request, context) {
 export async function DELETE(request, context) {
     const params = await context.params;
     const { id } = params;
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     try {
         const { error } = await supabase
