@@ -73,6 +73,7 @@ export async function GET(request, context) {
             .select(`
                 *,
                 tax_amount, shipping_cost, 
+                order_discounts ( discounts ( code, type, value ) ),
                 addresses ( * ),
                 order_items (
                     id, quantity, price_at_purchase, custom_options,
@@ -85,10 +86,10 @@ export async function GET(request, context) {
             .eq('id', orderId)
             .single();
 
-        if (res.data && res.data.user_id === null) {
+        if (res.data) {
             orderData = res.data;
         } else {
-            orderError = { message: 'Forbidden' };
+            orderError = res.error || { message: 'Order not found' };
         }
     }
     else {
