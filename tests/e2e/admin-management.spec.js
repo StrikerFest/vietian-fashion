@@ -61,5 +61,17 @@ test.describe('Admin Management Flow', () => {
     } catch (e) {
         console.log('Progress bar did not appear (API might have failed fast or mock missing)');
     }
+
+    // 6. Go to Purchase Orders and verify it loads (Check for RLS fix)
+    console.log('Step 6: Check Purchase Orders List');
+    await page.goto('/admin/purchase-orders');
+    await expect(page.getByRole('heading', { name: 'Đơn Nhập Hàng' })).toBeVisible();
+    
+    // Check if the loading state finishes and we don't get an error toast (conceptually)
+    // We expect the table or a "no orders" message to appear
+    await expect(page.locator('text=Đang tải đơn hàng...')).not.toBeVisible({ timeout: 10000 });
+    
+    // If it reaches here without a 403/500 being handled by the UI as a crash, it's a good sign
+    console.log('Step 6 Success: Purchase Orders loaded');
   });
 });

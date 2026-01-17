@@ -1,12 +1,16 @@
 // app/api/recommendations/route.js
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { generateEmbedding } from '@/utils/ai-server';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function POST(request) {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     try {
         const body = await request.json();
         const mode = body.mode || 'semantic';
@@ -84,15 +88,14 @@ export async function POST(request) {
 
         const limits = {
             products: 8,
-            collections: 4, // Tăng nhẹ để hiển thị nhiều hơn
+            collections: 4, 
             attributes: 4,
             ...(settingsData?.value || {})
         };
 
-        const candidatePoolSize = 30; // Tăng pool size
+        const candidatePoolSize = 30; 
 
         // Vector Search
-        // [FIX] Hạ match_threshold xuống 0.15 để thu thập nhiều ứng viên tiềm năng hơn cho AI chọn lọc
         const [collectionCandidates, categoryCandidates] = await Promise.all([
             supabase.rpc('match_collections', {
                 query_embedding: embedding,
@@ -110,16 +113,16 @@ export async function POST(request) {
         const validAttributes = categoryCandidates.data || [];
 
         const collectionList = validCollections
-            .map(c => `ID: ${c.id}, Name: "${c.name}"`)
+            .map(c => `ID: ${c.id}, Name: "${c.name}" `)
             .join('\n');
 
         const attributeList = validAttributes
             .map(a => `ID: ${a.id}, Name: "${a.name}" (Group: ${a.parent_name || 'Root'})`)
             .join('\n');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-        // [FIX] Prompt Bilingual + Hướng dẫn chọn Collection/Attribute linh hoạt hơn
+        // Prompt Bilingual
         const systemInstruction = `
             You are a smart, bilingual fashion shopping assistant (Vietnamese & English).
 
@@ -129,7 +132,6 @@ export async function POST(request) {
             1. **Analyze Intent**: Understand the user's need (style, occasion, weather).
             2. **Generate Tags**: Create a list of 10-15 keywords. **Mix BOTH Vietnamese and English**.
             3. **Select IDs**: Look at the Candidate Lists below. Select IDs of collections or attributes that are **semantically relevant** to the query. 
-               - *Rule:* It doesn't have to be an exact keyword match. If the user asks for "winter", select "Jackets" or "Hoodies" categories.
 
             Candidate Collections:
             ${collectionList || "None found."}

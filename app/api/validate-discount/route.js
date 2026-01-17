@@ -1,8 +1,12 @@
 // app/api/validate-discount/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient'; //
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function POST(request) {
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     const { code } = await request.json();
 
     if (!code) {
@@ -14,7 +18,7 @@ export async function POST(request) {
 
     try {
         const { data: discount, error } = await supabase
-            .from('discounts') //
+            .from('discounts') 
             .select('*')
             .eq('code', uppercaseCode) // Match the code
             .single(); // Expect only one or zero results
@@ -25,17 +29,17 @@ export async function POST(request) {
         }
 
         // Check if the discount is active
-        if (!discount.is_active) { //
+        if (!discount.is_active) { 
             return NextResponse.json({ error: 'Mã giảm giá này không hoạt động.' }, { status: 400 });
         }
 
         // Check start date (if it exists)
-        if (discount.start_date && new Date(discount.start_date) > now) { //
+        if (discount.start_date && new Date(discount.start_date) > now) { 
             return NextResponse.json({ error: 'Mã giảm giá này chưa đến ngày kích hoạt.' }, { status: 400 });
         }
 
         // Check end date (if it exists)
-        if (discount.end_date && new Date(discount.end_date) < now) { //
+        if (discount.end_date && new Date(discount.end_date) < now) { 
             return NextResponse.json({ error: 'Mã giảm giá này đã hết hạn.' }, { status: 400 });
         }
 

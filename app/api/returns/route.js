@@ -1,10 +1,9 @@
 // app/api/returns/route.js
 import { NextResponse } from 'next/server';
-import { supabase as staticSupabase } from '@/lib/supabaseClient';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
-// GET all return requests (Admin Only) - UNCHANGED
+// GET all return requests (Admin Only)
 export async function GET() {
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
@@ -13,7 +12,7 @@ export async function GET() {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const { data, error } = await staticSupabase
+        const { data, error } = await supabase
             .from('return_requests')
             .select(`
                 id,
@@ -97,7 +96,6 @@ export async function POST(request) {
         }
 
         // 3. Create Request
-        // IMPORTANT: Use order.user_id (the customer), not session.user.id (potentially the admin)
         const { data: returnRequest, error: createError } = await supabase
             .from('return_requests')
             .insert({

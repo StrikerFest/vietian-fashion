@@ -1,11 +1,15 @@
 // app/api/product-options/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
-    const variantId = searchParams.get('variantId'); // New parameter
+    const variantId = searchParams.get('variantId');
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     if (!productId) {
         return NextResponse.json({ error: 'Yêu cầu ID sản phẩm' }, { status: 400 });

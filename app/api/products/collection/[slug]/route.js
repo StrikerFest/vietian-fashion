@@ -1,11 +1,15 @@
 // app/api/products/collection/[slug]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function GET(request, context) {
     const params = await context.params;
     const { slug } = params;
     const { searchParams } = new URL(request.url);
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     if (!slug) return NextResponse.json({ error: 'Yêu cầu bộ sưu tập' }, { status: 400 });
 

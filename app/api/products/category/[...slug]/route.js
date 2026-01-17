@@ -1,11 +1,15 @@
 // app/api/products/category/[...slug]/route.js
 import {NextResponse} from 'next/server';
-import {supabase} from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function GET(request, context) {
     const params = await context.params;
     const {slug} = params;
     const {searchParams} = new URL(request.url);
+
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     if (!slug || slug.length === 0) return NextResponse.json({error: 'Yêu cầu danh mục'}, {status: 400});
     const categorySlug = slug[slug.length - 1];
@@ -199,7 +203,7 @@ export async function GET(request, context) {
                     if (va.attribute_value?.parent?.name) attributes[va.attribute_value.parent.name] = va.attribute_value.name;
                 });
 
-                // [FIX] Robust Inventory Handling
+                // Robust Inventory Handling
                 let stockData = v.inventory_levels;
                 if (Array.isArray(stockData)) {
                     stockData = stockData[0];
